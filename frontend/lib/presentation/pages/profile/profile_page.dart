@@ -5,6 +5,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/location_service.dart';
 import '../auth/login_page.dart';
 import '../orders/orders_page.dart';
+import 'payment_methods_page.dart';
+import 'notifications_page.dart';
+import 'help_support_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -365,14 +368,44 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 )),
         const SizedBox(height: 8),
-        _buildMenuItem(Icons.payment_rounded, 'Payment Methods',
-            AppTheme.accentGreen, () {}),
+        _buildMenuItem(
+            Icons.payment_rounded,
+            'Payment Methods',
+            AppTheme.accentGreen,
+            () => Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const PaymentMethodsPage(),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
+                )),
         const SizedBox(height: 8),
-        _buildMenuItem(Icons.notifications_rounded, 'Notifications',
-            AppTheme.accentYellow, () {}),
+        _buildMenuItem(
+            Icons.notifications_rounded,
+            'Notifications',
+            AppTheme.accentYellow,
+            () => Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const NotificationsPage(),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
+                )),
         const SizedBox(height: 8),
-        _buildMenuItem(Icons.help_outline_rounded, 'Help & Support',
-            AppTheme.secondaryColor, () {}),
+        _buildMenuItem(
+            Icons.help_outline_rounded,
+            'Help & Support',
+            AppTheme.secondaryColor,
+            () => Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const HelpSupportPage(),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
+                )),
       ],
     );
   }

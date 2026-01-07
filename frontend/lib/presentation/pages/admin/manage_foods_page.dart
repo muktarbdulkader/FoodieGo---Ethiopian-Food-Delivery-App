@@ -92,7 +92,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                 _buildTextField(imageCtrl, 'Image URL (optional)', Icons.image),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   decoration: InputDecoration(
                     labelText: 'Category',
                     prefixIcon: const Icon(Icons.category),

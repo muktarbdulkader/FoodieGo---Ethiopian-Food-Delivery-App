@@ -65,16 +65,20 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
                 child: Center(child: CircularProgressIndicator()))
           else if (_foods.isEmpty)
             SliverFillRemaining(
+              hasScrollBody: false,
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.restaurant_menu,
-                        size: 64, color: Colors.grey.shade300),
-                    const SizedBox(height: 16),
-                    const Text('No menu items available',
-                        style: TextStyle(color: AppTheme.textSecondary)),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.restaurant_menu,
+                          size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      const Text('No menu items available',
+                          style: TextStyle(color: AppTheme.textSecondary)),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -247,13 +251,13 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
                     color: AppTheme.textSecondary, fontSize: 13)),
           ],
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _buildInfoChip(Icons.delivery_dining,
-                  '${AppConstants.currency}${widget.hotel.deliveryFee.toStringAsFixed(0)} delivery'),
-              const SizedBox(width: 12),
+                  '${AppConstants.currency}${widget.hotel.deliveryFee.toStringAsFixed(0)}'),
               _buildInfoChip(Icons.timer, '20-30 min'),
-              const SizedBox(width: 12),
               _buildInfoChip(Icons.restaurant_menu, '${_foods.length} items'),
             ],
           ),
@@ -270,6 +274,7 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: AppTheme.textSecondary),
           const SizedBox(width: 4),

@@ -187,8 +187,8 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9), shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+                color: Color(0xFFF1F5F9), shape: BoxShape.circle),
             child: const Icon(Icons.receipt_long,
                 size: 48, color: AppTheme.textSecondary),
           ),

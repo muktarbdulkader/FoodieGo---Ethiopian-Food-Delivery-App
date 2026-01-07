@@ -161,7 +161,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       builder: (context, constraints) {
         // Calculate aspect ratio based on available width
         final cardWidth = (constraints.maxWidth - 10) / 2;
-        final cardHeight = 80.0; // Fixed height for consistent layout
+        const cardHeight = 80.0; // Fixed height for consistent layout
         final aspectRatio = cardWidth / cardHeight;
 
         return GridView.count(
@@ -240,7 +240,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final cardWidth = (constraints.maxWidth - 10) / 2;
-            final cardHeight = 50.0;
+            const cardHeight = 50.0;
             final aspectRatio = cardWidth / cardHeight;
 
             return GridView.count(

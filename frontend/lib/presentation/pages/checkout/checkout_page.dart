@@ -634,10 +634,10 @@ class _CheckoutPageState extends State<CheckoutPage>
                 color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
@@ -645,8 +645,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                       color: AppTheme.accentGreen,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
+                  SizedBox(width: 12),
+                  Text(
                     'Getting your location...',
                     style: TextStyle(color: AppTheme.textSecondary),
                   ),

@@ -1,24 +1,41 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../core/utils/storage_utils.dart';
 
 /// Auth Provider - Extended for Hotel Management
+/// Supports separate admin and user sessions
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
 
   User? _user;
   bool _isLoading = false;
   String? _error;
+  SessionType _sessionType = SessionType.user;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
   bool get isAdmin => _user?.role == 'admin';
+  SessionType get sessionType => _sessionType;
 
-  void init() {
+  /// Initialize with specific session type (based on route)
+  void init({SessionType sessionType = SessionType.user}) {
+    _sessionType = sessionType;
+    StorageUtils.setSessionType(sessionType);
     _user = _authRepository.getCurrentUser();
     notifyListeners();
+  }
+
+  /// Switch session type (when navigating between admin/user portals)
+  void switchSessionType(SessionType type) {
+    if (_sessionType != type) {
+      _sessionType = type;
+      StorageUtils.setSessionType(type);
+      _user = _authRepository.getCurrentUser();
+      notifyListeners();
+    }
   }
 
   /// Register new user (supports admin with hotel info)

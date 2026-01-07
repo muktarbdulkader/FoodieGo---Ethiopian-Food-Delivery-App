@@ -47,16 +47,22 @@ class FoodieGoApp extends StatefulWidget {
 }
 
 class _FoodieGoAppState extends State<FoodieGoApp> {
-  late AuthProvider _authProvider;
+  // Separate auth providers for admin and user sessions
+  late AuthProvider _userAuthProvider;
+  late AuthProvider _adminAuthProvider;
 
   @override
   void initState() {
     super.initState();
-    _authProvider = AuthProvider()..init();
+    // Initialize separate auth providers for user and admin
+    _userAuthProvider = AuthProvider()..init(sessionType: SessionType.user);
+    _adminAuthProvider = AuthProvider()..init(sessionType: SessionType.admin);
 
-    // Set up 401 handler to auto-logout
+    // Set up 401 handler - will logout the appropriate session
     ApiService.setUnauthorizedCallback(() {
-      _authProvider.logout();
+      // Logout both sessions on 401 (token expired)
+      _userAuthProvider.logout();
+      _adminAuthProvider.logout();
     });
   }
 
@@ -64,7 +70,8 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: _authProvider),
+        // User auth provider (default)
+        ChangeNotifierProvider.value(value: _userAuthProvider),
         ChangeNotifierProvider(create: (_) => FoodProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
@@ -84,20 +91,27 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         initialRoute: '/',
         onGenerateRoute: (settings) {
           // Admin routes - ONLY accessible via /admin URL
+          // Uses separate admin auth provider
           if (settings.name == '/admin' ||
               settings.name?.startsWith('/admin') == true) {
             return PageRouteBuilder(
               settings: settings,
-              pageBuilder: (_, __, ___) => Consumer<AuthProvider>(
-                builder: (context, auth, _) {
-                  if (!auth.isLoggedIn) {
-                    return const AdminLoginPage();
-                  }
-                  if (auth.user?.role == 'admin') {
-                    return const AdminDashboardPage();
-                  }
-                  return const _AccessDeniedPage();
-                },
+              pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
+                value: _adminAuthProvider,
+                child: Consumer<AuthProvider>(
+                  builder: (context, auth, _) {
+                    // Ensure admin session type is set
+                    StorageUtils.setSessionType(SessionType.admin);
+
+                    if (!auth.isLoggedIn) {
+                      return const AdminLoginPage();
+                    }
+                    if (auth.user?.role == 'admin') {
+                      return const AdminDashboardPage();
+                    }
+                    return _AccessDeniedPage(authProvider: _adminAuthProvider);
+                  },
+                ),
               ),
               transitionsBuilder: (_, animation, __, child) {
                 return FadeTransition(opacity: animation, child: child);
@@ -105,16 +119,20 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
             );
           }
 
-          // Default user routes
+          // Default user routes - uses user auth provider
           return PageRouteBuilder(
             settings: settings,
             pageBuilder: (_, __, ___) => Consumer<AuthProvider>(
               builder: (context, auth, _) {
+                // Ensure user session type is set
+                StorageUtils.setSessionType(SessionType.user);
+
                 if (!auth.isLoggedIn) {
                   return const LoginPage();
                 }
                 if (auth.user?.role == 'admin') {
-                  return const _AdminMustUsePortalPage();
+                  return _AdminMustUsePortalPage(
+                      authProvider: _userAuthProvider);
                 }
                 return const HomePage();
               },
@@ -131,7 +149,9 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
 // Access denied page for non-admin users
 class _AccessDeniedPage extends StatelessWidget {
-  const _AccessDeniedPage();
+  final AuthProvider authProvider;
+
+  const _AccessDeniedPage({required this.authProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +200,7 @@ class _AccessDeniedPage extends StatelessWidget {
                 const SizedBox(height: 40),
                 GestureDetector(
                   onTap: () {
-                    context.read<AuthProvider>().logout();
+                    authProvider.logout();
                     Navigator.pushReplacementNamed(context, '/');
                   },
                   child: Container(
@@ -219,7 +239,9 @@ class _AccessDeniedPage extends StatelessWidget {
 
 // Page shown when admin tries to access user area
 class _AdminMustUsePortalPage extends StatelessWidget {
-  const _AdminMustUsePortalPage();
+  final AuthProvider authProvider;
+
+  const _AdminMustUsePortalPage({required this.authProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +326,7 @@ class _AdminMustUsePortalPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 TextButton.icon(
                   onPressed: () {
-                    context.read<AuthProvider>().logout();
+                    authProvider.logout();
                     Navigator.pushReplacementNamed(context, '/');
                   },
                   icon: const Icon(Icons.logout_rounded),
