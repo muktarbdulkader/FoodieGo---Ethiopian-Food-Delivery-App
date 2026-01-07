@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="FoodieGo - Order delicious food from your favorite Ethiopian restaurants. Fast delivery, easy payment with Telebirr, M-Pesa, CBE Birr.">
+  <meta name="keywords" content="food delivery, Ethiopian food, restaurant, Telebirr, M-Pesa, CBE Birr, online order, fast delivery">
+  <meta name="author" content="FoodieGo">
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="FoodieGo - Food Delivery">
+  <meta property="og:description" content="Order delicious food from your favorite restaurants. Fast delivery to your doorstep.">
+  <meta property="og:image" content="icons/Icon-512.png">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="FoodieGo - Food Delivery">
+  <meta name="twitter:description" content="Order delicious food from your favorite restaurants.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FoodieGo">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#FF6B35">
+  <meta name="msapplication-navbutton-color" content="#FF6B35">
+  <meta name="apple-mobile-web-app-status-bar-style" content="#FF6B35">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="shortcut icon" href="favicon.png">
+
+  <title>FoodieGo - Food Delivery</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Splash Screen Styles -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #FF6B35 0%, #FF8A5C 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .loading-container {
+      text-align: center;
+      color: white;
+    }
+    
+    .loading-logo {
+      width: 120px;
+      height: 120px;
+      background: white;
+      border-radius: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .loading-logo svg {
+      width: 60px;
+      height: 60px;
+      fill: #FF6B35;
+    }
+    
+    .loading-text {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    
+    .loading-subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    .loading-spinner {
+      margin-top: 40px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-container" id="loading">
+    <div class="loading-logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+      </svg>
+    </div>
+    <div class="loading-text">FoodieGo</div>
+    <div class="loading-subtitle">Delicious food at your doorstep</div>
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <script>
+    // Hide loading screen when Flutter is ready
+    window.addEventListener('flutter-first-frame', function() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.transition = 'opacity 0.3s ease';
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 300);
+      }
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

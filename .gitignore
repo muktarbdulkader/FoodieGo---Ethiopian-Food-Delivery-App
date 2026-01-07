@@ -1,0 +1,85 @@
+# =========================
+# Security & Environment
+# =========================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# =========================
+# Backend (Node.js)
+# =========================
+backend/node_modules/
+backend/.env
+backend/logs/
+backend/*.log
+backend/npm-debug.log*
+
+# =========================
+# Frontend (Flutter)
+# =========================
+frontend/.dart_tool/
+frontend/.packages
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.metadata
+frontend/pubspec.lock
+
+# =========================
+# IDE & Editors
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# =========================
+# OS Generated
+# =========================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Logs & Debug
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# Build & Cache
+# =========================
+dist/
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+
+# =========================
+# Testing
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.backup

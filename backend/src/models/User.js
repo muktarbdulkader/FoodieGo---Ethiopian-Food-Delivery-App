@@ -1,0 +1,133 @@
+/**
+ * User Model - Extended for Hotel Management
+ */
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Name is required'],
+    trim: true,
+    maxlength: [50, 'Name cannot exceed 50 characters']
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters']
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  // User location
+  location: {
+    latitude: Number,
+    longitude: Number,
+    address: String,
+    city: String
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin', 'restaurant'],
+    default: 'user'
+  },
+  // For admin/restaurant owners - hotelName must be unique for admins
+  hotelName: {
+    type: String,
+    trim: true
+  },
+  hotelAddress: {
+    type: String,
+    trim: true
+  },
+  hotelPhone: {
+    type: String,
+    trim: true
+  },
+  hotelDescription: {
+    type: String,
+    trim: true
+  },
+  hotelImage: {
+    type: String,
+    default: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'
+  },
+  hotelRating: {
+    type: Number,
+    default: 4.5,
+    min: 0,
+    max: 5
+  },
+  hotelCategory: {
+    type: String,
+    enum: ['restaurant', 'cafe', 'fast_food', 'fine_dining', 'bakery', 'other'],
+    default: 'restaurant'
+  },
+  deliveryRadius: {
+    type: Number,
+    default: 10 // km
+  },
+  minOrderAmount: {
+    type: Number,
+    default: 0
+  },
+  deliveryFee: {
+    type: Number,
+    default: 50
+  },
+  // Account status
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
+  // Stats
+  totalOrders: {
+    type: Number,
+    default: 0
+  },
+  totalSpent: {
+    type: Number,
+    default: 0
+  },
+  totalRevenue: {
+    type: Number,
+    default: 0
+  },
+  lastLogin: {
+    type: Date
+  }
+}, { timestamps: true });
+
+// Ensure hotelName is unique for admin users (sparse index)
+userSchema.index(
+  { hotelName: 1 }, 
+  { 
+    unique: true, 
+    sparse: true,
+    partialFilterExpression: { 
+      role: 'admin', 
+      hotelName: { $exists: true, $ne: null, $ne: '' } 
+    }
+  }
+);
+
+module.exports = mongoose.model('User', userSchema);

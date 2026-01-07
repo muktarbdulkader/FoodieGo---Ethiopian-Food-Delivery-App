@@ -1,0 +1,308 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../state/auth/auth_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../admin/admin_dashboard_page.dart';
+
+class AdminRegisterPage extends StatefulWidget {
+  const AdminRegisterPage({super.key});
+
+  @override
+  State<AdminRegisterPage> createState() => _AdminRegisterPageState();
+}
+
+class _AdminRegisterPageState extends State<AdminRegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _adminCodeController = TextEditingController();
+  final _hotelNameController = TextEditingController();
+  final _hotelAddressController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _adminCodeController.dispose();
+    _hotelNameController.dispose();
+    _hotelAddressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      phone: _phoneController.text.trim(),
+      role: 'admin',
+      adminCode: _adminCodeController.text.trim(),
+      hotelName: _hotelNameController.text.trim(),
+      hotelAddress: _hotelAddressController.text.trim(),
+    );
+
+    if (success && mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
+        (route) => false,
+      );
+    } else if (mounted && authProvider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(authProvider.error!),
+            backgroundColor: AppTheme.errorColor),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF6B35FF), Color(0xFF8A5CFF)],
+            stops: [0.0, 0.3],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Container(
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6B35FF)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.admin_panel_settings,
+                                  color: Color(0xFF6B35FF), size: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Admin Registration',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                                Text('Hotel Management Access',
+                                    style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 13)),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text('Personal Information',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary)),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                            _nameController, 'Full Name', Icons.person_outline,
+                            validator: (v) => v!.isEmpty ? 'Required' : null),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                            _emailController, 'Email', Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (v) =>
+                                !v!.contains('@') ? 'Invalid email' : null),
+                        const SizedBox(height: 12),
+                        _buildTextField(_phoneController, 'Phone Number',
+                            Icons.phone_outlined,
+                            keyboardType: TextInputType.phone),
+                        const SizedBox(height: 12),
+                        _buildPasswordField(),
+                        const SizedBox(height: 20),
+                        const Text('Hotel/Restaurant Information',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary)),
+                        const SizedBox(height: 12),
+                        _buildTextField(_hotelNameController,
+                            'Hotel/Restaurant Name', Icons.restaurant_outlined,
+                            validator: (v) => v!.isEmpty ? 'Required' : null),
+                        const SizedBox(height: 12),
+                        _buildTextField(_hotelAddressController,
+                            'Hotel Address', Icons.location_on_outlined,
+                            maxLines: 2),
+                        const SizedBox(height: 20),
+                        const Text('Admin Verification',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary)),
+                        const SizedBox(height: 12),
+                        _buildTextField(_adminCodeController,
+                            'Admin Secret Code', Icons.vpn_key_outlined,
+                            validator: (v) => v!.isEmpty ? 'Required' : null),
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.amber, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                  child: Text(
+                                      'Contact system administrator for admin code',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.amber))),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildRegisterButton(),
+                        const SizedBox(height: 16),
+                        _buildLoginLink(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.arrow_back_ios_new,
+                  color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Admin',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              Text('Hotel Management', style: TextStyle(color: Colors.white70)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+      TextEditingController controller, String label, IconData icon,
+      {TextInputType? keyboardType,
+      int maxLines = 1,
+      String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF6B35FF)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF6B35FF)),
+        suffixIcon: IconButton(
+          icon: Icon(_obscurePassword
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+    );
+  }
+
+  Widget _buildRegisterButton() {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) => ElevatedButton(
+        onPressed: auth.isLoading ? null : _register,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: const Color(0xFF6B35FF),
+        ),
+        child: auth.isLoading
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : const Text('Register as Admin',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildLoginLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('Already have an account? '),
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: const Text('Sign In',
+              style: TextStyle(
+                  color: Color(0xFF6B35FF), fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+}
