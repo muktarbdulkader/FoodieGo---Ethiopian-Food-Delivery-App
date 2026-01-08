@@ -329,151 +329,171 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
     return GestureDetector(
       onTap: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => FoodDetailPage(food: food))),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.network(
-                    food.image,
-                    height: 100,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 100,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.fastfood, color: Colors.grey),
-                    ),
-                  ),
-                ),
-                if (food.discount > 0)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
-                          borderRadius: BorderRadius.circular(6)),
-                      child: Text('${food.discount.toInt()}% OFF',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                if (!food.isAvailable)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16)),
-                      ),
-                      child: const Center(
-                          child: Text('Unavailable',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold))),
-                    ),
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final imageHeight = constraints.maxHeight * 0.5;
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)
               ],
             ),
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(food.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        const Icon(Icons.star,
-                            color: Color(0xFFFBBF24), size: 12),
-                        const SizedBox(width: 2),
-                        Text(food.rating.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 11)),
-                        const Spacer(),
-                        Text('${food.preparationTime}m',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade600)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${AppConstants.currency}${food.finalPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryColor),
-                            ),
-                            if (food.discount > 0)
-                              Text(
-                                '${AppConstants.currency}${food.price.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade400,
-                                    decoration: TextDecoration.lineThrough),
-                              ),
-                          ],
-                        ),
-                        GestureDetector(
-                          onTap: food.isAvailable
-                              ? () {
-                                  context.read<CartProvider>().addToCart(food);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text('${food.name} added'),
-                                        backgroundColor: AppTheme.successColor,
-                                        duration: const Duration(seconds: 1)),
-                                  );
-                                }
-                              : null,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: food.isAvailable
-                                  ? AppTheme.primaryColor
-                                  : Colors.grey,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.add,
-                                color: Colors.white, size: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image
+                SizedBox(
+                  height: imageHeight,
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16)),
+                        child: Image.network(
+                          food.image,
+                          height: imageHeight,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: imageHeight,
+                            color: Colors.grey.shade200,
+                            child:
+                                const Icon(Icons.fastfood, color: Colors.grey),
                           ),
                         ),
+                      ),
+                      if (food.discount > 0)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444),
+                                borderRadius: BorderRadius.circular(6)),
+                            child: Text('${food.discount.toInt()}% OFF',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      if (!food.isAvailable)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(16)),
+                            ),
+                            child: const Center(
+                                child: Text('Unavailable',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold))),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Info
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(food.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.star,
+                                color: Color(0xFFFBBF24), size: 11),
+                            const SizedBox(width: 2),
+                            Text(food.rating.toStringAsFixed(1),
+                                style: const TextStyle(fontSize: 10)),
+                            const Spacer(),
+                            Text('${food.preparationTime}m',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                        const Spacer(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${AppConstants.currency}${food.finalPrice.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: AppTheme.primaryColor),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (food.discount > 0)
+                                    Text(
+                                      '${AppConstants.currency}${food.price.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          color: Colors.grey.shade400,
+                                          decoration:
+                                              TextDecoration.lineThrough),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: food.isAvailable
+                                  ? () {
+                                      context
+                                          .read<CartProvider>()
+                                          .addToCart(food);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text('${food.name} added'),
+                                            backgroundColor:
+                                                AppTheme.successColor,
+                                            duration:
+                                                const Duration(seconds: 1)),
+                                      );
+                                    }
+                                  : null,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: food.isAvailable
+                                      ? AppTheme.primaryColor
+                                      : Colors.grey,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.add,
+                                    color: Colors.white, size: 14),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

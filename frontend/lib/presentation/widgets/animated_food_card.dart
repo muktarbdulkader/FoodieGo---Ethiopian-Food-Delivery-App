@@ -85,172 +85,172 @@ class _AnimatedFoodCardState extends State<AnimatedFoodCard>
                 ),
               ],
             ),
-            child: Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final imageHeight = constraints.maxHeight * 0.6;
+                return Stack(
                   children: [
-                    // Image
-                    Expanded(
-                      flex: 3,
-                      child: Stack(
-                        children: [
-                          Hero(
-                            tag: 'food_${widget.food.id}',
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(16)),
-                              child: Image.network(
-                                widget.food.image,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: AppTheme.primaryColor
-                                      .withValues(alpha: 0.2),
-                                  child: const Icon(Icons.restaurant,
-                                      size: 32, color: Colors.white54),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (widget.food.discount > 0)
-                            Positioned(
-                              top: 8,
-                              left: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '-${widget.food.discount.toInt()}%',
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star,
-                                      color: Color(0xFFFBBF24), size: 12),
-                                  const SizedBox(width: 2),
-                                  Text(widget.food.rating.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Content
-                    Expanded(
-                      flex: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.food.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.food.hotelName,
-                              style: TextStyle(
-                                  color: Colors.grey.shade500, fontSize: 10),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                Text(
-                                  '${AppConstants.currency}${widget.food.finalPrice.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                ),
-                                if (widget.food.discount > 0) ...[
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    widget.food.price.toStringAsFixed(0),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade400,
-                                      decoration: TextDecoration.lineThrough,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Image - fixed height based on container
+                        SizedBox(
+                          height: imageHeight,
+                          child: Stack(
+                            children: [
+                              Hero(
+                                tag: 'food_${widget.food.id}',
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(16)),
+                                  child: Image.network(
+                                    widget.food.image,
+                                    width: double.infinity,
+                                    height: imageHeight,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: AppTheme.primaryColor
+                                          .withValues(alpha: 0.2),
+                                      child: const Icon(Icons.restaurant,
+                                          size: 32, color: Colors.white54),
                                     ),
                                   ),
-                                ],
+                                ),
+                              ),
+                              if (widget.food.discount > 0)
+                                Positioned(
+                                  top: 8,
+                                  left: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '-${widget.food.discount.toInt()}%',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star,
+                                          color: Color(0xFFFBBF24), size: 12),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                          widget.food.rating.toStringAsFixed(1),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Content - takes remaining space
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.food.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  widget.food.hotelName,
+                                  style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 10),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 const Spacer(),
-                                Icon(Icons.timer_outlined,
-                                    size: 10, color: Colors.grey.shade400),
-                                const SizedBox(width: 2),
-                                Text('${widget.food.preparationTime}m',
-                                    style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 10)),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        '${AppConstants.currency}${widget.food.finalPrice.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (widget.food.discount > 0) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        widget.food.price.toStringAsFixed(0),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade400,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ],
                             ),
-                          ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Add to cart button - positioned at the junction of image and content
+                    Positioned(
+                      right: 8,
+                      top: imageHeight - 16,
+                      child: GestureDetector(
+                        onTap: widget.onAddToCart,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.primaryGradient,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.add,
+                              color: Colors.white, size: 16),
                         ),
                       ),
                     ),
                   ],
-                ),
-                // Add to cart button - positioned at the junction of image and content
-                Positioned(
-                  right: 8,
-                  top: 0,
-                  bottom: 0,
-                  child: Align(
-                    alignment: const Alignment(0, 0.2),
-                    child: GestureDetector(
-                      onTap: widget.onAddToCart,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  AppTheme.primaryColor.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.add,
-                            color: Colors.white, size: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

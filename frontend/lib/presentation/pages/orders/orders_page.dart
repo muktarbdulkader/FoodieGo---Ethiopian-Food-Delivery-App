@@ -39,7 +39,9 @@ class _OrdersPageState extends State<OrdersPage>
     _controller.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrderProvider>().fetchOrders();
+      if (mounted) {
+        context.read<OrderProvider>().fetchOrders(silent: true);
+      }
     });
   }
 

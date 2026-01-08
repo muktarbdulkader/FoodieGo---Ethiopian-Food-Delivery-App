@@ -188,7 +188,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
                     color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.help_outline,
+                  child: const Icon(Icons.help_outline,
                       color: AppTheme.primaryColor, size: 18),
                 ),
                 const SizedBox(width: 12),

@@ -50,49 +50,51 @@ class _OrderCardState extends State<OrderCard> {
                     const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          _getStatusIcon(widget.order.status),
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.order.orderNumber.isNotEmpty
-                                ? '#${widget.order.orderNumber}'
-                                : '#${widget.order.id.substring(widget.order.id.length - 6).toUpperCase()}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          if (widget.order.createdAt != null)
-                            Text(
-                              _formatDate(widget.order.createdAt!),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getStatusIcon(widget.order.status),
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                  _buildStatusChip(widget.order.status),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.order.orderNumber.isNotEmpty
+                              ? '#${widget.order.orderNumber}'
+                              : '#${widget.order.id.substring(widget.order.id.length - 6).toUpperCase()}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (widget.order.createdAt != null)
+                          Text(
+                            _formatDate(widget.order.createdAt!),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: _buildStatusChip(widget.order.status),
+                  ),
                 ],
               ),
             ),

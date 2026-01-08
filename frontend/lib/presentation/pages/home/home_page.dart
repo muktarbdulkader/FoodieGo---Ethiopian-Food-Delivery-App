@@ -6,8 +6,10 @@ import '../../../state/food/food_provider.dart';
 import '../../../state/cart/cart_provider.dart';
 import '../../../data/models/user.dart';
 import '../../../data/models/food.dart';
+import '../../../data/services/api_service.dart';
 import '../../widgets/animated_food_card.dart';
 import '../../widgets/animated_hotel_card.dart';
+import '../../widgets/error_recovery_widget.dart';
 import '../cart/cart_page.dart';
 import '../orders/orders_page.dart';
 import '../profile/profile_page.dart';
@@ -27,6 +29,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   List<Hotel> _hotels = [];
   bool _isLoadingHotels = true;
+  String? _errorMessage;
+  bool _isNetworkError = false;
 
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
@@ -87,9 +91,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Future<void> _loadData() async {
     if (!mounted) return;
-    await context.read<FoodProvider>().fetchFoods();
-    if (!mounted) return;
-    await _loadHotels();
+    setState(() {
+      _errorMessage = null;
+      _isNetworkError = false;
+    });
+
+    try {
+      await context.read<FoodProvider>().fetchFoods();
+      if (!mounted) return;
+      await _loadHotels();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _isNetworkError = e.isNetworkError;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load data. Please try again.';
+          _isNetworkError = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadHotels() async {
@@ -126,22 +151,54 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildHomeContent() {
+    // Show error recovery if there's an error and no data
+    final foodProvider = context.watch<FoodProvider>();
+    if (_errorMessage != null &&
+        foodProvider.foods.isEmpty &&
+        _hotels.isEmpty) {
+      return ErrorRecoveryWidget(
+        message: _errorMessage!,
+        isNetworkError: _isNetworkError,
+        onRetry: _loadData,
+      );
+    }
+
     return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _loadData,
-        color: AppTheme.primaryColor,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader()),
-            SliverToBoxAdapter(child: _buildSearchBar()),
-            SliverToBoxAdapter(child: _buildCategories()),
-            SliverToBoxAdapter(child: _buildHotelsSection()),
-            SliverToBoxAdapter(child: _buildFeaturedSection()),
-            SliverToBoxAdapter(child: _buildAllFoodsSection()),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
-        ),
+      child: Column(
+        children: [
+          // Network status banner
+          NetworkStatusBanner(
+            isOnline: ApiService.isOnline,
+            onRetry: _loadData,
+          ),
+          // Show compact error if there's an error but we have cached data
+          if (_errorMessage != null &&
+              (foodProvider.foods.isNotEmpty || _hotels.isNotEmpty))
+            ErrorRecoveryWidget(
+              message: _errorMessage!,
+              isNetworkError: _isNetworkError,
+              onRetry: _loadData,
+              isCompact: true,
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              color: AppTheme.primaryColor,
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader()),
+                  SliverToBoxAdapter(child: _buildSearchBar()),
+                  SliverToBoxAdapter(child: _buildCategories()),
+                  SliverToBoxAdapter(child: _buildHotelsSection()),
+                  SliverToBoxAdapter(child: _buildFeaturedSection()),
+                  SliverToBoxAdapter(child: _buildAllFoodsSection()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -515,30 +572,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         else
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: foods.length,
-              itemBuilder: (context, index) {
-                final food = foods[index];
-                return AnimatedFoodCard(
-                  food: food,
-                  index: index,
-                  onTap: () => Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) => FoodDetailPage(food: food),
-                      transitionsBuilder: (_, animation, __, child) =>
-                          FadeTransition(opacity: animation, child: child),
-                    ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate aspect ratio based on screen width
+                final screenWidth = constraints.maxWidth;
+                final cardWidth =
+                    (screenWidth - 12) / 2; // 2 columns with 12px spacing
+                // Card height: image (cardWidth * 0.7) + content (~85px)
+                final cardHeight = (cardWidth * 0.7) + 85;
+                final aspectRatio = cardWidth / cardHeight;
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: aspectRatio.clamp(0.68, 0.80),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
-                  onAddToCart: () => _addToCart(food),
+                  itemCount: foods.length,
+                  itemBuilder: (context, index) {
+                    final food = foods[index];
+                    return AnimatedFoodCard(
+                      food: food,
+                      index: index,
+                      onTap: () => Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) =>
+                              FoodDetailPage(food: food),
+                          transitionsBuilder: (_, animation, __, child) =>
+                              FadeTransition(opacity: animation, child: child),
+                        ),
+                      ),
+                      onAddToCart: () => _addToCart(food),
+                    );
+                  },
                 );
               },
             ),

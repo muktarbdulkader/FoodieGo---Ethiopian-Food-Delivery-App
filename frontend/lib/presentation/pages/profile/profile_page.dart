@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../state/auth/auth_provider.dart';
+import '../../../state/order/order_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/location_service.dart';
+import '../../../data/services/api_service.dart';
 import '../auth/login_page.dart';
 import '../orders/orders_page.dart';
 import 'payment_methods_page.dart';
@@ -19,6 +22,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage>
     with SingleTickerProviderStateMixin {
   bool _isLoadingLocation = false;
+  bool _isLoadingStats = true;
+  int _ordersCount = 0;
+  int _favoritesCount = 0;
+  int _reviewsCount = 0;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -33,6 +40,11 @@ class _ProfilePageState extends State<ProfilePage>
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
     _controller.forward();
+
+    // Delay stats loading to after the build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadStats();
+    });
   }
 
   @override
@@ -41,59 +53,114 @@ class _ProfilePageState extends State<ProfilePage>
     super.dispose();
   }
 
+  Future<void> _loadStats() async {
+    if (!mounted) return;
+    setState(() => _isLoadingStats = true);
+
+    try {
+      // Get orders from provider using silent mode to avoid notifyListeners during build
+      final orderProvider = context.read<OrderProvider>();
+      await orderProvider.fetchOrders(silent: true);
+
+      if (!mounted) return;
+      final orders = orderProvider.orders;
+
+      // Try to get user stats from API
+      try {
+        final response = await ApiService.get('/auth/me/stats');
+        if (mounted) {
+          setState(() {
+            _ordersCount = response['data']?['ordersCount'] ?? orders.length;
+            _favoritesCount = response['data']?['favoritesCount'] ?? 0;
+            _reviewsCount = response['data']?['reviewsCount'] ?? 0;
+            _isLoadingStats = false;
+          });
+        }
+      } catch (e) {
+        // Fallback to orders count from provider
+        if (mounted) {
+          setState(() {
+            _ordersCount = orders.length;
+            _isLoadingStats = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStats = false);
+    }
+  }
+
   Future<void> _updateLocation() async {
     setState(() => _isLoadingLocation = true);
 
-    final location = await LocationService.getFullLocation();
+    try {
+      final location = await LocationService.getFullLocation();
 
-    if (location != null && mounted) {
-      await context.read<AuthProvider>().updateLocation(
-            latitude: location['latitude'],
-            longitude: location['longitude'],
-            address: location['address'],
-            city: location['city'],
-          );
+      if (location != null && mounted) {
+        final success = await context.read<AuthProvider>().updateLocation(
+              latitude: location['latitude'],
+              longitude: location['longitude'],
+              address: location['address'],
+              city: location['city'],
+            );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Text('Location updated: ${location['city']}'),
-              ],
-            ),
-            backgroundColor: AppTheme.accentGreen,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text('Location updated: ${location['city']}')),
+                  ],
+                ),
+                backgroundColor: AppTheme.accentGreen,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.all(16),
+              ),
+            );
+          } else {
+            _showLocationError('Failed to save location. Please try again.');
+          }
+        }
+      } else if (mounted) {
+        _showLocationError(
+            'Could not get location. Please enable location services and try again.');
       }
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(
-                  child: Text(
-                      'Could not get location. Please enable location services.')),
-            ],
-          ),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+    } catch (e) {
+      if (mounted) {
+        _showLocationError('Location error: ${e.toString()}');
+      }
     }
 
     if (mounted) setState(() => _isLoadingLocation = false);
+  }
+
+  void _showLocationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        action: SnackBarAction(
+          label: 'Settings',
+          textColor: Colors.white,
+          onPressed: () => Geolocator.openLocationSettings(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -211,14 +278,29 @@ class _ProfilePageState extends State<ProfilePage>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _buildStatCard('Orders', '12', Icons.receipt_long_rounded,
-              AppTheme.accentBlue, 0),
+          _buildStatCard(
+            'Orders',
+            _isLoadingStats ? '-' : '$_ordersCount',
+            Icons.receipt_long_rounded,
+            AppTheme.accentBlue,
+            0,
+          ),
           const SizedBox(width: 8),
           _buildStatCard(
-              'Favorites', '8', Icons.favorite_rounded, AppTheme.accentPink, 1),
+            'Favorites',
+            _isLoadingStats ? '-' : '$_favoritesCount',
+            Icons.favorite_rounded,
+            AppTheme.accentPink,
+            1,
+          ),
           const SizedBox(width: 8),
           _buildStatCard(
-              'Reviews', '5', Icons.star_rounded, AppTheme.accentYellow, 2),
+            'Reviews',
+            _isLoadingStats ? '-' : '$_reviewsCount',
+            Icons.star_rounded,
+            AppTheme.accentYellow,
+            2,
+          ),
         ],
       ),
     );
@@ -259,7 +341,11 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildLocationCard(user) {
     final location = user?.location;
-    final hasLocation = location?.city != null || user?.address != null;
+    final hasLocation =
+        location != null && (location.city != null || location.address != null);
+    final displayLocation = hasLocation
+        ? '${location.address ?? ''}\n${location.city ?? ''}'.trim()
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -290,15 +376,20 @@ class _ProfilePageState extends State<ProfilePage>
                     const Text('Delivery Location',
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 2),
                     Text(
-                      hasLocation
-                          ? (location?.city ?? user?.address ?? 'Unknown')
-                          : 'No location set',
+                      hasLocation &&
+                              displayLocation != null &&
+                              displayLocation.isNotEmpty
+                          ? displayLocation
+                          : 'Tap to set your delivery location',
                       style: TextStyle(
                           color: hasLocation
                               ? Colors.grey.shade600
                               : AppTheme.errorColor,
                           fontSize: 11),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -310,7 +401,7 @@ class _ProfilePageState extends State<ProfilePage>
             onTap: _isLoadingLocation ? null : _updateLocation,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: _isLoadingLocation
                     ? Colors.grey.shade300
@@ -322,20 +413,22 @@ class _ProfilePageState extends State<ProfilePage>
                 children: [
                   if (_isLoadingLocation)
                     const SizedBox(
-                        width: 14,
-                        height: 14,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
                   else
                     const Icon(Icons.my_location,
-                        color: Colors.white, size: 14),
+                        color: Colors.white, size: 16),
                   const SizedBox(width: 8),
                   Text(
-                    _isLoadingLocation ? 'Getting...' : 'Update Location',
+                    _isLoadingLocation
+                        ? 'Getting your location...'
+                        : (hasLocation ? 'Update Location' : 'Get My Location'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 12),
+                        fontSize: 13),
                   ),
                 ],
               ),
@@ -484,8 +577,9 @@ class _ProfilePageState extends State<ProfilePage>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await context.read<AuthProvider>().logout();
-              if (context.mounted) {
+              final authProvider = context.read<AuthProvider>();
+              await authProvider.logout();
+              if (mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginPage()),

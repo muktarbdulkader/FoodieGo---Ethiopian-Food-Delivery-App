@@ -1,9 +1,11 @@
 /**
  * Auth Controller - Extended for Hotel Management with Isolation
+ * Implements security best practices
  */
 const User = require('../models/User');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
+const { isAccountLocked, recordFailedAttempt, clearFailedAttempts } = require('../middlewares/auth.middleware');
 
 // Secret code for admin registration
 const ADMIN_SECRET_CODE = 'FOODIEGO_ADMIN_2024';
@@ -126,8 +128,17 @@ const login = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
+    // Check if account is locked
+    if (isAccountLocked(email)) {
+      return res.status(423).json({ 
+        success: false, 
+        message: 'Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.' 
+      });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
+      recordFailedAttempt(email);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
@@ -137,14 +148,21 @@ const login = async (req, res, next) => {
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
+      recordFailedAttempt(email);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+
+    // Clear failed attempts on successful login
+    clearFailedAttempts(email);
 
     // Update last login
     user.lastLogin = new Date();
     await user.save();
 
     const token = generateToken({ id: user._id, role: user.role });
+
+    // Log successful login
+    console.log(`[AUTH] User ${user._id} logged in successfully`);
 
     res.json({
       success: true,
@@ -234,4 +252,41 @@ const updateHotelSettings = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, updateLocation, getProfile, updateHotelSettings };
+/**
+ * Get user stats (orders count, favorites, reviews)
+ */
+const getUserStats = async (req, res, next) => {
+  try {
+    const Order = require('../models/Order');
+    const Review = require('../models/Review');
+    
+    // Get orders count
+    const ordersCount = await Order.countDocuments({ user: req.user._id });
+    
+    // Get reviews count
+    let reviewsCount = 0;
+    try {
+      reviewsCount = await Review.countDocuments({ user: req.user._id });
+    } catch (e) {
+      // Review model might not exist
+    }
+    
+    // Favorites count (from user document or default to 0)
+    const user = await User.findById(req.user._id);
+    const favoritesCount = user?.favorites?.length || 0;
+
+    res.json({
+      success: true,
+      data: {
+        ordersCount,
+        favoritesCount,
+        reviewsCount,
+        totalSpent: user?.totalSpent || 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, updateLocation, getProfile, updateHotelSettings, getUserStats };
