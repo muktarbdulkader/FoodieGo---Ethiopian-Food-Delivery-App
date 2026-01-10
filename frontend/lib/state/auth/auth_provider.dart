@@ -30,6 +30,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Initialize without changing the global session type
+  /// Used during app startup to load all sessions without conflicts
+  void initWithoutSettingSession({SessionType sessionType = SessionType.user}) {
+    _sessionType = sessionType;
+    _user = _authRepository.getCurrentUser(sessionType);
+    notifyListeners();
+  }
+
   /// Switch session type (when navigating between portals)
   void switchSessionType(SessionType type) {
     if (_sessionType != type) {
@@ -108,6 +116,24 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// Register delivery personnel
+  Future<bool> registerDelivery({
+    required String name,
+    required String email,
+    required String password,
+    required String phone,
+    required String adminCode,
+  }) async {
+    return register(
+      name: name,
+      email: email,
+      password: password,
+      phone: phone,
+      role: 'delivery',
+      adminCode: adminCode,
+    );
   }
 
   /// Update user location

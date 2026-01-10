@@ -5,6 +5,8 @@ import '../../../state/language/language_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import 'user_register_page.dart';
 import 'forgot_password_page.dart';
+import 'delivery_login_page.dart';
+import 'admin_login_page.dart';
 import '../home/home_page.dart';
 import '../delivery/delivery_dashboard_page.dart';
 
@@ -365,6 +367,69 @@ class _LoginPageState extends State<LoginPage>
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 14)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Delivery & Restaurant Login Links
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DeliveryLoginPage()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delivery_dining,
+                            color: Color(0xFF10B981), size: 18),
+                        SizedBox(width: 6),
+                        Text('Delivery',
+                            style: TextStyle(
+                                color: Color(0xFF10B981),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant,
+                            color: AppTheme.primaryColor, size: 18),
+                        SizedBox(width: 6),
+                        Text('Restaurant',
+                            style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

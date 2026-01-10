@@ -30,7 +30,7 @@
 ### 2.1 Update API URL
 Edit `frontend/lib/core/constants/api_constants.dart`:
 ```dart
-static const String productionUrl = 'https://foodiego-api.onrender.com/api';
+static const String productionUrl = 'https://foodiego-tqz4.onrender.com';
 ```
 
 ## Step 3: Build APK

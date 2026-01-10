@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../state/auth/auth_provider.dart';
@@ -15,6 +16,7 @@ import '../food/food_detail_page.dart';
 import '../location/location_picker_page.dart';
 import '../events/event_booking_page.dart';
 import 'hotel_foods_page.dart';
+import '../promotions/promotions_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -600,17 +602,49 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.local_offer, color: AppTheme.primaryColor, size: 22),
-              SizedBox(width: 8),
-              Text('Active Promotions',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87)),
+              const Row(
+                children: [
+                  Icon(Icons.local_offer,
+                      color: AppTheme.primaryColor, size: 22),
+                  SizedBox(width: 8),
+                  Text('Active Promotions',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87)),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PromotionsPage()),
+                ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    children: [
+                      Text('See All',
+                          style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13)),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios,
+                          size: 12, color: AppTheme.primaryColor),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -632,118 +666,157 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPromotionCard(promotion) {
-    return Container(
-      width: 280,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryColor, Color(0xFF8B5CF6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        // Copy promo code to clipboard
+        Clipboard.setData(ClipboardData(text: promotion.code));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Promo code "${promotion.code}" copied!'),
+              ],
+            ),
+            backgroundColor: AppTheme.accentGreen,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 2),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
+        );
+      },
+      child: Container(
+        width: 280,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppTheme.primaryColor, Color(0xFF8B5CF6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        promotion.promoTypeIcon,
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (promotion.hotelName != null &&
+                                promotion.hotelName.isNotEmpty)
+                              Text(
+                                promotion.hotelName,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                promotion.discountText,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.local_offer, color: Colors.white, size: 22),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  promotion.description,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    Text(
-                      promotion.promoTypeIcon,
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (promotion.hotelName != null &&
-                              promotion.hotelName.isNotEmpty)
-                            Text(
-                              promotion.hotelName,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              promotion.discountText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
+                          const Icon(Icons.copy,
+                              size: 12, color: AppTheme.primaryColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            promotion.code,
+                            style: const TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.local_offer, color: Colors.white, size: 22),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                promotion.description,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Code: ${promotion.code}',
-                      style: const TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Tap to copy',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

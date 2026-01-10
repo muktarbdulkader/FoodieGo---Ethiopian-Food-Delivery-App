@@ -5,8 +5,8 @@ class ApiConstants {
   static const bool isProduction =
       bool.fromEnvironment('PRODUCTION', defaultValue: false);
 
-  // Production URL - UPDATE THIS with your deployed backend URL
-  static const String productionUrl = 'https://your-backend.onrender.com/api';
+  // Production URL - FoodieGo backend on Render
+  static const String productionUrl = 'https://foodiego-tqz4.onrender.com/api';
 
   // Development URL - localhost for testing
   static const String developmentUrl = 'http://localhost:5001/api';

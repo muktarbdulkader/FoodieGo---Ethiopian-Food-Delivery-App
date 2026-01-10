@@ -59,12 +59,21 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   @override
   void initState() {
     super.initState();
+    // Get the last session type BEFORE initializing providers
+    final lastSession = StorageUtils.currentSessionType;
+
     // Initialize separate auth providers for each role
-    _userAuthProvider = AuthProvider()..init(sessionType: SessionType.user);
-    _adminAuthProvider = AuthProvider()..init(sessionType: SessionType.admin);
+    // Don't change the session type during init - just load the data
+    _userAuthProvider = AuthProvider()
+      ..initWithoutSettingSession(sessionType: SessionType.user);
+    _adminAuthProvider = AuthProvider()
+      ..initWithoutSettingSession(sessionType: SessionType.admin);
     _deliveryAuthProvider = AuthProvider()
-      ..init(sessionType: SessionType.delivery);
+      ..initWithoutSettingSession(sessionType: SessionType.delivery);
     _languageProvider = LanguageProvider();
+
+    // Restore the correct session type
+    StorageUtils.setSessionType(lastSession);
 
     _initLanguage();
 
@@ -137,23 +146,34 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     );
   }
 
-  /// Determine initial route based on last session
+  /// Determine initial route based on last session and login status
   String _getInitialRoute() {
     final lastSession = StorageUtils.currentSessionType;
+
+    // Check which sessions are logged in
+    final isUserLoggedIn = StorageUtils.isLoggedIn(SessionType.user);
+    final isAdminLoggedIn = StorageUtils.isLoggedIn(SessionType.admin);
+    final isDeliveryLoggedIn = StorageUtils.isLoggedIn(SessionType.delivery);
+
+    // If last session is still logged in, go there
     switch (lastSession) {
       case SessionType.admin:
-        if (StorageUtils.isLoggedIn(SessionType.admin)) {
-          return '/admin';
-        }
-        return '/';
+        if (isAdminLoggedIn) return '/admin';
+        break;
       case SessionType.delivery:
-        if (StorageUtils.isLoggedIn(SessionType.delivery)) {
-          return '/delivery';
-        }
-        return '/';
+        if (isDeliveryLoggedIn) return '/delivery';
+        break;
       case SessionType.user:
-        return '/';
+        if (isUserLoggedIn) return '/';
+        break;
     }
+
+    // If last session is not logged in, check others
+    if (isAdminLoggedIn) return '/admin';
+    if (isDeliveryLoggedIn) return '/delivery';
+
+    // Default to user login
+    return '/';
   }
 
   /// Build admin/restaurant portal route

@@ -4,6 +4,7 @@ import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/storage_utils.dart';
 import 'forgot_password_page.dart';
+import 'delivery_register_page.dart';
 import '../delivery/delivery_dashboard_page.dart';
 
 class DeliveryLoginPage extends StatefulWidget {
@@ -270,6 +271,30 @@ class _DeliveryLoginPageState extends State<DeliveryLoginPage> {
                                   style: TextStyle(
                                       color: Color(0xFF10B981), fontSize: 12)),
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Register Link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Don\'t have an account? ',
+                                  style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 13)),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          const DeliveryRegisterPage()),
+                                ),
+                                child: const Text('Register',
+                                    style: TextStyle(
+                                        color: Color(0xFF10B981),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13)),
+                              ),
+                            ],
                           ),
                         ],
                       ),
