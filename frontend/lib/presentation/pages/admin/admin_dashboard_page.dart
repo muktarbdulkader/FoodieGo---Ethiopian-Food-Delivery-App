@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/repositories/event_repository.dart';
 import '../../widgets/loading_widget.dart';
 import 'manage_foods_page.dart';
 import 'manage_orders_page.dart';
 import 'manage_users_page.dart';
 import 'manage_payments_page.dart';
+import 'manage_events_page.dart';
 import '../../../state/auth/auth_provider.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -18,12 +20,28 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  int _pendingEventsCount = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().fetchDashboard();
+      _loadPendingEvents();
     });
+  }
+
+  Future<void> _loadPendingEvents() async {
+    try {
+      final eventRepo = EventRepository();
+      final bookings = await eventRepo.getHotelBookings();
+      final pending = bookings.where((b) => b.status == 'pending').length;
+      if (mounted) {
+        setState(() => _pendingEventsCount = pending);
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   }
 
   @override
@@ -279,6 +297,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       MaterialPageRoute(
                           builder: (_) => const ManagePaymentsPage()));
                 }),
+                _buildActionCard('Events', Icons.celebration, Colors.pink, () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ManageEventsPage()));
+                }, badge: _pendingEventsCount > 0 ? _pendingEventsCount : null),
               ],
             );
           },
@@ -288,7 +312,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildActionCard(
-      String title, IconData icon, Color color, VoidCallback onTap) {
+      String title, IconData icon, Color color, VoidCallback onTap,
+      {int? badge}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -296,17 +321,46 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(title,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: color, fontSize: 12),
-                  overflow: TextOverflow.ellipsis),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(title,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          fontSize: 12),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ],
             ),
+            if (badge != null && badge > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints:
+                      const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Text(
+                    '$badge',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

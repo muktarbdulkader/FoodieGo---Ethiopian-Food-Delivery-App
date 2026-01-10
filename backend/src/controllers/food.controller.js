@@ -174,6 +174,82 @@ const getCategories = async (req, res, next) => {
   }
 };
 
+// Like/Unlike food
+const toggleLikeFood = async (req, res, next) => {
+  try {
+    const food = await Food.findById(req.params.id);
+    if (!food) {
+      return res.status(404).json({ success: false, message: 'Food not found' });
+    }
+
+    const userId = req.user._id;
+    const isLiked = food.likedBy.includes(userId);
+
+    if (isLiked) {
+      // Unlike
+      food.likedBy.pull(userId);
+      food.likeCount = Math.max(0, food.likeCount - 1);
+    } else {
+      // Like
+      food.likedBy.push(userId);
+      food.likeCount += 1;
+    }
+
+    await food.save();
+    res.json({ 
+      success: true, 
+      data: { 
+        isLiked: !isLiked, 
+        likeCount: food.likeCount 
+      } 
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Increment view count
+const incrementViewCount = async (req, res, next) => {
+  try {
+    const food = await Food.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { viewCount: 1 } },
+      { new: true }
+    );
+    if (!food) {
+      return res.status(404).json({ success: false, message: 'Food not found' });
+    }
+    res.json({ success: true, data: { viewCount: food.viewCount } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get popular foods (by likes and views)
+const getPopularFoods = async (req, res, next) => {
+  try {
+    const { limit = 10 } = req.query;
+    const foods = await Food.find({ isAvailable: true })
+      .sort({ likeCount: -1, viewCount: -1 })
+      .limit(parseInt(limit))
+      .populate('hotelId', 'hotelName hotelImage');
+    res.json({ success: true, data: foods });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get admin's custom categories
+const getAdminCategories = async (req, res, next) => {
+  try {
+    const hotelId = req.user._id;
+    const categories = await Food.distinct('category', { hotelId });
+    res.json({ success: true, data: categories });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = { 
   getAllFoods, 
   getFoodsByHotel,
@@ -182,5 +258,9 @@ module.exports = {
   createFood, 
   updateFood, 
   deleteFood,
-  getCategories
+  getCategories,
+  toggleLikeFood,
+  incrementViewCount,
+  getPopularFoods,
+  getAdminCategories
 };

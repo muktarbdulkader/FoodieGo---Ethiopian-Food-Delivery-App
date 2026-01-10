@@ -35,7 +35,7 @@ class FoodCard extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius:
                           const BorderRadius.vertical(top: Radius.circular(20)),
                     ),
@@ -66,6 +66,7 @@ class FoodCard extends StatelessWidget {
                               fontWeight: FontWeight.w600)),
                     ),
                   ),
+                  // Rating badge
                   Positioned(
                     top: 10,
                     right: 10,
@@ -77,7 +78,7 @@ class FoodCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 8)
                           ]),
                       child: Row(
@@ -93,6 +94,36 @@ class FoodCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Like count badge
+                  if (food.likeCount > 0)
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.favorite,
+                                color: Colors.white, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              food.likeCount > 999
+                                  ? '${(food.likeCount / 1000).toStringAsFixed(1)}k'
+                                  : '${food.likeCount}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -145,7 +176,7 @@ class FoodCard extends StatelessWidget {
                                 boxShadow: [
                                   BoxShadow(
                                       color: AppTheme.primaryColor
-                                          .withOpacity(0.3),
+                                          .withValues(alpha: 0.3),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2))
                                 ]),
@@ -168,6 +199,6 @@ class FoodCard extends StatelessWidget {
   Widget _buildPlaceholder() {
     return Center(
         child: Icon(Icons.restaurant,
-            size: 40, color: AppTheme.primaryColor.withOpacity(0.5)));
+            size: 40, color: AppTheme.primaryColor.withValues(alpha: 0.5)));
   }
 }

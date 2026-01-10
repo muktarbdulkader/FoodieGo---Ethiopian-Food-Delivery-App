@@ -83,4 +83,8 @@ class AdminRepository {
   Future<void> updateOrderStatus(String orderId, String status) async {
     await ApiService.put('/orders/$orderId/status', {'status': status});
   }
+
+  Future<void> deleteOrder(String orderId) async {
+    await ApiService.delete('/orders/$orderId');
+  }
 }

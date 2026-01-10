@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/models/order.dart';
 import '../../widgets/order_card.dart';
 import '../../widgets/loading_widget.dart';
 import 'order_tracking_page.dart';
@@ -321,15 +322,45 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   Widget _buildOrdersList(OrderProvider orderProvider) {
+    // Filter orders based on selected filter
+    final filteredOrders = orderProvider.orders.where((order) {
+      if (_selectedFilter == 'All') return true;
+      if (_selectedFilter == 'Active') {
+        return ['pending', 'confirmed', 'preparing', 'out_for_delivery']
+            .contains(order.status);
+      }
+      if (_selectedFilter == 'Completed') return order.status == 'delivered';
+      if (_selectedFilter == 'Cancelled') return order.status == 'cancelled';
+      return true;
+    }).toList();
+
+    if (filteredOrders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined,
+                size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text('No $_selectedFilter orders',
+                style: TextStyle(color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: () => orderProvider.fetchOrders(),
       color: AppTheme.secondaryColor,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
         physics: const BouncingScrollPhysics(),
-        itemCount: orderProvider.orders.length,
+        itemCount: filteredOrders.length,
         itemBuilder: (context, index) {
-          final order = orderProvider.orders[index];
+          final order = filteredOrders[index];
+          final canDelete =
+              order.status == 'delivered' || order.status == 'cancelled';
+
           return TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
             duration: Duration(milliseconds: 400 + (index * 100)),
@@ -342,25 +373,124 @@ class _OrdersPageState extends State<OrdersPage>
             },
             child: Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: OrderCard(
-                order: order,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, __, ___) =>
-                          OrderTrackingPage(order: order),
-                      transitionsBuilder: (_, animation, __, child) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
+              child: Dismissible(
+                key: Key(order.id),
+                direction: canDelete
+                    ? DismissDirection.endToStart
+                    : DismissDirection.none,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (direction) async {
+                  if (!canDelete) return false;
+                  return await _showDeleteConfirmation(order);
+                },
+                onDismissed: (direction) {
+                  orderProvider.deleteOrder(order.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Order deleted'),
+                      backgroundColor: AppTheme.successColor,
                     ),
                   );
                 },
+                child: Stack(
+                  children: [
+                    OrderCard(
+                      order: order,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (_, __, ___) =>
+                                OrderTrackingPage(order: order),
+                            transitionsBuilder: (_, animation, __, child) {
+                              return FadeTransition(
+                                  opacity: animation, child: child);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                    // Delete button for completed/cancelled orders
+                    if (canDelete)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () =>
+                              _confirmDeleteOrder(order, orderProvider),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.errorColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.delete_outline,
+                                size: 18, color: AppTheme.errorColor),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  Future<bool> _showDeleteConfirmation(Order order) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.delete_outline, color: AppTheme.errorColor),
+                SizedBox(width: 8),
+                Text('Delete Order'),
+              ],
+            ),
+            content: Text(
+                'Delete order #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(order.id.length - 6)} from history?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete',
+                    style: TextStyle(color: AppTheme.errorColor)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  void _confirmDeleteOrder(Order order, OrderProvider orderProvider) async {
+    final confirm = await _showDeleteConfirmation(order);
+    if (confirm) {
+      final success = await orderProvider.deleteOrder(order.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Order deleted' : 'Failed to delete order'),
+            backgroundColor:
+                success ? AppTheme.successColor : AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 }

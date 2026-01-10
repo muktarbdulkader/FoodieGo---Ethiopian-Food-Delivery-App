@@ -36,19 +36,19 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
     if (success && mounted) {
       final user = authProvider.user;
-      if (user?.role == 'admin') {
+      if (user?.role == 'admin' || user?.role == 'restaurant') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
-        // Not an admin account
+        // Not a restaurant/admin account
         await authProvider.logout();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'This account is not an admin account. Please use the user login.'),
+                  'This account is not a restaurant account. Please use the user login.'),
               backgroundColor: AppTheme.errorColor,
             ),
           );

@@ -8,6 +8,7 @@ import '../../../state/cart/cart_provider.dart';
 import '../../../data/services/api_service.dart';
 import '../food/food_detail_page.dart';
 import '../cart/cart_page.dart';
+import '../events/event_booking_page.dart';
 
 class HotelFoodsPage extends StatefulWidget {
   final Hotel hotel;
@@ -141,8 +142,9 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
           fit: StackFit.expand,
           children: [
             Image.network(
-              widget.hotel.image ??
-                  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+              (widget.hotel.image != null && widget.hotel.image!.isNotEmpty)
+                  ? widget.hotel.image!
+                  : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) =>
                   Container(color: AppTheme.primaryColor),
@@ -261,6 +263,42 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
               _buildInfoChip(Icons.restaurant_menu, '${_foods.length} items'),
             ],
           ),
+          const SizedBox(height: 16),
+          // Event Booking Button
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    EventBookingPage(preselectedHotel: widget.hotel),
+              ),
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.celebration, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Book for Event (Wedding, Birthday...)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -352,18 +390,25 @@ class _HotelFoodsPageState extends State<HotelFoodsPage> {
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(16)),
-                        child: Image.network(
-                          food.image,
-                          height: imageHeight,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: imageHeight,
-                            color: Colors.grey.shade200,
-                            child:
-                                const Icon(Icons.fastfood, color: Colors.grey),
-                          ),
-                        ),
+                        child: food.image.isNotEmpty
+                            ? Image.network(
+                                food.image,
+                                height: imageHeight,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: imageHeight,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.fastfood,
+                                      color: Colors.grey),
+                                ),
+                              )
+                            : Container(
+                                height: imageHeight,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.fastfood,
+                                    color: Colors.grey),
+                              ),
                       ),
                       if (food.discount > 0)
                         Positioned(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../admin/admin_dashboard_page.dart';
+import '../delivery/delivery_dashboard_page.dart';
 
 class AdminRegisterPage extends StatefulWidget {
   const AdminRegisterPage({super.key});
@@ -21,6 +22,7 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
   final _hotelNameController = TextEditingController();
   final _hotelAddressController = TextEditingController();
   bool _obscurePassword = true;
+  String _selectedRole = 'restaurant'; // 'restaurant' or 'delivery'
 
   @override
   void dispose() {
@@ -43,18 +45,30 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       phone: _phoneController.text.trim(),
-      role: 'admin',
+      role: _selectedRole,
       adminCode: _adminCodeController.text.trim(),
-      hotelName: _hotelNameController.text.trim(),
-      hotelAddress: _hotelAddressController.text.trim(),
+      hotelName: _selectedRole == 'restaurant'
+          ? _hotelNameController.text.trim()
+          : null,
+      hotelAddress: _selectedRole == 'restaurant'
+          ? _hotelAddressController.text.trim()
+          : null,
     );
 
     if (success && mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
-        (route) => false,
-      );
+      if (_selectedRole == 'delivery') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const DeliveryDashboardPage()),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
+          (route) => false,
+        );
+      }
     } else if (mounted && authProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -103,22 +117,108 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
                                     .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.admin_panel_settings,
-                                  color: Color(0xFF6B35FF), size: 28),
+                              child: Icon(
+                                  _selectedRole == 'delivery'
+                                      ? Icons.delivery_dining
+                                      : Icons.admin_panel_settings,
+                                  color: const Color(0xFF6B35FF),
+                                  size: 28),
                             ),
                             const SizedBox(width: 12),
-                            const Column(
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Admin Registration',
-                                    style: TextStyle(
+                                Text(
+                                    _selectedRole == 'delivery'
+                                        ? 'Delivery Registration'
+                                        : 'Restaurant Registration',
+                                    style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold)),
-                                Text('Hotel Management Access',
-                                    style: TextStyle(
+                                Text(
+                                    _selectedRole == 'delivery'
+                                        ? 'Delivery Person Access'
+                                        : 'Hotel Management Access',
+                                    style: const TextStyle(
                                         color: AppTheme.textSecondary,
                                         fontSize: 13)),
                               ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Role selector
+                        const Text('Select Role',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textSecondary)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                    () => _selectedRole = 'restaurant'),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: _selectedRole == 'restaurant'
+                                        ? const Color(0xFF6B35FF)
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.restaurant,
+                                          color: _selectedRole == 'restaurant'
+                                              ? Colors.white
+                                              : Colors.grey,
+                                          size: 28),
+                                      const SizedBox(height: 8),
+                                      Text('Restaurant',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _selectedRole == 'restaurant'
+                                                ? Colors.white
+                                                : Colors.grey,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selectedRole = 'delivery'),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: _selectedRole == 'delivery'
+                                        ? const Color(0xFF8B5CF6)
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.delivery_dining,
+                                          color: _selectedRole == 'delivery'
+                                              ? Colors.white
+                                              : Colors.grey,
+                                          size: 28),
+                                      const SizedBox(height: 8),
+                                      Text('Delivery',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _selectedRole == 'delivery'
+                                                ? Colors.white
+                                                : Colors.grey,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -143,19 +243,23 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
                             keyboardType: TextInputType.phone),
                         const SizedBox(height: 12),
                         _buildPasswordField(),
-                        const SizedBox(height: 20),
-                        const Text('Hotel/Restaurant Information',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textSecondary)),
-                        const SizedBox(height: 12),
-                        _buildTextField(_hotelNameController,
-                            'Hotel/Restaurant Name', Icons.restaurant_outlined,
-                            validator: (v) => v!.isEmpty ? 'Required' : null),
-                        const SizedBox(height: 12),
-                        _buildTextField(_hotelAddressController,
-                            'Hotel Address', Icons.location_on_outlined,
-                            maxLines: 2),
+                        if (_selectedRole == 'restaurant') ...[
+                          const SizedBox(height: 20),
+                          const Text('Hotel/Restaurant Information',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textSecondary)),
+                          const SizedBox(height: 12),
+                          _buildTextField(
+                              _hotelNameController,
+                              'Hotel/Restaurant Name',
+                              Icons.restaurant_outlined,
+                              validator: (v) => v!.isEmpty ? 'Required' : null),
+                          const SizedBox(height: 12),
+                          _buildTextField(_hotelAddressController,
+                              'Hotel Address', Icons.location_on_outlined,
+                              maxLines: 2),
+                        ],
                         const SizedBox(height: 20),
                         const Text('Admin Verification',
                             style: TextStyle(
@@ -285,8 +389,12 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
                 width: 24,
                 child: CircularProgressIndicator(
                     strokeWidth: 2, color: Colors.white))
-            : const Text('Register as Admin',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            : Text(
+                _selectedRole == 'delivery'
+                    ? 'Register as Delivery'
+                    : 'Register as Restaurant',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }

@@ -17,6 +17,11 @@ class Food {
   final bool isSpicy;
   final bool isFeatured;
   final double discount;
+  // Engagement metrics
+  final int viewCount;
+  final int likeCount;
+  final int orderCount;
+  final bool isLiked;
   // Hotel info (populated)
   final String? hotelImage;
   final double? hotelRating;
@@ -42,6 +47,10 @@ class Food {
     this.isSpicy = false,
     this.isFeatured = false,
     this.discount = 0,
+    this.viewCount = 0,
+    this.likeCount = 0,
+    this.orderCount = 0,
+    this.isLiked = false,
     this.hotelImage,
     this.hotelRating,
     this.hotelAddress,
@@ -89,6 +98,41 @@ class Food {
       isSpicy: json['isSpicy'] ?? false,
       isFeatured: json['isFeatured'] ?? false,
       discount: (json['discount'] ?? 0).toDouble(),
+      viewCount: json['viewCount'] ?? 0,
+      likeCount: json['likeCount'] ?? 0,
+      orderCount: json['orderCount'] ?? 0,
+      isLiked: json['isLiked'] ?? false,
+      hotelImage: hotelImage,
+      hotelRating: hotelRating,
+      hotelAddress: hotelAddress,
+      hotelIsOpen: hotelIsOpen,
+      hotelDeliveryFee: hotelDeliveryFee,
+    );
+  }
+
+  Food copyWith({bool? isLiked, int? likeCount}) {
+    return Food(
+      id: id,
+      name: name,
+      description: description,
+      price: price,
+      hotelId: hotelId,
+      hotelName: hotelName,
+      image: image,
+      category: category,
+      isAvailable: isAvailable,
+      rating: rating,
+      totalRatings: totalRatings,
+      preparationTime: preparationTime,
+      calories: calories,
+      isVegetarian: isVegetarian,
+      isSpicy: isSpicy,
+      isFeatured: isFeatured,
+      discount: discount,
+      viewCount: viewCount,
+      likeCount: likeCount ?? this.likeCount,
+      orderCount: orderCount,
+      isLiked: isLiked ?? this.isLiked,
       hotelImage: hotelImage,
       hotelRating: hotelRating,
       hotelAddress: hotelAddress,

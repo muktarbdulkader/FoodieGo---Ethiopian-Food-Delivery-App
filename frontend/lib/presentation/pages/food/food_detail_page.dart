@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/food.dart';
+import '../../../data/repositories/food_repository.dart';
 import '../../../state/cart/cart_provider.dart';
+import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 
@@ -21,11 +23,18 @@ class _FoodDetailPageState extends State<FoodDetailPage>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  bool _isFavorite = false;
+  bool _isLiked = false;
+  int _likeCount = 0;
+  int _viewCount = 0;
+  final FoodRepository _foodRepo = FoodRepository();
 
   @override
   void initState() {
     super.initState();
+    _isLiked = widget.food.isLiked;
+    _likeCount = widget.food.likeCount;
+    _viewCount = widget.food.viewCount;
+
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -53,6 +62,57 @@ class _FoodDetailPageState extends State<FoodDetailPage>
 
     _slideController.forward();
     _scaleController.forward();
+
+    // Increment view count
+    _incrementView();
+  }
+
+  Future<void> _incrementView() async {
+    try {
+      await _foodRepo.incrementView(widget.food.id);
+      if (mounted) {
+        setState(() => _viewCount++);
+      }
+    } catch (e) {
+      // Ignore view count errors
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to like foods'),
+          backgroundColor: AppTheme.warningColor,
+        ),
+      );
+      return;
+    }
+
+    // Optimistic update
+    setState(() {
+      _isLiked = !_isLiked;
+      _likeCount += _isLiked ? 1 : -1;
+    });
+
+    try {
+      final result = await _foodRepo.toggleLike(widget.food.id);
+      if (mounted) {
+        setState(() {
+          _isLiked = result['isLiked'] ?? _isLiked;
+          _likeCount = result['likeCount'] ?? _likeCount;
+        });
+      }
+    } catch (e) {
+      // Revert on error
+      if (mounted) {
+        setState(() {
+          _isLiked = !_isLiked;
+          _likeCount += _isLiked ? 1 : -1;
+        });
+      }
+    }
   }
 
   @override
@@ -113,13 +173,13 @@ class _FoodDetailPageState extends State<FoodDetailPage>
       ),
       actions: [
         GestureDetector(
-          onTap: () => setState(() => _isFavorite = !_isFavorite),
+          onTap: _toggleLike,
           child: Container(
             margin: const EdgeInsets.all(8),
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.1),
@@ -127,14 +187,32 @@ class _FoodDetailPageState extends State<FoodDetailPage>
                 ),
               ],
             ),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
-                key: ValueKey(_isFavorite),
-                size: 22,
-                color: _isFavorite ? Colors.red : AppTheme.textPrimary,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    key: ValueKey(_isLiked),
+                    size: 20,
+                    color: _isLiked ? Colors.red : AppTheme.textPrimary,
+                  ),
+                ),
+                if (_likeCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    _likeCount > 999
+                        ? '${(_likeCount / 1000).toStringAsFixed(1)}k'
+                        : '$_likeCount',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _isLiked ? Colors.red : AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -351,18 +429,18 @@ class _FoodDetailPageState extends State<FoodDetailPage>
                     ),
                     const SizedBox(width: 12),
                     _buildInfoCard(
-                      Icons.local_fire_department_outlined,
-                      '${widget.food.calories ?? 'N/A'}',
-                      'Calories',
+                      Icons.visibility_outlined,
+                      _viewCount > 999 ? '${(_viewCount / 1000).toStringAsFixed(1)}k' : '$_viewCount',
+                      'Views',
                       AppTheme.primaryColor,
                       1,
                     ),
                     const SizedBox(width: 12),
                     _buildInfoCard(
-                      Icons.delivery_dining_outlined,
-                      'Free',
-                      'Delivery',
-                      AppTheme.accentGreen,
+                      Icons.favorite_outline,
+                      _likeCount > 999 ? '${(_likeCount / 1000).toStringAsFixed(1)}k' : '$_likeCount',
+                      'Likes',
+                      Colors.red,
                       2,
                     ),
                   ],

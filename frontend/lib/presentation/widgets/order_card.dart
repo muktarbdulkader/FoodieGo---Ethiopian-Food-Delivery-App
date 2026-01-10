@@ -71,7 +71,7 @@ class _OrderCardState extends State<OrderCard> {
                         Text(
                           widget.order.orderNumber.isNotEmpty
                               ? '#${widget.order.orderNumber}'
-                              : '#${widget.order.id.substring(widget.order.id.length - 6).toUpperCase()}',
+                              : '#${widget.order.id.length >= 6 ? widget.order.id.substring(widget.order.id.length - 6).toUpperCase() : widget.order.id.toUpperCase()}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,

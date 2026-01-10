@@ -181,6 +181,19 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteOrder(String orderId) async {
+    try {
+      await _adminRepo.deleteOrder(orderId);
+      _allOrders.removeWhere((o) => o.id == orderId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> createFood(Map<String, dynamic> data) async {
     try {
       await _adminRepo.createFood(data);

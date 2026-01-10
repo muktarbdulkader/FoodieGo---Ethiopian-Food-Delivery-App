@@ -4,6 +4,7 @@ import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import 'user_register_page.dart';
 import '../home/home_page.dart';
+import '../delivery/delivery_dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -76,7 +77,8 @@ class _LoginPageState extends State<LoginPage>
 
     if (success && mounted) {
       final user = authProvider.user;
-      if (user?.role == 'admin') {
+      if (user?.role == 'restaurant') {
+        // Restaurant owners go to admin portal
         await authProvider.logout();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -86,8 +88,8 @@ class _LoginPageState extends State<LoginPage>
                   Icon(Icons.info_outline, color: Colors.white),
                   SizedBox(width: 12),
                   Expanded(
-                      child:
-                          Text('Admin accounts must login via /admin portal')),
+                      child: Text(
+                          'Restaurant accounts must login via /admin portal')),
                 ],
               ),
               backgroundColor: AppTheme.secondaryColor,
@@ -98,7 +100,20 @@ class _LoginPageState extends State<LoginPage>
             ),
           );
         }
+      } else if (user?.role == 'delivery') {
+        // Delivery persons go to delivery dashboard
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const DeliveryDashboardPage(),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
       } else {
+        // Regular users go to home page
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(

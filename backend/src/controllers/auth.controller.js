@@ -7,7 +7,7 @@ const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
 const { isAccountLocked, recordFailedAttempt, clearFailedAttempts } = require('../middlewares/auth.middleware');
 
-// Secret code for admin registration
+// Secret code for restaurant/delivery registration
 const ADMIN_SECRET_CODE = 'FOODIEGO_ADMIN_2024';
 
 /**
@@ -27,18 +27,18 @@ const register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Determine role - admin requires secret code
+    // Determine role - restaurant/delivery requires secret code
     let userRole = 'user';
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'restaurant') {
       if (adminCode !== ADMIN_SECRET_CODE) {
-        return res.status(403).json({ success: false, message: 'Invalid admin registration code' });
+        return res.status(403).json({ success: false, message: 'Invalid registration code' });
       }
       
-      // Check if hotel name is unique for admins
+      // Check if hotel name is unique for restaurant owners
       if (hotelName) {
         const existingHotel = await User.findOne({ 
           hotelName: { $regex: new RegExp(`^${hotelName}$`, 'i') },
-          role: 'admin'
+          role: { $in: ['admin', 'restaurant'] }
         });
         if (existingHotel) {
           return res.status(400).json({ 
@@ -49,11 +49,16 @@ const register = async (req, res, next) => {
       } else {
         return res.status(400).json({ 
           success: false, 
-          message: 'Hotel name is required for admin registration' 
+          message: 'Hotel name is required for restaurant registration' 
         });
       }
       
-      userRole = 'admin';
+      userRole = 'restaurant';
+    } else if (role === 'delivery') {
+      if (adminCode !== ADMIN_SECRET_CODE) {
+        return res.status(403).json({ success: false, message: 'Invalid registration code' });
+      }
+      userRole = 'delivery';
     }
 
     // Hash password and create user
@@ -66,11 +71,11 @@ const register = async (req, res, next) => {
       address,
       role: userRole,
       location: userRole === 'user' ? location : undefined,
-      isVerified: userRole === 'admin' ? true : false
+      isVerified: userRole !== 'user'
     };
 
-    // Add hotel info for admins
-    if (userRole === 'admin') {
+    // Add hotel info for restaurant owners
+    if (userRole === 'restaurant') {
       userData.hotelName = hotelName;
       userData.hotelAddress = hotelAddress;
       userData.hotelPhone = hotelPhone || phone;
@@ -106,7 +111,6 @@ const register = async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Handle duplicate key error for hotel name
     if (error.code === 11000 && error.keyPattern?.hotelName) {
       return res.status(400).json({ 
         success: false, 
@@ -116,6 +120,7 @@ const register = async (req, res, next) => {
     next(error);
   }
 };
+
 
 /**
  * Login user
@@ -132,7 +137,7 @@ const login = async (req, res, next) => {
     if (isAccountLocked(email)) {
       return res.status(423).json({ 
         success: false, 
-        message: 'Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.' 
+        message: 'Account temporarily locked. Please try again in 15 minutes.' 
       });
     }
 
@@ -152,17 +157,11 @@ const login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Clear failed attempts on successful login
     clearFailedAttempts(email);
-
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
     const token = generateToken({ id: user._id, role: user.role });
-
-    // Log successful login
-    console.log(`[AUTH] User ${user._id} logged in successfully`);
 
     res.json({
       success: true,
@@ -228,7 +227,7 @@ const getProfile = async (req, res, next) => {
 };
 
 /**
- * Update hotel settings (admin only)
+ * Update hotel settings (restaurant only)
  */
 const updateHotelSettings = async (req, res, next) => {
   try {
@@ -239,10 +238,7 @@ const updateHotelSettings = async (req, res, next) => {
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { 
-        hotelDescription, hotelImage, hotelCategory,
-        isOpen, deliveryFee, minOrderAmount, deliveryRadius
-      },
+      { hotelDescription, hotelImage, hotelCategory, isOpen, deliveryFee, minOrderAmount, deliveryRadius },
       { new: true }
     ).select('-password');
 
@@ -253,34 +249,20 @@ const updateHotelSettings = async (req, res, next) => {
 };
 
 /**
- * Get user stats (orders count, favorites, reviews)
+ * Get user stats
  */
 const getUserStats = async (req, res, next) => {
   try {
     const Order = require('../models/Order');
-    const Review = require('../models/Review');
-    
-    // Get orders count
     const ordersCount = await Order.countDocuments({ user: req.user._id });
-    
-    // Get reviews count
-    let reviewsCount = 0;
-    try {
-      reviewsCount = await Review.countDocuments({ user: req.user._id });
-    } catch (e) {
-      // Review model might not exist
-    }
-    
-    // Favorites count (from user document or default to 0)
     const user = await User.findById(req.user._id);
-    const favoritesCount = user?.favorites?.length || 0;
 
     res.json({
       success: true,
       data: {
         ordersCount,
-        favoritesCount,
-        reviewsCount,
+        favoritesCount: 0,
+        reviewsCount: 0,
         totalSpent: user?.totalSpent || 0
       }
     });

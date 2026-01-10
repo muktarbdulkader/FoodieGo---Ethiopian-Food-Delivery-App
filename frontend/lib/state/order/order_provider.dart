@@ -15,6 +15,7 @@ class OrderProvider extends ChangeNotifier {
   List<Order> get orders => _orders;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get hasFetched => _hasFetched;
 
   /// Fetch all orders for current user
   Future<void> fetchOrders({bool silent = false}) async {
@@ -45,6 +46,20 @@ class OrderProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// Delete order from history
+  Future<bool> deleteOrder(String orderId) async {
+    try {
+      await _orderRepository.deleteOrder(orderId);
+      _orders.removeWhere((o) => o.id == orderId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Reset state (for logout)

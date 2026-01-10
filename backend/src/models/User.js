@@ -39,8 +39,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'restaurant'],
+    enum: ['user', 'restaurant', 'delivery'],
     default: 'user'
+  },
+  // For restaurant owners - their hotel ID (uses their user _id)
+  hotelId: {
+    type: String,
+    trim: true
   },
   // For admin/restaurant owners - hotelName must be unique for admins
   hotelName: {
@@ -117,14 +122,14 @@ const userSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Ensure hotelName is unique for admin users (sparse index)
+// Ensure hotelName is unique for restaurant users (sparse index)
 userSchema.index(
   { hotelName: 1 }, 
   { 
     unique: true, 
     sparse: true,
     partialFilterExpression: { 
-      role: 'admin', 
+      role: { $in: ['admin', 'restaurant'] }, 
       hotelName: { $exists: true, $ne: null, $ne: '' } 
     }
   }

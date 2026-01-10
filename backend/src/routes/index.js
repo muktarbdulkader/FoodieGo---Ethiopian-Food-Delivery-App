@@ -9,6 +9,7 @@ const adminRoutes = require('./admin.routes');
 const restaurantRoutes = require('./restaurant.routes');
 const promotionRoutes = require('./promotion.routes');
 const reviewRoutes = require('./review.routes');
+const eventBookingRoutes = require('./eventBooking.routes');
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.use('/admin', adminRoutes);
 router.use('/restaurants', restaurantRoutes);
 router.use('/promotions', promotionRoutes);
 router.use('/reviews', reviewRoutes);
+router.use('/events', eventBookingRoutes);
 
 module.exports = router;

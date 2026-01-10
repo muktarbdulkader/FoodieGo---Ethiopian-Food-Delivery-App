@@ -133,7 +133,9 @@ class User {
     };
   }
 
-  bool get isAdmin => role == 'admin';
+  bool get isAdmin => role == 'admin' || role == 'restaurant';
+  bool get isRestaurant => role == 'restaurant';
+  bool get isDelivery => role == 'delivery';
   bool get isUser => role == 'user';
 }
 

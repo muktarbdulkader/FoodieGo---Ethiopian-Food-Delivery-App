@@ -17,7 +17,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
-  bool get isAdmin => _user?.role == 'admin';
+  bool get isAdmin => _user?.role == 'admin' || _user?.role == 'restaurant';
+  bool get isRestaurant => _user?.role == 'restaurant';
+  bool get isDelivery => _user?.role == 'delivery';
   SessionType get sessionType => _sessionType;
 
   /// Initialize with specific session type (based on route)

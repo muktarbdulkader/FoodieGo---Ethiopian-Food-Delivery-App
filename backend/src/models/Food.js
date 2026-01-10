@@ -30,11 +30,18 @@ const foodSchema = new mongoose.Schema({
   addons: [{
     name: { type: String },
     price: { type: Number }
-  }]
+  }],
+  // Engagement metrics
+  viewCount: { type: Number, default: 0 },
+  likeCount: { type: Number, default: 0 },
+  likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  orderCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 // Index for efficient queries
 foodSchema.index({ hotelId: 1, category: 1 });
 foodSchema.index({ hotelName: 1 });
+foodSchema.index({ likeCount: -1 });
+foodSchema.index({ viewCount: -1 });
 
 module.exports = mongoose.model('Food', foodSchema);

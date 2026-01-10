@@ -33,16 +33,13 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0.3, 0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
-
     Future.delayed(Duration(milliseconds: widget.index * 80), () {
       if (mounted) _controller.forward();
     });
@@ -69,7 +66,7 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
             scale: _isPressed ? 0.96 : 1.0,
             duration: const Duration(milliseconds: 150),
             child: Container(
-              width: 160,
+              width: 180,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -87,123 +84,148 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image
+                  // Image with yellow pattern background like Klik
                   Stack(
                     children: [
-                      Image.network(
-                        widget.hotel.image ??
-                            'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
-                        height: 90,
+                      Container(
+                        height: 100,
                         width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          height: 90,
-                          color: AppTheme.secondaryColor.withValues(alpha: 0.2),
-                          child: const Icon(Icons.restaurant,
-                              size: 28, color: Colors.white54),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.accentYellow,
                         ),
+                        child: widget.hotel.image != null &&
+                                widget.hotel.image!.isNotEmpty
+                            ? Image.network(
+                                widget.hotel.image!,
+                                height: 100,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _buildPatternBg(),
+                              )
+                            : _buildPatternBg(),
                       ),
+                      // Favorite button
                       Positioned(
-                        top: 6,
-                        left: 6,
+                        top: 8,
+                        right: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: widget.hotel.isOpen
-                                ? AppTheme.accentGreen
-                                : Colors.grey,
-                            borderRadius: BorderRadius.circular(8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 4,
-                                decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.hotel.isOpen ? 'Open' : 'Closed',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                          child: Icon(
+                            Icons.favorite_border,
+                            color: AppTheme.primaryColor,
+                            size: 18,
                           ),
                         ),
                       ),
+                      // Logo/Icon
                       Positioned(
-                        top: 6,
-                        right: 6,
+                        bottom: 8,
+                        left: 8,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 2),
+                          padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star,
-                                  color: Color(0xFFFBBF24), size: 11),
-                              const SizedBox(width: 2),
-                              Text(widget.hotel.rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 9)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                              ),
                             ],
+                          ),
+                          child: Icon(
+                            Icons.restaurant,
+                            color: AppTheme.primaryColor,
+                            size: 16,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  // Content - compact
+                  // Content
                   Padding(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.hotel.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.star_outline,
+                                    color: AppTheme.accentYellow, size: 14),
+                                const SizedBox(width: 2),
+                                Text(
+                                  widget.hotel.rating.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
                         Text(
-                          widget.hotel.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 11),
+                          widget.hotel.address ?? 'Restaurant',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 10,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(Icons.location_on,
-                                size: 8, color: Colors.grey.shade500),
-                            const SizedBox(width: 2),
-                            Expanded(
-                              child: Text(
-                                widget.hotel.address ?? 'Location',
-                                style: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 8),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            Icon(Icons.access_time,
+                                size: 12, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              '50 Mins',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 10,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.delivery_dining,
+                                size: 12, color: Colors.grey.shade500),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${widget.hotel.deliveryFee.toInt()} ${AppConstants.currency}',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 10,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            _chip('${widget.hotel.foodCount}',
-                                AppTheme.primaryColor),
-                            const SizedBox(width: 4),
-                            _chip(
-                                '${AppConstants.currency}${widget.hotel.deliveryFee.toInt()}',
-                                AppTheme.accentGreen),
-                          ],
+                        Text(
+                          '(${widget.hotel.foodCount} Reviews)',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 9,
+                          ),
                         ),
                       ],
                     ),
@@ -217,16 +239,34 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
     );
   }
 
-  Widget _chip(String text, Color color) {
+  Widget _buildPatternBg() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
+      height: 100,
+      width: double.infinity,
+      color: AppTheme.accentYellow,
+      child: CustomPaint(
+        painter: _PatternPainter(),
       ),
-      child: Text(text,
-          style: TextStyle(
-              color: color, fontSize: 8, fontWeight: FontWeight.w600)),
     );
   }
+}
+
+class _PatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    // Draw food-related doodles pattern
+    for (var i = 0; i < size.width; i += 40) {
+      for (var j = 0; j < size.height; j += 40) {
+        canvas.drawCircle(Offset(i.toDouble(), j.toDouble()), 8, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

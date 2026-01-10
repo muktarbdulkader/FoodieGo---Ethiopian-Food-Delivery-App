@@ -60,4 +60,60 @@ class OrderRepository {
     });
     return Order.fromJson(response['data']);
   }
+
+  /// Delete order (user can delete delivered/cancelled orders)
+  Future<void> deleteOrder(String id) async {
+    await ApiService.delete('${ApiConstants.orders}/$id');
+  }
+
+  /// Get available delivery orders (for delivery persons)
+  Future<List<Order>> getAvailableDeliveryOrders() async {
+    final response =
+        await ApiService.get('${ApiConstants.orders}/delivery/available');
+    final List<dynamic> ordersJson = response['data'] ?? [];
+    return ordersJson.map((json) => Order.fromJson(json)).toList();
+  }
+
+  /// Accept delivery order (delivery person claims the order)
+  Future<Order> acceptDeliveryOrder(String id) async {
+    final response =
+        await ApiService.put('${ApiConstants.orders}/delivery/accept/$id', {});
+    return Order.fromJson(response['data']);
+  }
+
+  /// Get pending delivery orders (for restaurant)
+  Future<List<Order>> getPendingDeliveryOrders() async {
+    final response = await ApiService.get(
+        '${ApiConstants.orders}/restaurant/pending-delivery');
+    final List<dynamic> ordersJson = response['data'] ?? [];
+    return ordersJson.map((json) => Order.fromJson(json)).toList();
+  }
+
+  /// Update order status (restaurant)
+  Future<Order> updateOrderStatus(String id, String status) async {
+    final response = await ApiService.put(
+        '${ApiConstants.orders}/$id/status', {'status': status});
+    return Order.fromJson(response['data']);
+  }
+
+  /// Assign driver to order (restaurant)
+  Future<Order> assignDriver(
+      String id, String driverName, String driverPhone) async {
+    final response =
+        await ApiService.put('${ApiConstants.orders}/$id/delivery', {
+      'driverName': driverName,
+      'driverPhone': driverPhone,
+      'trackingStatus': 'assigned',
+    });
+    return Order.fromJson(response['data']);
+  }
+
+  /// Update delivery status (delivery person)
+  Future<Order> updateDeliveryStatus(String id, String trackingStatus) async {
+    final response =
+        await ApiService.put('${ApiConstants.orders}/$id/delivery', {
+      'trackingStatus': trackingStatus,
+    });
+    return Order.fromJson(response['data']);
+  }
 }

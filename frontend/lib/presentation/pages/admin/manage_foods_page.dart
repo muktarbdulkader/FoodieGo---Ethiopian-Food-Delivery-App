@@ -30,10 +30,35 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     final imageCtrl = TextEditingController();
     final prepTimeCtrl = TextEditingController(text: '20');
     final caloriesCtrl = TextEditingController(text: '500');
+    final customCategoryCtrl = TextEditingController();
     String category = 'Main Course';
+    bool useCustomCategory = false;
     bool isVegetarian = false;
     bool isSpicy = false;
     bool isFeatured = false;
+
+    final defaultCategories = [
+      'Main Course',
+      'Appetizer',
+      'Dessert',
+      'Drinks',
+      'Pizza',
+      'Burger',
+      'Sushi',
+      'Ethiopian',
+      'Fast Food',
+      'Salad',
+      'Breakfast',
+      'Lunch',
+      'Dinner',
+      'Snacks',
+      'Bakery',
+      'Coffee',
+      'Juice',
+      'Seafood',
+      'Vegetarian',
+      'Vegan',
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -90,33 +115,41 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(imageCtrl, 'Image URL (optional)', Icons.image),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: const Icon(Icons.category),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                  items: [
-                    'Main Course',
-                    'Appetizer',
-                    'Dessert',
-                    'Drinks',
-                    'Pizza',
-                    'Burger',
-                    'Sushi',
-                    'Ethiopian',
-                    'Fast Food',
-                    'Salad',
-                  ]
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setModalState(() => category = v!),
+                const SizedBox(height: 16),
+                // Category selection with custom option
+                Row(
+                  children: [
+                    const Text('Category',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => setModalState(
+                          () => useCustomCategory = !useCustomCategory),
+                      icon: Icon(useCustomCategory ? Icons.list : Icons.add,
+                          size: 18),
+                      label: Text(useCustomCategory ? 'Use Preset' : 'Custom'),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+                if (useCustomCategory)
+                  _buildTextField(customCategoryCtrl, 'Enter Custom Category',
+                      Icons.category)
+                else
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.category),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                    items: defaultCategories
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged: (v) => setModalState(() => category = v!),
+                  ),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
@@ -165,6 +198,11 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       return;
                     }
 
+                    final finalCategory =
+                        useCustomCategory && customCategoryCtrl.text.isNotEmpty
+                            ? customCategoryCtrl.text
+                            : category;
+
                     final scaffoldMessenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(ctx);
                     final foodProvider = context.read<FoodProvider>();
@@ -174,7 +212,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       'name': nameCtrl.text,
                       'description': descCtrl.text,
                       'price': double.tryParse(priceCtrl.text) ?? 0,
-                      'category': category,
+                      'category': finalCategory,
                       'image': imageCtrl.text.isNotEmpty
                           ? imageCtrl.text
                           : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',

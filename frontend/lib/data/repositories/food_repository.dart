@@ -40,4 +40,32 @@ class FoodRepository {
     final List<dynamic> categoriesJson = response['data'] ?? [];
     return categoriesJson.map((c) => c.toString()).toList();
   }
+
+  /// Toggle like on food
+  Future<Map<String, dynamic>> toggleLike(String foodId) async {
+    final response =
+        await ApiService.post('${ApiConstants.foods}/$foodId/like', {});
+    return response['data'];
+  }
+
+  /// Increment view count
+  Future<void> incrementView(String foodId) async {
+    await ApiService.post('${ApiConstants.foods}/$foodId/view', {});
+  }
+
+  /// Get popular foods
+  Future<List<Food>> getPopularFoods({int limit = 10}) async {
+    final response =
+        await ApiService.get('${ApiConstants.foods}/popular?limit=$limit');
+    final List<dynamic> foodsJson = response['data'] ?? [];
+    return foodsJson.map((json) => Food.fromJson(json)).toList();
+  }
+
+  /// Get admin's custom categories
+  Future<List<String>> getAdminCategories() async {
+    final response =
+        await ApiService.get('${ApiConstants.foods}/admin/categories');
+    final List<dynamic> categoriesJson = response['data'] ?? [];
+    return categoriesJson.map((c) => c.toString()).toList();
+  }
 }

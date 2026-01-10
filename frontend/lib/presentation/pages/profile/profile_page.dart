@@ -8,6 +8,7 @@ import '../../../core/services/location_service.dart';
 import '../../../data/services/api_service.dart';
 import '../auth/login_page.dart';
 import '../orders/orders_page.dart';
+import '../events/my_events_page.dart';
 import 'payment_methods_page.dart';
 import 'notifications_page.dart';
 import 'help_support_page.dart';
@@ -19,38 +20,19 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage> {
   bool _isLoadingLocation = false;
   bool _isLoadingStats = true;
   int _ordersCount = 0;
-  int _favoritesCount = 0;
-  int _reviewsCount = 0;
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+  double _walletBalance = 0.0;
+  String _userLevel = 'Regular';
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _controller.forward();
-
-    // Delay stats loading to after the build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadStats();
     });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -58,26 +40,24 @@ class _ProfilePageState extends State<ProfilePage>
     setState(() => _isLoadingStats = true);
 
     try {
-      // Get orders from provider using silent mode to avoid notifyListeners during build
       final orderProvider = context.read<OrderProvider>();
       await orderProvider.fetchOrders(silent: true);
 
       if (!mounted) return;
       final orders = orderProvider.orders;
 
-      // Try to get user stats from API
       try {
         final response = await ApiService.get('/auth/me/stats');
         if (mounted) {
           setState(() {
             _ordersCount = response['data']?['ordersCount'] ?? orders.length;
-            _favoritesCount = response['data']?['favoritesCount'] ?? 0;
-            _reviewsCount = response['data']?['reviewsCount'] ?? 0;
+            _walletBalance =
+                (response['data']?['walletBalance'] ?? 0.0).toDouble();
+            _userLevel = response['data']?['level'] ?? 'Regular';
             _isLoadingStats = false;
           });
         }
       } catch (e) {
-        // Fallback to orders count from provider
         if (mounted) {
           setState(() {
             _ordersCount = orders.length;
@@ -108,59 +88,30 @@ class _ProfilePageState extends State<ProfilePage>
           if (success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: Text('Location updated: ${location['city']}')),
-                  ],
-                ),
+                content: Text('Location updated: ${location['city']}'),
                 backgroundColor: AppTheme.accentGreen,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.all(16),
               ),
             );
-          } else {
-            _showLocationError('Failed to save location. Please try again.');
           }
         }
-      } else if (mounted) {
-        _showLocationError(
-            'Could not get location. Please enable location services and try again.');
       }
     } catch (e) {
       if (mounted) {
-        _showLocationError('Location error: ${e.toString()}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not get location'),
+            backgroundColor: AppTheme.errorColor,
+            action: SnackBarAction(
+              label: 'Settings',
+              textColor: Colors.white,
+              onPressed: () => Geolocator.openLocationSettings(),
+            ),
+          ),
+        );
       }
     }
 
     if (mounted) setState(() => _isLoadingLocation = false);
-  }
-
-  void _showLocationError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-        action: SnackBarAction(
-          label: 'Settings',
-          textColor: Colors.white,
-          onPressed: () => Geolocator.openLocationSettings(),
-        ),
-      ),
-    );
   }
 
   @override
@@ -168,36 +119,24 @@ class _ProfilePageState extends State<ProfilePage>
     final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              children: [
-                _buildHeader(user),
-                const SizedBox(height: 16),
-                _buildStatsRow(user),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildLocationCard(user),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildMenuSection(),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildLogoutButton(context),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
+      backgroundColor: Colors.grey.shade100,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(user),
+            _buildStatsRow(),
+            const SizedBox(height: 24),
+            _buildSectionTitle('My Account'),
+            _buildAccountMenu(),
+            const SizedBox(height: 24),
+            _buildSectionTitle('Settings'),
+            _buildSettingsMenu(),
+            const SizedBox(height: 24),
+            _buildSectionTitle('More'),
+            _buildMoreMenu(),
+            const SizedBox(height: 100),
+          ],
         ),
       ),
     );
@@ -205,360 +144,491 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildHeader(user) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                user?.name.substring(0, 1).toUpperCase() ?? 'U',
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user?.name ?? 'Guest',
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user?.email ?? '',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8), fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child:
-                const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsRow(user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          _buildStatCard(
-            'Orders',
-            _isLoadingStats ? '-' : '$_ordersCount',
-            Icons.receipt_long_rounded,
-            AppTheme.accentBlue,
-            0,
-          ),
-          const SizedBox(width: 8),
-          _buildStatCard(
-            'Favorites',
-            _isLoadingStats ? '-' : '$_favoritesCount',
-            Icons.favorite_rounded,
-            AppTheme.accentPink,
-            1,
-          ),
-          const SizedBox(width: 8),
-          _buildStatCard(
-            'Reviews',
-            _isLoadingStats ? '-' : '$_reviewsCount',
-            Icons.star_rounded,
-            AppTheme.accentYellow,
-            2,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Color color, int index) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: AppTheme.cardShadow,
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-          ],
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-    );
-  }
-
-  Widget _buildLocationCard(user) {
-    final location = user?.location;
-    final hasLocation =
-        location != null && (location.city != null || location.address != null);
-    final displayLocation = hasLocation
-        ? '${location.address ?? ''}\n${location.city ?? ''}'.trim()
-        : null;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
             children: [
+              // Avatar
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
                 ),
-                child: const Icon(Icons.location_on,
-                    color: AppTheme.accentGreen, size: 18),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white,
+                  size: 32,
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
+              // User info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Delivery Location',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 2),
                     Text(
-                      hasLocation &&
-                              displayLocation != null &&
-                              displayLocation.isNotEmpty
-                          ? displayLocation
-                          : 'Tap to set your delivery location',
-                      style: TextStyle(
-                          color: hasLocation
-                              ? Colors.grey.shade600
-                              : AppTheme.errorColor,
-                          fontSize: 11),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      user?.name ?? 'Guest User',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            user?.phone ?? user?.email ?? '',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            // TODO: Navigate to edit profile
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Edit',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Level badge
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFB347), Color(0xFFFFCC33)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.workspace_premium,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _isLoadingLocation ? null : _updateLocation,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsRow() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildStatItem(
+            icon: 'assets/icons/coupon.png',
+            iconWidget: Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _isLoadingLocation
-                    ? Colors.grey.shade300
-                    : AppTheme.accentGreen,
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_isLoadingLocation)
-                    const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                  else
-                    const Icon(Icons.my_location,
-                        color: Colors.white, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isLoadingLocation
-                        ? 'Getting your location...'
-                        : (hasLocation ? 'Update Location' : 'Get My Location'),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13),
-                  ),
-                ],
+              child: const Icon(
+                Icons.local_offer,
+                color: AppTheme.primaryColor,
+                size: 20,
               ),
             ),
+            label: 'Coupons',
+            value: _isLoadingStats ? '...' : '$_ordersCount',
+          ),
+          _buildStatDivider(),
+          _buildStatItem(
+            icon: 'assets/icons/wallet.png',
+            iconWidget: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.account_balance_wallet,
+                color: Colors.red.shade400,
+                size: 20,
+              ),
+            ),
+            label: 'Wallet',
+            value: _isLoadingStats
+                ? '...'
+                : '${_walletBalance.toStringAsFixed(2)} ETB',
+          ),
+          _buildStatDivider(),
+          _buildStatItem(
+            icon: 'assets/icons/level.png',
+            iconWidget: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.workspace_premium,
+                color: Colors.orange.shade400,
+                size: 20,
+              ),
+            ),
+            label: 'Level',
+            value: _userLevel,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMenuSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text('Settings',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+  Widget _buildStatItem({
+    required String icon,
+    required Widget iconWidget,
+    required String label,
+    required String value,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {},
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                iconWidget,
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 12,
+                            color: Colors.grey.shade400,
+                          ),
+                        ],
+                      ),
+                      Text(
+                        value,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        _buildMenuItem(
-            Icons.receipt_long_rounded,
-            'My Orders',
-            AppTheme.accentBlue,
-            () => Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const OrdersPage(),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
-                  ),
-                )),
-        const SizedBox(height: 8),
-        _buildMenuItem(
-            Icons.payment_rounded,
-            'Payment Methods',
-            AppTheme.accentGreen,
-            () => Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const PaymentMethodsPage(),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
-                  ),
-                )),
-        const SizedBox(height: 8),
-        _buildMenuItem(
-            Icons.notifications_rounded,
-            'Notifications',
-            AppTheme.accentYellow,
-            () => Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const NotificationsPage(),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
-                  ),
-                )),
-        const SizedBox(height: 8),
-        _buildMenuItem(
-            Icons.help_outline_rounded,
-            'Help & Support',
-            AppTheme.secondaryColor,
-            () => Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const HelpSupportPage(),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
-                  ),
-                )),
-      ],
+      ),
     );
   }
 
-  Widget _buildMenuItem(
-      IconData icon, String title, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: AppTheme.cardShadow,
+  Widget _buildStatDivider() {
+    return Container(
+      height: 40,
+      width: 1,
+      color: Colors.grey.shade200,
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
+      ),
+    );
+  }
+
+  Widget _buildAccountMenu() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildMenuItem(
+            icon: Icons.person_outline,
+            title: 'Profile',
+            onTap: () {},
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.favorite_border,
+            title: 'Favorites',
+            onTap: () {},
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.location_on_outlined,
+            title: 'Addresses',
+            onTap: _isLoadingLocation ? null : _updateLocation,
+            trailing: _isLoadingLocation
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.people_outline,
+            title: 'Account Settings',
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsMenu() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildMenuItem(
+            icon: Icons.translate,
+            title: 'Language',
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMoreMenu() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildMenuItem(
+            icon: Icons.phone_outlined,
+            title: 'Contact Us',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HelpSupportPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'My Orders',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OrdersPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.celebration_outlined,
+            title: 'My Events',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyEventsPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.payment_outlined,
+            title: 'Payment Methods',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PaymentMethodsPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.logout,
+            title: 'Logout',
+            titleColor: AppTheme.primaryColor,
+            onTap: () => _showLogoutDialog(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback? onTap,
+    Color? titleColor,
+    Widget? trailing,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 18),
+            Icon(
+              icon,
+              size: 22,
+              color: titleColor ?? Colors.grey.shade600,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-                child: Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13))),
-            Icon(Icons.arrow_forward_ios,
-                size: 12, color: Colors.grey.shade400),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: titleColor ?? Colors.black87,
+                ),
+              ),
+            ),
+            trailing ??
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Colors.grey.shade400,
+                ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showLogoutDialog(context),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.errorColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.logout_rounded, color: AppTheme.errorColor, size: 18),
-            SizedBox(width: 8),
-            Text('Logout',
-                style: TextStyle(
-                    color: AppTheme.errorColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
-          ],
-        ),
-      ),
+  Widget _buildMenuDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 52,
+      color: Colors.grey.shade100,
     );
   }
 
@@ -579,7 +649,7 @@ class _ProfilePageState extends State<ProfilePage>
               Navigator.pop(ctx);
               final authProvider = context.read<AuthProvider>();
               await authProvider.logout();
-              if (mounted) {
+              if (context.mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -588,9 +658,9 @@ class _ProfilePageState extends State<ProfilePage>
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
+              backgroundColor: AppTheme.primaryColor,
             ),
-            child: const Text('Logout'),
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

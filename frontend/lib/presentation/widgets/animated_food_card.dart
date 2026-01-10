@@ -55,6 +55,25 @@ class _AnimatedFoodCardState extends State<AnimatedFoodCard>
     super.dispose();
   }
 
+  Widget _buildPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.accentYellow.withValues(alpha: 0.3),
+            AppTheme.accentYellow.withValues(alpha: 0.1),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Icon(Icons.restaurant_menu,
+            size: 40, color: AppTheme.accentYellow.withValues(alpha: 0.6)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -79,21 +98,21 @@ class _AnimatedFoodCardState extends State<AnimatedFoodCard>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final imageHeight = constraints.maxHeight * 0.6;
+                final imageHeight = constraints.maxHeight * 0.58;
                 return Stack(
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Image - fixed height based on container
+                        // Image Section
                         SizedBox(
                           height: imageHeight,
                           child: Stack(
@@ -103,33 +122,40 @@ class _AnimatedFoodCardState extends State<AnimatedFoodCard>
                                 child: ClipRRect(
                                   borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(16)),
-                                  child: Image.network(
-                                    widget.food.image,
-                                    width: double.infinity,
-                                    height: imageHeight,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      color: AppTheme.primaryColor
-                                          .withValues(alpha: 0.2),
-                                      child: const Icon(Icons.restaurant,
-                                          size: 32, color: Colors.white54),
-                                    ),
-                                  ),
+                                  child: widget.food.image.isNotEmpty
+                                      ? Image.network(
+                                          widget.food.image,
+                                          width: double.infinity,
+                                          height: imageHeight,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              _buildPlaceholder(),
+                                        )
+                                      : _buildPlaceholder(),
                                 ),
                               ),
+                              // Discount Badge
                               if (widget.food.discount > 0)
                                 Positioned(
                                   top: 8,
                                   left: 8,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 3),
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFEF4444),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: AppTheme.primaryColor,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppTheme.primaryColor
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Text(
-                                      '-${widget.food.discount.toInt()}%',
+                                      '${widget.food.discount.toInt()}% Off',
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 10,
@@ -137,116 +163,87 @@ class _AnimatedFoodCardState extends State<AnimatedFoodCard>
                                     ),
                                   ),
                                 ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.star,
-                                          color: Color(0xFFFBBF24), size: 12),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                          widget.food.rating.toStringAsFixed(1),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 10)),
-                                    ],
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),
-                        // Content - takes remaining space
+                        // Content Section
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Price Row
+                                Row(
+                                  children: [
+                                    Text(
+                                      '${widget.food.finalPrice.toStringAsFixed(0)} ',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      AppConstants.currency,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.primaryColor
+                                            .withValues(alpha: 0.8),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    // Add Button
+                                    GestureDetector(
+                                      onTap: widget.onAddToCart,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: AppTheme.accentYellow,
+                                            width: 1.5,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                          Icons.add,
+                                          color: AppTheme.accentYellow,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (widget.food.discount > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      '${widget.food.price.toStringAsFixed(0)} ${AppConstants.currency}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade400,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  ),
+                                const Spacer(),
+                                // Food Name
                                 Text(
                                   widget.food.name,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12),
-                                  maxLines: 1,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: AppTheme.textPrimary),
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  widget.food.hotelName,
-                                  style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 10),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const Spacer(),
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        '${AppConstants.currency}${widget.food.finalPrice.toStringAsFixed(0)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppTheme.primaryColor,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (widget.food.discount > 0) ...[
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        widget.food.price.toStringAsFixed(0),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey.shade400,
-                                          decoration:
-                                              TextDecoration.lineThrough,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ],
-                    ),
-                    // Add to cart button - positioned at the junction of image and content
-                    Positioned(
-                      right: 8,
-                      top: imageHeight - 16,
-                      child: GestureDetector(
-                        onTap: widget.onAddToCart,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryColor
-                                    .withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.add,
-                              color: Colors.white, size: 16),
-                        ),
-                      ),
                     ),
                   ],
                 );
