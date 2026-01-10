@@ -133,7 +133,7 @@ class User {
     };
   }
 
-  bool get isAdmin => role == 'admin' || role == 'restaurant';
+  bool get isAdmin => role == 'restaurant';
   bool get isRestaurant => role == 'restaurant';
   bool get isDelivery => role == 'delivery';
   bool get isUser => role == 'user';
@@ -170,6 +170,7 @@ class Hotel {
   });
 
   factory Hotel.fromJson(Map<String, dynamic> json) {
+    final rawRating = (json['hotelRating'] ?? json['rating'] ?? 4.5).toDouble();
     return Hotel(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['hotelName'] ?? json['name'] ?? '',
@@ -178,7 +179,7 @@ class Hotel {
       description: json['hotelDescription'] ?? json['description'],
       image: json['hotelImage'] ?? json['image'],
       category: json['hotelCategory'] ?? json['category'],
-      rating: (json['hotelRating'] ?? json['rating'] ?? 4.5).toDouble(),
+      rating: rawRating > 0 ? rawRating : 4.5, // Default to 4.5 if 0
       isOpen: json['isOpen'] ?? true,
       deliveryFee: (json['deliveryFee'] ?? 50).toDouble(),
       minOrderAmount: (json['minOrderAmount'] ?? 0).toDouble(),

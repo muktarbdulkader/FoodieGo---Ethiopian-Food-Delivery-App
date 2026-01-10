@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../../../state/food/food_provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../state/auth/auth_provider.dart';
@@ -36,6 +39,8 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     bool isVegetarian = false;
     bool isSpicy = false;
     bool isFeatured = false;
+    File? selectedImage;
+    String? base64Image;
 
     final defaultCategories = [
       'Main Course',
@@ -59,6 +64,46 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
       'Vegetarian',
       'Vegan',
     ];
+
+    Future<void> pickImage(StateSetter setModalState) async {
+      final picker = ImagePicker();
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source != null) {
+        final pickedFile = await picker.pickImage(
+          source: source,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 80,
+        );
+        if (pickedFile != null) {
+          final bytes = await File(pickedFile.path).readAsBytes();
+          setModalState(() {
+            selectedImage = File(pickedFile.path);
+            base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+            imageCtrl.text = ''; // Clear URL if image selected
+          });
+        }
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -95,6 +140,74 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
+                // Image picker section
+                GestureDetector(
+                  onTap: () => pickImage(setModalState),
+                  child: Container(
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: selectedImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.file(selectedImage!, fit: BoxFit.cover),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () => setModalState(() {
+                                      selectedImage = null;
+                                      base64Image = null;
+                                    }),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close,
+                                          color: Colors.white, size: 18),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate,
+                                  size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 8),
+                              Text('Tap to add food image',
+                                  style:
+                                      TextStyle(color: Colors.grey.shade600)),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Or use URL
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('OR',
+                          style: TextStyle(color: Colors.grey.shade500)),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(imageCtrl, 'Image URL (optional)', Icons.link),
+                const SizedBox(height: 16),
                 _buildTextField(nameCtrl, 'Food Name', Icons.fastfood),
                 const SizedBox(height: 12),
                 _buildTextField(descCtrl, 'Description', Icons.description,
@@ -113,8 +226,6 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                             isNumber: true)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _buildTextField(imageCtrl, 'Image URL (optional)', Icons.image),
                 const SizedBox(height: 16),
                 // Category selection with custom option
                 Row(
@@ -203,6 +314,17 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                             ? customCategoryCtrl.text
                             : category;
 
+                    // Determine image: base64 > URL > default
+                    String imageValue;
+                    if (base64Image != null) {
+                      imageValue = base64Image!;
+                    } else if (imageCtrl.text.isNotEmpty) {
+                      imageValue = imageCtrl.text;
+                    } else {
+                      imageValue =
+                          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+                    }
+
                     final scaffoldMessenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(ctx);
                     final foodProvider = context.read<FoodProvider>();
@@ -213,9 +335,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       'description': descCtrl.text,
                       'price': double.tryParse(priceCtrl.text) ?? 0,
                       'category': finalCategory,
-                      'image': imageCtrl.text.isNotEmpty
-                          ? imageCtrl.text
-                          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+                      'image': imageValue,
                       'preparationTime': int.tryParse(prepTimeCtrl.text) ?? 20,
                       'calories': int.tryParse(caloriesCtrl.text) ?? 500,
                       'isVegetarian': isVegetarian,

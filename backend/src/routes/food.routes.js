@@ -34,10 +34,10 @@ router.get('/', optionalAuth, getAllFoods);
 // User routes (need to be logged in)
 router.post('/:id/like', protect, toggleLikeFood);
 
-// Admin only routes
-router.get('/admin/categories', protect, authorize('admin'), getAdminCategories);
-router.post('/', protect, authorize('admin'), createFood);
-router.put('/:id', protect, authorize('admin'), updateFood);
-router.delete('/:id', protect, authorize('admin'), deleteFood);
+// Restaurant only routes
+router.get('/admin/categories', protect, authorize('restaurant'), getAdminCategories);
+router.post('/', protect, authorize('restaurant'), createFood);
+router.put('/:id', protect, authorize('restaurant'), updateFood);
+router.delete('/:id', protect, authorize('restaurant'), deleteFood);
 
 module.exports = router;

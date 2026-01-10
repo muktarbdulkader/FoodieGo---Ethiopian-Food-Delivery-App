@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Food delivery API with Express and MongoDB",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node src/utils/seed.js"
+    "seed": "node src/utils/seed.js",
+    "migrate": "node src/utils/migrate-admin-to-restaurant.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -14,7 +18,8 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.0.3"
+    "mongoose": "^8.0.3",
+    "nodemailer": "^7.0.12"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

@@ -92,10 +92,12 @@ class _HomePageState extends State<HomePage> {
       _isNetworkError = false;
     });
     try {
-      await context.read<FoodProvider>().fetchFoods();
+      final foodProvider = context.read<FoodProvider>();
+      await foodProvider.fetchFoods();
+      await foodProvider.fetchPromotions(); // Load promotions
       if (!mounted) return;
       // Extract unique categories from foods
-      final foods = context.read<FoodProvider>().foods;
+      final foods = foodProvider.foods;
       final uniqueCategories = foods.map((f) => f.category).toSet().toList();
       uniqueCategories.sort();
       setState(() {
@@ -204,6 +206,11 @@ class _HomePageState extends State<HomePage> {
                 _buildCategories(),
                 const SizedBox(height: 20),
                 _buildPromoBanner(),
+                // Show promotions if available
+                if (foodProvider.promotions.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildPromotionsSection(foodProvider),
+                ],
                 const SizedBox(height: 24),
                 _buildOffersSection(foodProvider),
                 const SizedBox(height: 24),
@@ -580,6 +587,161 @@ class _HomePageState extends State<HomePage> {
                         shape: BoxShape.circle)),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPromotionsSection(FoodProvider foodProvider) {
+    final promotions = foodProvider.promotions;
+    if (promotions.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Icon(Icons.local_offer, color: AppTheme.primaryColor, size: 22),
+              SizedBox(width: 8),
+              Text('Active Promotions',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 145,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: promotions.length,
+            itemBuilder: (context, index) {
+              final promo = promotions[index];
+              return _buildPromotionCard(promo);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPromotionCard(promotion) {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.primaryColor, Color(0xFF8B5CF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      promotion.promoTypeIcon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (promotion.hotelName != null &&
+                              promotion.hotelName.isNotEmpty)
+                            Text(
+                              promotion.hotelName,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              promotion.discountText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.local_offer, color: Colors.white, size: 22),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                promotion.description,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Code: ${promotion.code}',
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

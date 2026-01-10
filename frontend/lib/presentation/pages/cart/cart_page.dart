@@ -203,7 +203,7 @@ class _CartPageState extends State<CartPage>
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () {},
+                onTap: () => Navigator.pop(context),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

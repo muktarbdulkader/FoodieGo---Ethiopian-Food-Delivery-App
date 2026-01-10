@@ -7,6 +7,7 @@ import '../../../state/cart/cart_provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../data/models/order.dart';
+import '../../../data/services/api_service.dart';
 import '../orders/orders_page.dart';
 
 class CheckoutPage extends StatefulWidget {
@@ -20,12 +21,19 @@ class _CheckoutPageState extends State<CheckoutPage>
     with TickerProviderStateMixin {
   final _instructionsController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _promoController = TextEditingController();
 
   String _selectedPayment = 'cash';
   String _deliveryType = 'delivery';
   double _tip = 0;
   bool _isLoading = false;
   bool _isLoadingLocation = false;
+
+  // Promo code state
+  bool _isApplyingPromo = false;
+  String? _appliedPromoCode;
+  double _promoDiscount = 0;
+  String? _promoDescription;
 
   // Auto-fetched location
   String? _currentAddress;
@@ -105,6 +113,7 @@ class _CheckoutPageState extends State<CheckoutPage>
     _animationController.dispose();
     _instructionsController.dispose();
     _phoneController.dispose();
+    _promoController.dispose();
     super.dispose();
   }
 
@@ -205,7 +214,7 @@ class _CheckoutPageState extends State<CheckoutPage>
     final subtotal = cart.totalPrice;
     final deliveryFee = _deliveryType == 'delivery' ? 50.0 : 0.0;
     final tax = subtotal * 0.15;
-    final total = subtotal + deliveryFee + tax + _tip;
+    final total = subtotal + deliveryFee + tax + _tip - _promoDiscount;
 
     final deliveryAddress = _deliveryType == 'delivery'
         ? DeliveryAddress(
@@ -397,6 +406,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                         const SizedBox(height: 20),
                       ],
                       _buildPaymentSection(),
+                      const SizedBox(height: 20),
+                      _buildPromoCodeSection(),
                       const SizedBox(height: 20),
                       _buildTipSection(),
                       const SizedBox(height: 20),
@@ -1017,6 +1028,185 @@ class _CheckoutPageState extends State<CheckoutPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _applyPromoCode() async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a promo code')),
+      );
+      return;
+    }
+    setState(() => _isApplyingPromo = true);
+    try {
+      final cart = context.read<CartProvider>();
+      final response = await ApiService.post('/promotions/validate', {
+        'code': code,
+        'orderAmount': cart.totalPrice,
+      });
+      if (response['success'] == true && response['data'] != null) {
+        setState(() {
+          _appliedPromoCode = code.toUpperCase();
+          _promoDiscount = (response['data']['discount'] ?? 0).toDouble();
+          _promoDescription = response['data']['description'];
+          _isApplyingPromo = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                      'Promo applied! You save ETB ${_promoDiscount.toStringAsFixed(0)}'),
+                ],
+              ),
+              backgroundColor: AppTheme.accentGreen,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isApplyingPromo = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  void _removePromoCode() {
+    setState(() {
+      _appliedPromoCode = null;
+      _promoDiscount = 0;
+      _promoDescription = null;
+      _promoController.clear();
+    });
+  }
+
+  Widget _buildPromoCodeSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.local_offer, color: AppTheme.primaryColor, size: 22),
+              SizedBox(width: 8),
+              Text('Promo Code',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_appliedPromoCode != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: AppTheme.accentGreen,
+                        borderRadius: BorderRadius.circular(12)),
+                    child:
+                        const Icon(Icons.check, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_appliedPromoCode!,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppTheme.accentGreen)),
+                        if (_promoDescription != null)
+                          Text(_promoDescription!,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade600)),
+                        Text(
+                            'You save ETB ${_promoDiscount.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.accentGreen,
+                                fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                      onPressed: _removePromoCode,
+                      icon: const Icon(Icons.close, color: Colors.grey)),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _promoController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: 'Enter promo code',
+                      prefixIcon: const Icon(Icons.confirmation_number_outlined,
+                          color: AppTheme.primaryColor),
+                      filled: true,
+                      fillColor: AppTheme.backgroundColor,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primaryColor, width: 2)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _isApplyingPromo ? null : _applyPromoCode,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(14)),
+                    child: _isApplyingPromo
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Apply',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }

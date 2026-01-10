@@ -21,6 +21,8 @@ class EventBooking {
   final AdminResponse? adminResponse;
   final double totalPrice;
   final DateTime createdAt;
+  final bool userConfirmedComplete;
+  final bool hotelConfirmedComplete;
 
   EventBooking({
     required this.id,
@@ -45,7 +47,14 @@ class EventBooking {
     this.adminResponse,
     required this.totalPrice,
     required this.createdAt,
+    this.userConfirmedComplete = false,
+    this.hotelConfirmedComplete = false,
   });
+
+  // Check if both parties confirmed - can be deleted
+  bool get canDelete =>
+      (userConfirmedComplete && hotelConfirmedComplete) ||
+      status == 'cancelled';
 
   factory EventBooking.fromJson(Map<String, dynamic> json) {
     final hotel = json['hotel'];
@@ -80,6 +89,8 @@ class EventBooking {
       totalPrice: (json['totalPrice'] ?? 0).toDouble(),
       createdAt:
           DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      userConfirmedComplete: json['userConfirmedComplete'] ?? false,
+      hotelConfirmedComplete: json['hotelConfirmedComplete'] ?? false,
     );
   }
 

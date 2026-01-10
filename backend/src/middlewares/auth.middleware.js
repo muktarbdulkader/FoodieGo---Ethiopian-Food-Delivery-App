@@ -144,12 +144,15 @@ const authorize = (...roles) => {
       });
     }
     
+    // Debug log
+    console.log(`[AUTH] User role: ${req.user.role}, Required roles: ${roles.join(', ')}, Path: ${req.originalUrl}`);
+    
     if (!roles.includes(req.user.role)) {
       // Log unauthorized access attempt
-      console.log(`[SECURITY] Unauthorized access attempt by user ${req.user.id} to ${req.originalUrl}`);
+      console.log(`[SECURITY] Unauthorized access attempt by user ${req.user.id} (role: ${req.user.role}) to ${req.originalUrl}`);
       return res.status(403).json({
         success: false,
-        message: 'Not authorized for this action'
+        message: `Not authorized for this action. Your role: ${req.user.role}, Required: ${roles.join(' or ')}`
       });
     }
     next();
@@ -161,8 +164,8 @@ const authorize = (...roles) => {
  */
 const verifyOwnership = (resourceField = 'user') => {
   return (req, res, next) => {
-    // Admin can access all resources
-    if (req.user.role === 'admin') {
+    // Restaurant can access all resources for their hotel
+    if (req.user.role === 'restaurant') {
       return next();
     }
     

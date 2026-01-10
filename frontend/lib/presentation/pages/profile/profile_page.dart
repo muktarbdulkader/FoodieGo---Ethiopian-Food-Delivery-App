@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../state/order/order_provider.dart';
+import '../../../state/language/language_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/services/api_service.dart';
@@ -12,6 +13,10 @@ import '../events/my_events_page.dart';
 import 'payment_methods_page.dart';
 import 'notifications_page.dart';
 import 'help_support_page.dart';
+import 'edit_profile_page.dart';
+import 'favorites_page.dart';
+import 'wallet_page.dart';
+import 'account_settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -205,9 +210,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: () {
-                            // TODO: Navigate to edit profile
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const EditProfilePage()),
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -309,6 +316,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             label: 'Coupons',
             value: _isLoadingStats ? '...' : '$_ordersCount',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OrdersPage()),
+            ),
           ),
           _buildStatDivider(),
           _buildStatItem(
@@ -329,6 +340,10 @@ class _ProfilePageState extends State<ProfilePage> {
             value: _isLoadingStats
                 ? '...'
                 : '${_walletBalance.toStringAsFixed(2)} ETB',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletPage()),
+            ),
           ),
           _buildStatDivider(),
           _buildStatItem(
@@ -347,6 +362,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             label: 'Level',
             value: _userLevel,
+            onTap: () {},
           ),
         ],
       ),
@@ -358,10 +374,11 @@ class _ProfilePageState extends State<ProfilePage> {
     required Widget iconWidget,
     required String label,
     required String value,
+    VoidCallback? onTap,
   }) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {},
+        onTap: onTap,
         child: Column(
           children: [
             Row(
@@ -453,13 +470,19 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildMenuItem(
             icon: Icons.person_outline,
             title: 'Profile',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfilePage()),
+            ),
           ),
           _buildMenuDivider(),
           _buildMenuItem(
             icon: Icons.favorite_border,
             title: 'Favorites',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FavoritesPage()),
+            ),
           ),
           _buildMenuDivider(),
           _buildMenuItem(
@@ -478,7 +501,10 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildMenuItem(
             icon: Icons.people_outline,
             title: 'Account Settings',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AccountSettingsPage()),
+            ),
           ),
         ],
       ),
@@ -486,6 +512,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSettingsMenu() {
+    final langProvider = context.watch<LanguageProvider>();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       decoration: BoxDecoration(
@@ -503,10 +531,158 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildMenuItem(
             icon: Icons.translate,
-            title: 'Language',
-            onTap: () {},
+            title: langProvider.loc.language,
+            onTap: () => _showLanguageDialog(context),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  langProvider.currentLanguage.nativeName,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context) {
+    final langProvider = context.read<LanguageProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.translate,
+                      color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      langProvider.loc.selectLanguage,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'ቋንቋ ይምረጡ • Afaan Filadhu',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...LanguageProvider.supportedLanguages.map((lang) {
+              final isSelected = langProvider.languageCode == lang.code;
+              return GestureDetector(
+                onTap: () {
+                  langProvider.setLanguage(lang.code);
+                  Navigator.pop(ctx);
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(lang.flag, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              lang.nativeName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : AppTheme.textPrimary,
+                              ),
+                            ),
+                            if (lang.name != lang.nativeName)
+                              Text(
+                                lang.name,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (isSelected)
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.check,
+                              color: Colors.white, size: 14),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }

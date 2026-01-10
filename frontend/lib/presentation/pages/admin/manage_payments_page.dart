@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../widgets/loading_widget.dart';
 
 class ManagePaymentsPage extends StatefulWidget {
@@ -16,6 +17,9 @@ class _ManagePaymentsPageState extends State<ManagePaymentsPage> {
   @override
   void initState() {
     super.initState();
+    // Ensure admin session type is set
+    StorageUtils.setSessionType(SessionType.admin);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().fetchPayments();
     });

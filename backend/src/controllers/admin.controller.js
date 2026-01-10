@@ -5,29 +5,44 @@
 const User = require('../models/User');
 const Food = require('../models/Food');
 const Order = require('../models/Order');
+const Review = require('../models/Review');
 
 // Get comprehensive dashboard stats (hotel isolated)
 const getDashboardStats = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
     const hotelName = req.user.hotelName;
 
-    // Get hotel's foods
-    const hotelFoods = await Food.find({ hotelId }).select('_id');
-    const foodIds = hotelFoods.map(f => f._id);
+    // Build flexible filter for hotelId matching (string or ObjectId)
+    const hotelFilter = {
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': hotelId },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ]
+    };
 
-    // Count stats for this hotel only
-    const [totalFoods, totalOrders, pendingOrders] = await Promise.all([
+    // Count stats for this hotel only (including reviews)
+    const [totalFoods, totalOrders, pendingOrders, totalReviews] = await Promise.all([
       Food.countDocuments({ hotelId }),
-      Order.countDocuments({ 'items.hotelId': hotelId }),
-      Order.countDocuments({ 'items.hotelId': hotelId, status: 'pending' })
+      Order.countDocuments(hotelFilter),
+      Order.countDocuments({ ...hotelFilter, status: 'pending' }),
+      Review.countDocuments({ hotel: hotelId })
     ]);
 
     // Revenue calculations for this hotel
     const revenueStats = await Order.aggregate([
       { $match: { status: { $ne: 'cancelled' } } },
       { $unwind: '$items' },
-      { $match: { 'items.hotelId': hotelId.toString() } },
+      { 
+        $match: { 
+          $or: [
+            { 'items.hotelId': hotelIdStr },
+            ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+          ]
+        } 
+      },
       {
         $group: {
           _id: null,
@@ -43,7 +58,14 @@ const getDashboardStats = async (req, res, next) => {
     const todayStats = await Order.aggregate([
       { $match: { createdAt: { $gte: today }, status: { $ne: 'cancelled' } } },
       { $unwind: '$items' },
-      { $match: { 'items.hotelId': hotelId.toString() } },
+      { 
+        $match: { 
+          $or: [
+            { 'items.hotelId': hotelIdStr },
+            ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+          ]
+        } 
+      },
       {
         $group: {
           _id: null,
@@ -54,7 +76,7 @@ const getDashboardStats = async (req, res, next) => {
     ]);
 
     // Recent orders containing this hotel's items
-    const recentOrders = await Order.find({ 'items.hotelId': hotelId.toString() })
+    const recentOrders = await Order.find(hotelFilter)
       .sort({ createdAt: -1 })
       .limit(10)
       .populate('user', 'name email phone');
@@ -62,7 +84,14 @@ const getDashboardStats = async (req, res, next) => {
     // Top selling foods for this hotel
     const topFoods = await Order.aggregate([
       { $unwind: '$items' },
-      { $match: { 'items.hotelId': hotelId.toString() } },
+      { 
+        $match: { 
+          $or: [
+            { 'items.hotelId': hotelIdStr },
+            ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+          ]
+        } 
+      },
       { 
         $group: { 
           _id: '$items.name', 
@@ -81,6 +110,8 @@ const getDashboardStats = async (req, res, next) => {
         totalFoods,
         totalOrders,
         pendingOrders,
+        totalReviews,
+        hotelRating: req.user.hotelRating || 4.5,
         totalRevenue: revenueStats[0]?.totalRevenue || 0,
         todayOrders: todayStats[0]?.todayOrders || 0,
         todayRevenue: todayStats[0]?.todayRevenue || 0,
@@ -98,9 +129,20 @@ const getDashboardStats = async (req, res, next) => {
 const getAllUsers = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
+    const hotelName = req.user.hotelName;
+    
+    // Build flexible filter
+    const hotelFilter = {
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': hotelId },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ]
+    };
     
     // Get unique users who ordered from this hotel
-    const orderUsers = await Order.distinct('user', { 'items.hotelId': hotelId.toString() });
+    const orderUsers = await Order.distinct('user', hotelFilter);
     
     const users = await User.find({ _id: { $in: orderUsers }, role: 'user' })
       .select('-password')
@@ -108,7 +150,7 @@ const getAllUsers = async (req, res, next) => {
     
     // Get order stats for each user from this hotel
     const userStats = await Order.aggregate([
-      { $match: { 'items.hotelId': hotelId.toString() } },
+      { $match: hotelFilter },
       { $group: { _id: '$user', orderCount: { $sum: 1 }, totalSpent: { $sum: '$totalPrice' } } }
     ]);
     
@@ -130,16 +172,26 @@ const getAllUsers = async (req, res, next) => {
 const getUserDetails = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
+    const hotelName = req.user.hotelName;
+    
     const user = await User.findById(req.params.id).select('-password');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Get orders from this hotel only
-    const orders = await Order.find({ 
+    // Build flexible filter
+    const hotelFilter = {
       user: req.params.id,
-      'items.hotelId': hotelId.toString()
-    }).sort({ createdAt: -1 }).limit(20);
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': hotelId },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ]
+    };
+
+    // Get orders from this hotel only
+    const orders = await Order.find(hotelFilter).sort({ createdAt: -1 }).limit(20);
 
     res.json({ success: true, data: { user, orders } });
   } catch (error) {
@@ -198,11 +250,20 @@ const deleteUser = async (req, res, next) => {
 const getAllPayments = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
+    const hotelName = req.user.hotelName;
     
-    const orders = await Order.find({ 
-      'items.hotelId': hotelId.toString(),
-      'payment.status': { $exists: true } 
-    })
+    // Build flexible filter
+    const hotelFilter = {
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': hotelId },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ],
+      'payment.status': { $exists: true }
+    };
+    
+    const orders = await Order.find(hotelFilter)
       .select('orderNumber totalPrice payment delivery user createdAt items')
       .populate('user', 'name email phone')
       .sort({ createdAt: -1 });
@@ -237,11 +298,20 @@ const updatePaymentStatus = async (req, res, next) => {
 const getDeliveryManagement = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
+    const hotelName = req.user.hotelName;
     
-    const activeDeliveries = await Order.find({
-      'items.hotelId': hotelId.toString(),
+    // Build flexible filter
+    const hotelFilter = {
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': hotelId },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ],
       status: { $in: ['confirmed', 'preparing', 'ready', 'out_for_delivery'] }
-    })
+    };
+    
+    const activeDeliveries = await Order.find(hotelFilter)
       .populate('user', 'name phone address')
       .sort({ createdAt: -1 });
 
@@ -264,11 +334,41 @@ const assignDriver = async (req, res, next) => {
         status: 'out_for_delivery'
       },
       { new: true }
-    ).populate('user', 'name phone');
+    ).populate('user', 'name phone email');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+
+    // Send email notification to customer (using hotel's email as sender)
+    if (order.user && order.user.email) {
+      const { sendOrderStatusEmail } = require('../utils/email');
+      const hotelEmail = req.user.email; // Hotel owner's email
+      sendOrderStatusEmail(order.user.email, {
+        orderNumber: order.orderNumber,
+        hotelName: order.items[0]?.hotelName || req.user.hotelName,
+        driverName,
+        driverPhone
+      }, 'out_for_delivery', hotelEmail).catch(err => console.error('Customer email failed:', err));
+    }
+
+    // Send email notification to delivery driver (using hotel's email as sender)
+    const deliveryUser = await User.findOne({ name: driverName, role: 'delivery' });
+    if (deliveryUser && deliveryUser.email) {
+      const { sendDriverAssignmentEmail } = require('../utils/email');
+      const hotelName = order.items[0]?.hotelName || req.user.hotelName || 'Restaurant';
+      const hotelEmail = req.user.email; // Hotel owner's email
+      sendDriverAssignmentEmail(deliveryUser.email, {
+        orderNumber: order.orderNumber,
+        hotelName,
+        hotelAddress: req.user.hotelAddress,
+        userName: order.user?.name || 'Customer',
+        userPhone: order.user?.phone,
+        address: order.deliveryAddress?.fullAddress || 'N/A',
+        totalPrice: order.totalPrice
+      }, hotelEmail).catch(err => console.error('Driver email failed:', err));
+    }
+
     res.json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -279,6 +379,8 @@ const assignDriver = async (req, res, next) => {
 const getAnalytics = async (req, res, next) => {
   try {
     const hotelId = req.user._id;
+    const hotelIdStr = hotelId.toString();
+    const hotelName = req.user.hotelName;
     const { period = '7d' } = req.query;
     let startDate = new Date();
     
@@ -289,11 +391,19 @@ const getAnalytics = async (req, res, next) => {
       case '90d': startDate.setDate(startDate.getDate() - 90); break;
     }
 
+    // Build flexible match for hotelId
+    const hotelMatch = {
+      $or: [
+        { 'items.hotelId': hotelIdStr },
+        ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
+      ]
+    };
+
     // Daily revenue for this hotel
     const dailyRevenue = await Order.aggregate([
       { $match: { createdAt: { $gte: startDate }, status: { $ne: 'cancelled' } } },
       { $unwind: '$items' },
-      { $match: { 'items.hotelId': hotelId.toString() } },
+      { $match: hotelMatch },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
         revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
@@ -303,6 +413,19 @@ const getAnalytics = async (req, res, next) => {
     ]);
 
     res.json({ success: true, data: { dailyRevenue, period } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get all delivery users (for assigning drivers)
+const getDeliveryUsers = async (req, res, next) => {
+  try {
+    const deliveryUsers = await User.find({ role: 'delivery', isActive: true })
+      .select('name phone email')
+      .sort({ name: 1 });
+    
+    res.json({ success: true, count: deliveryUsers.length, data: deliveryUsers });
   } catch (error) {
     next(error);
   }
@@ -319,5 +442,6 @@ module.exports = {
   updatePaymentStatus,
   getDeliveryManagement,
   assignDriver,
-  getAnalytics
+  getAnalytics,
+  getDeliveryUsers
 };

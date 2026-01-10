@@ -9,6 +9,11 @@ class Promotion {
   final DateTime startDate;
   final DateTime endDate;
   final bool isActive;
+  // Hotel info
+  final String? hotelId;
+  final String? hotelName;
+  // Promo type/purpose
+  final String promoType;
 
   Promotion({
     required this.id,
@@ -21,6 +26,9 @@ class Promotion {
     required this.startDate,
     required this.endDate,
     this.isActive = true,
+    this.hotelId,
+    this.hotelName,
+    this.promoType = 'food_discount',
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -37,6 +45,9 @@ class Promotion {
       endDate:
           DateTime.parse(json['endDate'] ?? DateTime.now().toIso8601String()),
       isActive: json['isActive'] ?? true,
+      hotelId: json['hotelId'],
+      hotelName: json['hotelName'],
+      promoType: json['promoType'] ?? 'food_discount',
     );
   }
 
@@ -44,6 +55,40 @@ class Promotion {
     if (discountType == 'percentage') {
       return '${discountValue.toInt()}% OFF';
     }
-    return '\$${discountValue.toStringAsFixed(2)} OFF';
+    return 'ETB ${discountValue.toStringAsFixed(0)} OFF';
+  }
+
+  String get promoTypeLabel {
+    switch (promoType) {
+      case 'food_discount':
+        return '🍔 Food Discount';
+      case 'delivery_free':
+        return '🚚 Free Delivery';
+      case 'event_discount':
+        return '🎉 Event Discount';
+      case 'new_user':
+        return '🆕 New User';
+      case 'special_offer':
+        return '⭐ Special Offer';
+      default:
+        return '🎁 Promotion';
+    }
+  }
+
+  String get promoTypeIcon {
+    switch (promoType) {
+      case 'food_discount':
+        return '🍔';
+      case 'delivery_free':
+        return '🚚';
+      case 'event_discount':
+        return '🎉';
+      case 'new_user':
+        return '🆕';
+      case 'special_offer':
+        return '⭐';
+      default:
+        return '🎁';
+    }
   }
 }

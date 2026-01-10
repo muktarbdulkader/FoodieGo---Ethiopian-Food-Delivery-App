@@ -90,6 +90,15 @@ const eventBookingSchema = new mongoose.Schema({
     amount: Number,
     paid: { type: Boolean, default: false },
     paidAt: Date
+  },
+  // Track completion confirmation from both parties
+  userConfirmedComplete: {
+    type: Boolean,
+    default: false
+  },
+  hotelConfirmedComplete: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

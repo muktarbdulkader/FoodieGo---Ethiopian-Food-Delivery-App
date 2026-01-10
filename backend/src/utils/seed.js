@@ -18,13 +18,13 @@ const seedDatabase = async () => {
     const adminPassword = await hashPassword('admin123');
     const userPassword = await hashPassword('user123');
 
-    // Create Hotels (Admin Users)
+    // Create Hotels (Restaurant Users)
     const hotels = await User.create([
       {
-        name: 'Pizza Palace Admin',
+        name: 'Pizza Palace Owner',
         email: 'pizza@foodiego.com',
         password: adminPassword,
-        role: 'admin',
+        role: 'restaurant',
         hotelName: 'Pizza Palace',
         hotelAddress: 'Bole Road, Addis Ababa',
         hotelPhone: '+251911223344',
@@ -37,10 +37,10 @@ const seedDatabase = async () => {
         minOrderAmount: 200,
       },
       {
-        name: 'Burger Barn Admin',
+        name: 'Burger Barn Owner',
         email: 'burger@foodiego.com',
         password: adminPassword,
-        role: 'admin',
+        role: 'restaurant',
         hotelName: 'Burger Barn',
         hotelAddress: 'Kazanchis, Addis Ababa',
         hotelPhone: '+251922334455',
@@ -53,10 +53,10 @@ const seedDatabase = async () => {
         minOrderAmount: 150,
       },
       {
-        name: 'Habesha Kitchen Admin',
+        name: 'Habesha Kitchen Owner',
         email: 'habesha@foodiego.com',
         password: adminPassword,
-        role: 'admin',
+        role: 'restaurant',
         hotelName: 'Habesha Kitchen',
         hotelAddress: 'Piassa, Addis Ababa',
         hotelPhone: '+251933445566',
@@ -69,10 +69,10 @@ const seedDatabase = async () => {
         minOrderAmount: 180,
       },
       {
-        name: 'Sweet Treats Admin',
+        name: 'Sweet Treats Owner',
         email: 'sweets@foodiego.com',
         password: adminPassword,
-        role: 'admin',
+        role: 'restaurant',
         hotelName: 'Sweet Treats',
         hotelAddress: 'Sarbet, Addis Ababa',
         hotelPhone: '+251944556677',
@@ -85,7 +85,7 @@ const seedDatabase = async () => {
         minOrderAmount: 100,
       },
     ]);
-    console.log('Created hotel admins');
+    console.log('Created hotel owners');
 
     // Create regular user
     await User.create({
@@ -137,11 +137,11 @@ const seedDatabase = async () => {
 
     console.log('\n✅ Database seeded successfully!\n');
     console.log('=== Test Accounts ===');
-    console.log('Admin (Pizza Palace): pizza@foodiego.com / admin123');
-    console.log('Admin (Burger Barn):  burger@foodiego.com / admin123');
-    console.log('Admin (Habesha):      habesha@foodiego.com / admin123');
-    console.log('Admin (Sweet Treats): sweets@foodiego.com / admin123');
-    console.log('User:                 user@foodiego.com / user123\n');
+    console.log('Restaurant (Pizza Palace): pizza@foodiego.com / admin123');
+    console.log('Restaurant (Burger Barn):  burger@foodiego.com / admin123');
+    console.log('Restaurant (Habesha):      habesha@foodiego.com / admin123');
+    console.log('Restaurant (Sweet Treats): sweets@foodiego.com / admin123');
+    console.log('User:                      user@foodiego.com / user123\n');
     
     process.exit(0);
   } catch (error) {

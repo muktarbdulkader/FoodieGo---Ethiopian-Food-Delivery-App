@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/storage_utils.dart';
 import 'admin_register_page.dart';
+import 'forgot_password_page.dart';
 import '../admin/admin_dashboard_page.dart';
 
 class AdminLoginPage extends StatefulWidget {
@@ -28,21 +30,39 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // Debug: Check if values are empty
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter email and password'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
     final authProvider = context.read<AuthProvider>();
+
+    // Set session type to admin before login
+    authProvider.switchSessionType(SessionType.admin);
+
     final success = await authProvider.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
+      email: email,
+      password: password,
     );
 
     if (success && mounted) {
       final user = authProvider.user;
-      if (user?.role == 'admin' || user?.role == 'restaurant') {
+      if (user?.role == 'restaurant') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
-        // Not a restaurant/admin account
+        // Not a restaurant account
         await authProvider.logout();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -99,10 +119,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.admin_panel_settings,
-                            color: Colors.white, size: 16),
+                        Icon(Icons.restaurant, color: Colors.white, size: 16),
                         SizedBox(width: 6),
-                        Text('ADMIN PORTAL',
+                        Text('RESTAURANT PORTAL',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -167,7 +186,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                               Icon(Icons.lock,
                                   color: Color(0xFF6B35FF), size: 20),
                               SizedBox(width: 8),
-                              Text('Admin Login',
+                              Text('Restaurant Login',
                                   style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
@@ -184,7 +203,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(fontSize: 14),
                             decoration: InputDecoration(
-                              labelText: 'Admin Email',
+                              labelText: 'Email',
                               isDense: true,
                               contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 12),
@@ -247,17 +266,31 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2, color: Colors.white))
-                                  : const Text('Sign In as Admin',
+                                  : const Text('Sign In',
                                       style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600)),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const ForgotPasswordPage()),
+                              ),
+                              child: const Text('Forgot Password?',
+                                  style: TextStyle(
+                                      color: Color(0xFF6B35FF), fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text("Don't have an admin account? ",
+                              const Text("Don't have an account? ",
                                   style: TextStyle(
                                       color: AppTheme.textSecondary,
                                       fontSize: 13)),

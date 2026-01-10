@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.get('/', getAllRestaurants);
 router.get('/:id', getRestaurantById);
-router.post('/', protect, authorize('admin'), createRestaurant);
-router.put('/:id', protect, authorize('admin'), updateRestaurant);
-router.delete('/:id', protect, authorize('admin'), deleteRestaurant);
+router.post('/', protect, authorize('restaurant'), createRestaurant);
+router.put('/:id', protect, authorize('restaurant'), updateRestaurant);
+router.delete('/:id', protect, authorize('restaurant'), deleteRestaurant);
 
 module.exports = router;

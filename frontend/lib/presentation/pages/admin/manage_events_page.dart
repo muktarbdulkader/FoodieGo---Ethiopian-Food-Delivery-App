@@ -3,6 +3,7 @@ import '../../../data/repositories/event_repository.dart';
 import '../../../data/models/event_booking.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/storage_utils.dart';
 
 class ManageEventsPage extends StatefulWidget {
   const ManageEventsPage({super.key});
@@ -57,6 +58,9 @@ class _ManageEventsPageState extends State<ManageEventsPage>
   @override
   void initState() {
     super.initState();
+    // Ensure admin session type is set
+    StorageUtils.setSessionType(SessionType.admin);
+
     _tabController = TabController(length: 3, vsync: this);
     _loadBookings();
   }
@@ -87,11 +91,15 @@ class _ManageEventsPageState extends State<ManageEventsPage>
 
   List<EventBooking> _getFilteredBookings(String status) {
     var filtered = _bookings.where((b) {
-      if (status == 'pending') return b.status == 'pending';
-      if (status == 'confirmed')
+      if (status == 'pending') {
+        return b.status == 'pending';
+      }
+      if (status == 'confirmed') {
         return b.status == 'confirmed' || b.status == 'in_progress';
-      if (status == 'completed')
+      }
+      if (status == 'completed') {
         return b.status == 'completed' || b.status == 'cancelled';
+      }
       return true;
     }).toList();
 
@@ -160,7 +168,7 @@ class _ManageEventsPageState extends State<ManageEventsPage>
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? (cat['color'] as Color).withOpacity(0.1)
+                    ? (cat['color'] as Color).withValues(alpha: 0.1)
                     : Colors.grey[100],
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -237,7 +245,7 @@ class _ManageEventsPageState extends State<ManageEventsPage>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: (category['color'] as Color).withOpacity(0.1),
+              color: (category['color'] as Color).withValues(alpha: 0.1),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
             ),
@@ -324,6 +332,101 @@ class _ManageEventsPageState extends State<ManageEventsPage>
                 ],
               ),
             ),
+          // Confirm complete and delete for confirmed/completed events
+          if (booking.status == 'confirmed' ||
+              booking.status == 'completed' ||
+              booking.status == 'cancelled')
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey[200]!)),
+              ),
+              child: Column(
+                children: [
+                  // Show confirmation status
+                  if (booking.status != 'cancelled') ...[
+                    Row(
+                      children: [
+                        Icon(
+                          booking.userConfirmedComplete
+                              ? Icons.check_circle
+                              : Icons.pending,
+                          size: 16,
+                          color: booking.userConfirmedComplete
+                              ? AppTheme.successColor
+                              : AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'User: ${booking.userConfirmedComplete ? "Confirmed" : "Pending"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: booking.userConfirmedComplete
+                                ? AppTheme.successColor
+                                : AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(
+                          booking.hotelConfirmedComplete
+                              ? Icons.check_circle
+                              : Icons.pending,
+                          size: 16,
+                          color: booking.hotelConfirmedComplete
+                              ? AppTheme.successColor
+                              : AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Hotel: ${booking.hotelConfirmedComplete ? "Confirmed" : "Pending"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: booking.hotelConfirmedComplete
+                                ? AppTheme.successColor
+                                : AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      // Confirm complete button (only if not already confirmed by hotel)
+                      if (!booking.hotelConfirmedComplete &&
+                          booking.status != 'cancelled')
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _confirmComplete(booking),
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Confirm Complete'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.successColor,
+                            ),
+                          ),
+                        ),
+                      if (!booking.hotelConfirmedComplete &&
+                          booking.status != 'cancelled')
+                        const SizedBox(width: 12),
+                      // Delete button (only if both confirmed or cancelled)
+                      if (booking.canDelete)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _confirmDeleteBooking(booking),
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Delete'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.errorColor,
+                              side:
+                                  const BorderSide(color: AppTheme.errorColor),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -373,7 +476,7 @@ class _ManageEventsPageState extends State<ManageEventsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -474,6 +577,107 @@ class _ManageEventsPageState extends State<ManageEventsPage>
           SnackBar(
               content: Text('Error: $e'), backgroundColor: AppTheme.errorColor),
         );
+      }
+    }
+  }
+
+  Future<void> _confirmComplete(EventBooking booking) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Completion'),
+        content: Text(
+          'Confirm that "${booking.eventName}" event has been completed?\n\n'
+          'Note: Both you and the customer must confirm before the booking can be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successColor),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _eventRepo.confirmComplete(booking.id);
+        _loadBookings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Event marked as complete!'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: AppTheme.errorColor),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteBooking(EventBooking booking) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: AppTheme.errorColor),
+            SizedBox(width: 8),
+            Text('Delete Booking'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${booking.eventName}"?\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete',
+                style: TextStyle(color: AppTheme.errorColor)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _eventRepo.deleteBooking(booking.id);
+        _loadBookings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Booking deleted'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: AppTheme.errorColor),
+          );
+        }
       }
     }
   }

@@ -1,0 +1,22 @@
+# Render.com deployment configuration
+# Deploy at: https://render.com (free tier available)
+
+services:
+  - type: web
+    name: foodiego-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: MONGODB_URI
+        sync: false  # Set this manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+    healthCheckPath: /api/health

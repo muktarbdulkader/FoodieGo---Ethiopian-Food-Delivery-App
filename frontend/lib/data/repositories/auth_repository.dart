@@ -17,6 +17,7 @@ class AuthRepository {
     String? adminCode,
     String? hotelName,
     String? hotelAddress,
+    String? hotelImage,
   }) async {
     final body = <String, dynamic>{
       'name': name,
@@ -33,14 +34,31 @@ class AuthRepository {
     if (hotelAddress != null && hotelAddress.isNotEmpty) {
       body['hotelAddress'] = hotelAddress;
     }
+    if (hotelImage != null && hotelImage.isNotEmpty) {
+      body['hotelImage'] = hotelImage;
+    }
 
     final response = await ApiService.post(ApiConstants.register, body);
 
     final data = response['data'];
     final user = User.fromJson(data['user']);
 
-    await StorageUtils.saveToken(data['token']);
-    await StorageUtils.saveUser(jsonEncode(data['user']));
+    // Determine session type based on role
+    SessionType sessionType;
+    switch (user.role) {
+      case 'restaurant':
+        sessionType = SessionType.admin;
+        break;
+      case 'delivery':
+        sessionType = SessionType.delivery;
+        break;
+      default:
+        sessionType = SessionType.user;
+    }
+
+    StorageUtils.setSessionType(sessionType);
+    await StorageUtils.saveToken(data['token'], sessionType);
+    await StorageUtils.saveUser(jsonEncode(data['user']), sessionType);
 
     return user;
   }
@@ -55,8 +73,22 @@ class AuthRepository {
     final data = response['data'];
     final user = User.fromJson(data['user']);
 
-    await StorageUtils.saveToken(data['token']);
-    await StorageUtils.saveUser(jsonEncode(data['user']));
+    // Determine session type based on role
+    SessionType sessionType;
+    switch (user.role) {
+      case 'restaurant':
+        sessionType = SessionType.admin;
+        break;
+      case 'delivery':
+        sessionType = SessionType.delivery;
+        break;
+      default:
+        sessionType = SessionType.user;
+    }
+
+    StorageUtils.setSessionType(sessionType);
+    await StorageUtils.saveToken(data['token'], sessionType);
+    await StorageUtils.saveUser(jsonEncode(data['user']), sessionType);
 
     return user;
   }
@@ -65,16 +97,18 @@ class AuthRepository {
     await StorageUtils.clear();
   }
 
-  User? getCurrentUser() {
-    final userJson = StorageUtils.getUser();
+  User? getCurrentUser([SessionType? sessionType]) {
+    final type = sessionType ?? StorageUtils.currentSessionType;
+    final userJson = StorageUtils.getUser(type);
     if (userJson != null) {
       return User.fromJson(jsonDecode(userJson));
     }
     return null;
   }
 
-  bool isLoggedIn() {
-    return StorageUtils.isLoggedIn();
+  bool isLoggedIn([SessionType? sessionType]) {
+    final type = sessionType ?? StorageUtils.currentSessionType;
+    return StorageUtils.isLoggedIn(type);
   }
 
   /// Update user location
@@ -93,6 +127,55 @@ class AuthRepository {
 
     final user = User.fromJson(response['data']);
     await StorageUtils.saveUser(jsonEncode(response['data']));
+    return user;
+  }
+
+  /// Update user profile
+  Future<User> updateProfile({
+    required String name,
+    String? phone,
+    String? address,
+  }) async {
+    final body = <String, dynamic>{'name': name};
+    if (phone != null) body['phone'] = phone;
+    if (address != null) body['address'] = address;
+
+    final response = await ApiService.put('${ApiConstants.auth}/profile', body);
+    final user = User.fromJson(response['data']);
+    await StorageUtils.saveUser(jsonEncode(response['data']));
+    return user;
+  }
+
+  /// Update hotel settings (for restaurant owners)
+  Future<User> updateHotelSettings({
+    String? hotelName,
+    String? hotelAddress,
+    String? hotelPhone,
+    String? hotelDescription,
+    String? hotelImage,
+    String? hotelCategory,
+    bool? isOpen,
+    double? deliveryFee,
+    double? minOrderAmount,
+    double? deliveryRadius,
+  }) async {
+    final body = <String, dynamic>{};
+    if (hotelName != null) body['hotelName'] = hotelName;
+    if (hotelAddress != null) body['hotelAddress'] = hotelAddress;
+    if (hotelPhone != null) body['hotelPhone'] = hotelPhone;
+    if (hotelDescription != null) body['hotelDescription'] = hotelDescription;
+    if (hotelImage != null) body['hotelImage'] = hotelImage;
+    if (hotelCategory != null) body['hotelCategory'] = hotelCategory;
+    if (isOpen != null) body['isOpen'] = isOpen;
+    if (deliveryFee != null) body['deliveryFee'] = deliveryFee;
+    if (minOrderAmount != null) body['minOrderAmount'] = minOrderAmount;
+    if (deliveryRadius != null) body['deliveryRadius'] = deliveryRadius;
+
+    final response =
+        await ApiService.put('${ApiConstants.auth}/hotel-settings', body);
+    final user = User.fromJson(response['data']);
+    await StorageUtils.saveUser(
+        jsonEncode(response['data']), SessionType.admin);
     return user;
   }
 }

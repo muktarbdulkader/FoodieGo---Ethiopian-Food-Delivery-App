@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
+import '../../../state/language/language_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../home/home_page.dart';
 
@@ -59,6 +60,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = context.watch<LanguageProvider>().loc;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -73,7 +75,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildHeader(),
+                _buildHeader(loc),
                 Container(
                   margin: const EdgeInsets.all(20),
                   padding: const EdgeInsets.all(24),
@@ -87,16 +89,17 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text('Create Account',
-                            style: TextStyle(
+                        Text(loc.createAccount,
+                            style: const TextStyle(
                                 fontSize: 24, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
-                        const Text('Join FoodieGo and start ordering',
-                            style: TextStyle(color: AppTheme.textSecondary)),
+                        Text('${loc.signUp} ${loc.appName}',
+                            style:
+                                const TextStyle(color: AppTheme.textSecondary)),
                         const SizedBox(height: 24),
                         _buildTextField(
-                            _nameController, 'Full Name', Icons.person_outline,
-                            validator: (v) => v!.isEmpty ? 'Required' : null),
+                            _nameController, loc.fullName, Icons.person_outline,
+                            validator: (v) => v!.isEmpty ? loc.required : null),
                         const SizedBox(height: 16),
                         _buildTextField(
                             _emailController, 'Email', Icons.email_outlined,
@@ -129,7 +132,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(loc) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -146,15 +149,16 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
             ),
           ),
           const SizedBox(width: 16),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Customer',
-                  style: TextStyle(
+              Text(loc.signUp,
+                  style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white)),
-              Text('Registration', style: TextStyle(color: Colors.white70)),
+              Text(loc.createAccount,
+                  style: const TextStyle(color: Colors.white70)),
             ],
           ),
         ],

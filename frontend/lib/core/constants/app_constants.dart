@@ -15,4 +15,7 @@ class AppConstants {
 
   // Session type key (to remember which portal was last used)
   static const String sessionTypeKey = 'session_type';
+
+  // Language key
+  static const String languageKey = 'app_language';
 }

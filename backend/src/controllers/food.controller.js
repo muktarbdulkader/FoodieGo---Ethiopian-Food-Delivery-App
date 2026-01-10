@@ -4,14 +4,14 @@
 const Food = require('../models/Food');
 const User = require('../models/User');
 
-// Get all foods (users see all, admins see only their hotel's foods)
+// Get all foods (users see all, restaurants see only their hotel's foods)
 const getAllFoods = async (req, res, next) => {
   try {
     const { category, search, available, hotelId, hotelName } = req.query;
     const filter = {};
     
-    // If admin, only show their hotel's foods
-    if (req.user && req.user.role === 'admin') {
+    // If restaurant, only show their hotel's foods
+    if (req.user && req.user.role === 'restaurant') {
       filter.hotelId = req.user._id;
     }
     
@@ -63,7 +63,7 @@ const getFoodsByHotel = async (req, res, next) => {
 const getAllHotels = async (req, res, next) => {
   try {
     const { category, search, isOpen } = req.query;
-    const filter = { role: 'admin', hotelName: { $exists: true, $ne: null } };
+    const filter = { role: 'restaurant', hotelName: { $exists: true, $ne: null } };
     
     if (category) filter.hotelCategory = category;
     if (isOpen !== undefined) filter.isOpen = isOpen === 'true';
@@ -121,12 +121,12 @@ const createFood = async (req, res, next) => {
   }
 };
 
-// Update food (admin only - can only update their own foods)
+// Update food (restaurant only - can only update their own foods)
 const updateFood = async (req, res, next) => {
   try {
-    // Ensure admin can only update their own foods
+    // Ensure restaurant can only update their own foods
     const filter = { _id: req.params.id };
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'restaurant') {
       filter.hotelId = req.user._id;
     }
 
@@ -143,11 +143,11 @@ const updateFood = async (req, res, next) => {
   }
 };
 
-// Delete food (admin only - can only delete their own foods)
+// Delete food (restaurant only - can only delete their own foods)
 const deleteFood = async (req, res, next) => {
   try {
     const filter = { _id: req.params.id };
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'restaurant') {
       filter.hotelId = req.user._id;
     }
 

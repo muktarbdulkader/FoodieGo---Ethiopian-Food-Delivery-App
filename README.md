@@ -186,3 +186,6 @@ MIT License – Open for commercial and personal use.
 **💡 Pro Tip:** For the best development experience, run the backend server first, then launch the Flutter application. Ensure MongoDB is running locally or update the connection string for cloud databases.
 
 **🎯 Success Metric:** FoodieGo is designed to handle hundreds of concurrent orders while providing sub-second response times for critical operations.
+ Built build\app\outputs\flutter-apk\app-release.apk      
+
+Built build\app\outputs\flutter-apk\app-release.apk   

@@ -13,13 +13,14 @@ const {
   updatePaymentStatus,
   getDeliveryManagement,
   assignDriver,
-  getAnalytics
+  getAnalytics,
+  getDeliveryUsers
 } = require('../controllers/admin.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
-router.use(protect, authorize('admin'));
+router.use(protect, authorize('restaurant'));
 
 // Dashboard
 router.get('/dashboard', getDashboardStats);
@@ -38,6 +39,7 @@ router.put('/payments/:id', updatePaymentStatus);
 
 // Delivery management
 router.get('/deliveries', getDeliveryManagement);
+router.get('/delivery-users', getDeliveryUsers);
 router.put('/deliveries/:id/assign', assignDriver);
 
 module.exports = router;

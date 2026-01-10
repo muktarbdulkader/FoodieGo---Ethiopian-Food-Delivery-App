@@ -28,6 +28,17 @@ class EventRepository {
     return EventBooking.fromJson(response['data']);
   }
 
+  Future<EventBooking> confirmComplete(String bookingId) async {
+    final response =
+        await ApiService.put('/events/$bookingId/confirm-complete', {});
+    return EventBooking.fromJson(response['data']);
+  }
+
+  Future<bool> deleteBooking(String bookingId) async {
+    await ApiService.delete('/events/$bookingId');
+    return true;
+  }
+
   Future<List<Food>> getEventRecommendations(String eventType,
       {String? hotelId}) async {
     String url = '/events/recommendations?eventType=$eventType';

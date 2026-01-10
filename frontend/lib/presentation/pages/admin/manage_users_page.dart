@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../widgets/loading_widget.dart';
 
 class ManageUsersPage extends StatefulWidget {
@@ -15,6 +16,9 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   @override
   void initState() {
     super.initState();
+    // Ensure admin session type is set
+    StorageUtils.setSessionType(SessionType.admin);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().fetchUsers();
     });
@@ -92,7 +96,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
 
   Widget _buildUserCard(Map<String, dynamic> user, AdminProvider admin) {
     final role = user['role'] ?? 'user';
-    final isAdmin = role == 'admin';
+    final isRestaurant = role == 'restaurant';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -106,12 +110,14 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: isAdmin
+            backgroundColor: isRestaurant
                 ? const Color(0xFF6B35FF).withValues(alpha: 0.1)
                 : AppTheme.primaryColor.withValues(alpha: 0.1),
             child: Icon(
-              isAdmin ? Icons.admin_panel_settings : Icons.person,
-              color: isAdmin ? const Color(0xFF6B35FF) : AppTheme.primaryColor,
+              isRestaurant ? Icons.restaurant : Icons.person,
+              color: isRestaurant
+                  ? const Color(0xFF6B35FF)
+                  : AppTheme.primaryColor,
             ),
           ),
           const SizedBox(width: 16),
@@ -148,12 +154,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
             icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
             onSelected: (value) => _handleUserAction(value, user, admin),
             itemBuilder: (context) => [
-              if (!isAdmin)
-                const PopupMenuItem(
-                    value: 'make_admin', child: Text('Make Admin')),
-              if (isAdmin && user['email'] != 'admin@foodiego.com')
-                const PopupMenuItem(
-                    value: 'remove_admin', child: Text('Remove Admin')),
               const PopupMenuItem(
                 value: 'delete',
                 child: Text('Delete User',
@@ -168,9 +168,9 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return const Color(0xFF6B35FF);
       case 'restaurant':
+        return const Color(0xFF6B35FF);
+      case 'delivery':
         return AppTheme.secondaryColor;
       default:
         return AppTheme.primaryColor;
@@ -208,16 +208,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                 backgroundColor: AppTheme.successColor),
           );
         }
-      }
-    } else if (action == 'make_admin' || action == 'remove_admin') {
-      final newRole = action == 'make_admin' ? 'admin' : 'user';
-      await admin.updateUserRole(userId, newRole);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('User role updated to $newRole'),
-              backgroundColor: AppTheme.successColor),
-        );
       }
     }
   }

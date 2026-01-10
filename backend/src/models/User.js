@@ -74,6 +74,10 @@ const userSchema = new mongoose.Schema({
     min: 0,
     max: 5
   },
+  totalRatings: {
+    type: Number,
+    default: 0
+  },
   hotelCategory: {
     type: String,
     enum: ['restaurant', 'cafe', 'fast_food', 'fine_dining', 'bakery', 'other'],
@@ -117,6 +121,26 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Wallet
+  walletBalance: {
+    type: Number,
+    default: 0
+  },
+  walletTransactions: [{
+    type: { type: String, enum: ['credit', 'debit'] },
+    amount: Number,
+    description: String,
+    date: String
+  }],
+  level: {
+    type: String,
+    default: 'Regular'
+  },
+  // Favorite hotels (for users)
+  favoriteHotels: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   lastLogin: {
     type: Date
   }
@@ -129,7 +153,7 @@ userSchema.index(
     unique: true, 
     sparse: true,
     partialFilterExpression: { 
-      role: { $in: ['admin', 'restaurant'] }, 
+      role: 'restaurant', 
       hotelName: { $exists: true, $ne: null, $ne: '' } 
     }
   }

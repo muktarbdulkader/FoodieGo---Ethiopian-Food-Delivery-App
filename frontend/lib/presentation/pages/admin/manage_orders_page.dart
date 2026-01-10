@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/models/order.dart';
+import '../../../data/repositories/admin_repository.dart';
 import '../../widgets/loading_widget.dart';
 
 class ManageOrdersPage extends StatefulWidget {
@@ -40,6 +42,9 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
   @override
   void initState() {
     super.initState();
+    // Ensure admin session type is set
+    StorageUtils.setSessionType(SessionType.admin);
+
     _tabController = TabController(length: _statusFilters.length, vsync: this);
     _tabController.addListener(() {
       setState(
@@ -680,6 +685,12 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
             ],
           ),
           const SizedBox(height: 10),
+          // Delivery tracking section (if driver assigned)
+          if (order.delivery?.driverName != null &&
+              order.delivery!.driverName!.isNotEmpty) ...[
+            _buildDeliveryTrackingSection(order),
+            const SizedBox(height: 10),
+          ],
           // Action buttons
           Row(
             children: [
@@ -741,6 +752,230 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
         ],
       ),
     );
+  }
+
+  Widget _buildDeliveryTrackingSection(Order order) {
+    final trackingStatus = order.delivery?.trackingStatus ?? 'assigned';
+    final driverName = order.delivery?.driverName ?? 'Unknown';
+    final driverPhone = order.delivery?.driverPhone ?? '';
+
+    // Define tracking steps
+    final steps = [
+      {'id': 'assigned', 'label': 'Assigned', 'icon': Icons.person_pin},
+      {'id': 'picked_up', 'label': 'Picked Up', 'icon': Icons.inventory_2},
+      {
+        'id': 'on_the_way',
+        'label': 'On The Way',
+        'icon': Icons.delivery_dining
+      },
+      {'id': 'arrived', 'label': 'Arrived', 'icon': Icons.location_on},
+      {'id': 'delivered', 'label': 'Delivered', 'icon': Icons.check_circle},
+    ];
+
+    int currentStepIndex = steps.indexWhere((s) => s['id'] == trackingStatus);
+    if (currentStepIndex == -1) {
+      currentStepIndex = 0;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+            const Color(0xFF8B5CF6).withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Driver info header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.delivery_dining,
+                    color: Color(0xFF8B5CF6), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Delivery Driver',
+                        style: TextStyle(
+                            fontSize: 10, color: AppTheme.textSecondary)),
+                    Text(driverName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+              ),
+              if (driverPhone.isNotEmpty)
+                GestureDetector(
+                  onTap: () => _showContactDialog(order, 'phone'),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.phone,
+                        color: Color(0xFF10B981), size: 16),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Tracking progress
+          Row(
+            children: List.generate(steps.length, (index) {
+              final step = steps[index];
+              final isCompleted = index <= currentStepIndex;
+              final isCurrent = index == currentStepIndex;
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: isCompleted
+                                  ? const Color(0xFF8B5CF6)
+                                  : Colors.grey.shade200,
+                              shape: BoxShape.circle,
+                              border: isCurrent
+                                  ? Border.all(
+                                      color: const Color(0xFF8B5CF6), width: 2)
+                                  : null,
+                            ),
+                            child: Icon(
+                              step['icon'] as IconData,
+                              size: 14,
+                              color: isCompleted ? Colors.white : Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            step['label'] as String,
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: isCurrent
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isCompleted
+                                  ? const Color(0xFF8B5CF6)
+                                  : Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (index < steps.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          color: index < currentStepIndex
+                              ? const Color(0xFF8B5CF6)
+                              : Colors.grey.shade200,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ),
+          // Current status message
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _getTrackingStatusColor(trackingStatus)
+                  .withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getTrackingStatusIcon(trackingStatus),
+                  size: 14,
+                  color: _getTrackingStatusColor(trackingStatus),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _getTrackingStatusMessage(trackingStatus),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _getTrackingStatusColor(trackingStatus),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getTrackingStatusColor(String status) {
+    switch (status) {
+      case 'delivered':
+        return const Color(0xFF10B981);
+      case 'arrived':
+        return const Color(0xFF8B5CF6);
+      case 'on_the_way':
+        return const Color(0xFFF59E0B);
+      case 'picked_up':
+        return const Color(0xFF3B82F6);
+      default:
+        return const Color(0xFF06B6D4);
+    }
+  }
+
+  IconData _getTrackingStatusIcon(String status) {
+    switch (status) {
+      case 'delivered':
+        return Icons.check_circle;
+      case 'arrived':
+        return Icons.location_on;
+      case 'on_the_way':
+        return Icons.delivery_dining;
+      case 'picked_up':
+        return Icons.inventory_2;
+      default:
+        return Icons.person_pin;
+    }
+  }
+
+  String _getTrackingStatusMessage(String status) {
+    switch (status) {
+      case 'delivered':
+        return 'Order has been delivered! ✅';
+      case 'arrived':
+        return 'Driver has arrived at destination';
+      case 'on_the_way':
+        return 'Driver is on the way to customer';
+      case 'picked_up':
+        return 'Driver picked up the order';
+      default:
+        return 'Driver assigned, waiting for pickup';
+    }
   }
 
   Widget _buildMiniContactButton(
@@ -945,74 +1180,211 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
   }
 
   void _showAssignDriverDialog(Order order) {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
     final adminProvider = context.read<AdminProvider>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final adminRepo = AdminRepository();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.delivery_dining, color: Color(0xFF8B5CF6), size: 20),
-            SizedBox(width: 8),
-            Text('Assign Driver', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Driver Name',
-                prefixIcon: const Icon(Icons.person, size: 18),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      builder: (dialogContext) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: adminRepo.getDeliveryUsers(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              content: const SizedBox(
+                height: 100,
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone',
-                prefixIcon: const Icon(Icons.phone, size: 18),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            );
+          }
+
+          final deliveryUsers = snapshot.data ?? [];
+          Map<String, dynamic>? selectedDriver;
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.delivery_dining,
+                      color: Color(0xFF8B5CF6), size: 20),
+                  SizedBox(width: 8),
+                  Text('Assign Driver', style: TextStyle(fontSize: 16)),
+                ],
               ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (deliveryUsers.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber,
+                              color: Color(0xFFF59E0B), size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No delivery users registered. Please register delivery personnel first.',
+                              style: TextStyle(
+                                  fontSize: 13, color: Color(0xFF92400E)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    const Text('Select Driver',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: DropdownButton<Map<String, dynamic>>(
+                        value: selectedDriver,
+                        hint: const Text('Choose a driver'),
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: deliveryUsers.map((driver) {
+                          return DropdownMenuItem<Map<String, dynamic>>(
+                            value: driver,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6)
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      (driver['name'] ?? 'D')[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF8B5CF6),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        driver['name'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 13),
+                                      ),
+                                      if (driver['phone'] != null)
+                                        Text(
+                                          driver['phone'],
+                                          style: const TextStyle(
+                                              color: AppTheme.textSecondary,
+                                              fontSize: 11),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setDialogState(() => selectedDriver = value);
+                        },
+                      ),
+                    ),
+                    if (selectedDriver != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle,
+                                color: Color(0xFF22C55E), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    selectedDriver!['name'] ?? '',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13),
+                                  ),
+                                  Text(
+                                    selectedDriver!['phone'] ?? '',
+                                    style: const TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                if (deliveryUsers.isNotEmpty)
+                  ElevatedButton(
+                    onPressed: selectedDriver == null
+                        ? null
+                        : () async {
+                            Navigator.pop(dialogContext);
+                            await adminProvider.assignDriver(
+                              order.id,
+                              selectedDriver!['name'] ?? '',
+                              selectedDriver!['phone'] ?? '',
+                            );
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Driver ${selectedDriver!['name']} assigned!'),
+                                backgroundColor: const Color(0xFF8B5CF6),
+                              ),
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8B5CF6),
+                    ),
+                    child: const Text('Assign'),
+                  ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isNotEmpty &&
-                  phoneController.text.isNotEmpty) {
-                Navigator.pop(dialogContext);
-                await adminProvider.assignDriver(
-                    order.id, nameController.text, phoneController.text);
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                      content: Text('Driver assigned!'),
-                      backgroundColor: Color(0xFF8B5CF6)),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B5CF6)),
-            child: const Text('Assign'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

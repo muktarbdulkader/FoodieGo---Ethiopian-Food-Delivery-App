@@ -9,23 +9,25 @@ import 'state/food/food_provider.dart';
 import 'state/cart/cart_provider.dart';
 import 'state/order/order_provider.dart';
 import 'state/admin/admin_provider.dart';
+import 'state/language/language_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/auth/admin_login_page.dart';
+import 'presentation/pages/auth/delivery_login_page.dart';
 import 'presentation/pages/home/home_page.dart';
 import 'presentation/pages/admin/admin_dashboard_page.dart';
+import 'presentation/pages/language/language_selection_page.dart';
+import 'presentation/pages/delivery/delivery_dashboard_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -47,111 +49,264 @@ class FoodieGoApp extends StatefulWidget {
 }
 
 class _FoodieGoAppState extends State<FoodieGoApp> {
-  // Separate auth providers for admin and user sessions
+  // Separate auth providers for each session type
   late AuthProvider _userAuthProvider;
   late AuthProvider _adminAuthProvider;
+  late AuthProvider _deliveryAuthProvider;
+  late LanguageProvider _languageProvider;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize separate auth providers for user and admin
+    // Initialize separate auth providers for each role
     _userAuthProvider = AuthProvider()..init(sessionType: SessionType.user);
     _adminAuthProvider = AuthProvider()..init(sessionType: SessionType.admin);
+    _deliveryAuthProvider = AuthProvider()
+      ..init(sessionType: SessionType.delivery);
+    _languageProvider = LanguageProvider();
 
-    // Set up 401 handler - will logout the appropriate session
+    _initLanguage();
+
+    // Set up 401 handler - logout only the current session
     ApiService.setUnauthorizedCallback(() {
-      // Logout both sessions on 401 (token expired)
-      _userAuthProvider.logout();
-      _adminAuthProvider.logout();
+      final currentSession = StorageUtils.currentSessionType;
+      switch (currentSession) {
+        case SessionType.admin:
+          _adminAuthProvider.logout();
+          break;
+        case SessionType.delivery:
+          _deliveryAuthProvider.logout();
+          break;
+        case SessionType.user:
+          _userAuthProvider.logout();
+          break;
+      }
     });
+  }
+
+  Future<void> _initLanguage() async {
+    await _languageProvider.init();
+    if (mounted) {
+      setState(() => _isInitialized = true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return MultiProvider(
       providers: [
-        // User auth provider (default)
+        ChangeNotifierProvider.value(value: _languageProvider),
         ChangeNotifierProvider.value(value: _userAuthProvider),
         ChangeNotifierProvider(create: (_) => FoodProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
       ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'FoodieGo',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-
-        // Scroll behavior for web/desktop
-        scrollBehavior: const MaterialScrollBehavior().copyWith(
-          physics: const BouncingScrollPhysics(),
+      child: Consumer<LanguageProvider>(
+        builder: (context, langProvider, _) => MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'FoodieGo',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          scrollBehavior: const MaterialScrollBehavior().copyWith(
+            physics: const BouncingScrollPhysics(),
+          ),
+          initialRoute: _getInitialRoute(),
+          onGenerateRoute: (settings) {
+            // ADMIN/RESTAURANT PORTAL - /admin routes
+            if (settings.name?.startsWith('/admin') == true) {
+              return _buildAdminRoute(settings);
+            }
+            // DELIVERY PORTAL - /delivery routes
+            if (settings.name?.startsWith('/delivery') == true) {
+              return _buildDeliveryRoute(settings);
+            }
+            // USER PORTAL - default routes
+            return _buildUserRoute(settings);
+          },
         ),
+      ),
+    );
+  }
 
-        initialRoute: '/',
-        onGenerateRoute: (settings) {
-          // Admin routes - ONLY accessible via /admin URL
-          // Uses separate admin auth provider
-          if (settings.name == '/admin' ||
-              settings.name?.startsWith('/admin') == true) {
-            return PageRouteBuilder(
-              settings: settings,
-              pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
-                value: _adminAuthProvider,
-                child: Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    // Ensure admin session type is set
-                    StorageUtils.setSessionType(SessionType.admin);
+  /// Determine initial route based on last session
+  String _getInitialRoute() {
+    final lastSession = StorageUtils.currentSessionType;
+    switch (lastSession) {
+      case SessionType.admin:
+        if (StorageUtils.isLoggedIn(SessionType.admin)) {
+          return '/admin';
+        }
+        return '/';
+      case SessionType.delivery:
+        if (StorageUtils.isLoggedIn(SessionType.delivery)) {
+          return '/delivery';
+        }
+        return '/';
+      case SessionType.user:
+        return '/';
+    }
+  }
 
-                    if (!auth.isLoggedIn) {
-                      return const AdminLoginPage();
-                    }
-                    if (auth.user?.role == 'admin') {
-                      return const AdminDashboardPage();
-                    }
-                    return _AccessDeniedPage(authProvider: _adminAuthProvider);
-                  },
-                ),
-              ),
-              transitionsBuilder: (_, animation, __, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
+  /// Build admin/restaurant portal route
+  PageRouteBuilder _buildAdminRoute(RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
+        value: _adminAuthProvider,
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            StorageUtils.setSessionType(SessionType.admin);
+
+            if (!auth.isLoggedIn) {
+              return const AdminLoginPage();
+            }
+            if (auth.user?.role == 'restaurant') {
+              return const AdminDashboardPage();
+            }
+            return _AccessDeniedPage(
+              authProvider: _adminAuthProvider,
+              message: 'Restaurant access only',
+              redirectRoute: '/admin',
+            );
+          },
+        ),
+      ),
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  /// Build delivery portal route
+  PageRouteBuilder _buildDeliveryRoute(RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
+        value: _deliveryAuthProvider,
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            StorageUtils.setSessionType(SessionType.delivery);
+
+            if (!auth.isLoggedIn) {
+              return const _DeliveryLoginPage();
+            }
+            if (auth.user?.role == 'delivery') {
+              return const DeliveryDashboardPage();
+            }
+            return _AccessDeniedPage(
+              authProvider: _deliveryAuthProvider,
+              message: 'Delivery access only',
+              redirectRoute: '/delivery',
+            );
+          },
+        ),
+      ),
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  /// Build user portal route
+  PageRouteBuilder _buildUserRoute(RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => FutureBuilder<bool>(
+        future: _languageProvider.hasSelectedLanguage(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
             );
           }
 
-          // Default user routes - uses user auth provider
-          return PageRouteBuilder(
-            settings: settings,
-            pageBuilder: (_, __, ___) => Consumer<AuthProvider>(
-              builder: (context, auth, _) {
-                // Ensure user session type is set
-                StorageUtils.setSessionType(SessionType.user);
+          if (!snapshot.data!) {
+            return const LanguageSelectionPage();
+          }
 
-                if (!auth.isLoggedIn) {
-                  return const LoginPage();
-                }
-                if (auth.user?.role == 'admin') {
-                  return _AdminMustUsePortalPage(
-                      authProvider: _userAuthProvider);
-                }
-                return const HomePage();
-              },
-            ),
-            transitionsBuilder: (_, animation, __, child) {
-              return FadeTransition(opacity: animation, child: child);
+          return Consumer<AuthProvider>(
+            builder: (context, auth, _) {
+              StorageUtils.setSessionType(SessionType.user);
+
+              if (!auth.isLoggedIn) {
+                return const LoginPage();
+              }
+              // If user is restaurant role, redirect to admin portal
+              if (auth.user?.role == 'restaurant') {
+                return _PortalRedirectPage(
+                  title: 'Restaurant Account',
+                  message:
+                      'Please use the Restaurant Portal\nto manage your hotel.',
+                  icon: Icons.restaurant,
+                  color: AppTheme.secondaryColor,
+                  buttonText: 'Go to Restaurant Portal',
+                  onButtonPressed: () {
+                    Navigator.pushReplacementNamed(context, '/admin');
+                  },
+                  onLogout: () {
+                    _userAuthProvider.logout();
+                  },
+                );
+              }
+              // If user is delivery role, redirect to delivery portal
+              if (auth.user?.role == 'delivery') {
+                return _PortalRedirectPage(
+                  title: 'Delivery Account',
+                  message:
+                      'Please use the Delivery Portal\nto manage deliveries.',
+                  icon: Icons.delivery_dining,
+                  color: Colors.orange,
+                  buttonText: 'Go to Delivery Portal',
+                  onButtonPressed: () {
+                    Navigator.pushReplacementNamed(context, '/delivery');
+                  },
+                  onLogout: () {
+                    _userAuthProvider.logout();
+                  },
+                );
+              }
+              return const HomePage();
             },
           );
         },
       ),
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
     );
   }
 }
 
-// Access denied page for non-admin users
+/// Delivery Login Page - Separate login for delivery partners
+class _DeliveryLoginPage extends StatelessWidget {
+  const _DeliveryLoginPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DeliveryLoginPage();
+  }
+}
+
+/// Access denied page
 class _AccessDeniedPage extends StatelessWidget {
   final AuthProvider authProvider;
+  final String message;
+  final String redirectRoute;
 
-  const _AccessDeniedPage({required this.authProvider});
+  const _AccessDeniedPage({
+    required this.authProvider,
+    required this.message,
+    required this.redirectRoute,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +344,7 @@ class _AccessDeniedPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'You do not have permission\nto access the admin area.',
+                  message,
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 16,
@@ -198,34 +353,18 @@ class _AccessDeniedPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                GestureDetector(
-                  onTap: () {
+                ElevatedButton.icon(
+                  onPressed: () {
                     authProvider.logout();
-                    Navigator.pushReplacementNamed(context, '/');
+                    Navigator.pushReplacementNamed(context, redirectRoute);
                   },
-                  child: Container(
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout & Try Again'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 16),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: AppTheme.buttonShadow,
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.home_rounded, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text(
-                          'Go to Home',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                        horizontal: 24, vertical: 12),
                   ),
                 ),
               ],
@@ -237,11 +376,25 @@ class _AccessDeniedPage extends StatelessWidget {
   }
 }
 
-// Page shown when admin tries to access user area
-class _AdminMustUsePortalPage extends StatelessWidget {
-  final AuthProvider authProvider;
+/// Portal redirect page - shown when user is in wrong portal
+class _PortalRedirectPage extends StatelessWidget {
+  final String title;
+  final String message;
+  final IconData icon;
+  final Color color;
+  final String buttonText;
+  final VoidCallback onButtonPressed;
+  final VoidCallback onLogout;
 
-  const _AdminMustUsePortalPage({required this.authProvider});
+  const _PortalRedirectPage({
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.color,
+    required this.buttonText,
+    required this.onButtonPressed,
+    required this.onLogout,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -259,19 +412,18 @@ class _AdminMustUsePortalPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppTheme.secondaryColor.withValues(alpha: 0.1),
-                        AppTheme.secondaryColor.withValues(alpha: 0.05),
+                        color.withValues(alpha: 0.1),
+                        color.withValues(alpha: 0.05),
                       ],
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.admin_panel_settings_rounded,
-                      size: 64, color: AppTheme.secondaryColor),
+                  child: Icon(icon, size: 64, color: color),
                 ),
                 const SizedBox(height: 32),
-                const Text(
-                  'Admin Account',
-                  style: TextStyle(
+                Text(
+                  title,
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -279,7 +431,7 @@ class _AdminMustUsePortalPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Please use the admin portal\nto manage your restaurant.',
+                  message,
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 16,
@@ -288,48 +440,21 @@ class _AdminMustUsePortalPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/admin');
-                  },
-                  child: Container(
+                ElevatedButton.icon(
+                  onPressed: onButtonPressed,
+                  icon: Icon(icon),
+                  label: Text(buttonText),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 16),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.secondaryGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.secondaryColor.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.dashboard_rounded, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text(
-                          'Go to Admin Portal',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                        horizontal: 24, vertical: 14),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 TextButton.icon(
-                  onPressed: () {
-                    authProvider.logout();
-                    Navigator.pushReplacementNamed(context, '/');
-                  },
-                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout),
                   label: const Text('Logout'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppTheme.textSecondary,

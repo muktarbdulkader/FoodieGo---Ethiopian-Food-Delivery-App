@@ -59,6 +59,12 @@ class AdminRepository {
     });
   }
 
+  // Get all delivery users for driver assignment
+  Future<List<Map<String, dynamic>>> getDeliveryUsers() async {
+    final response = await ApiService.get('/admin/delivery-users');
+    return (response['data'] as List).cast<Map<String, dynamic>>();
+  }
+
   // Analytics
   Future<Map<String, dynamic>> getAnalytics(String period) async {
     final response = await ApiService.get('/admin/analytics?period=$period');

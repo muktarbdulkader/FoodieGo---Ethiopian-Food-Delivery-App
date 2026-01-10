@@ -2,6 +2,8 @@
  * Order Controller - With Payment, Delivery & Location
  */
 const Order = require('../models/Order');
+const User = require('../models/User');
+const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendDriverAssignmentEmail } = require('../utils/email');
 
 // Get all orders (filtered by role)
 const getAllOrders = async (req, res, next) => {
@@ -10,11 +12,23 @@ const getAllOrders = async (req, res, next) => {
     const userRole = req.user.role;
     
     if (userRole === 'restaurant') {
-      // Restaurant sees only orders containing their hotel's items
-      const hotelId = req.user._id.toString();
-      filter = { 'items.hotelId': hotelId };
+      // Restaurant sees orders containing their hotel's items
+      const hotelIdStr = req.user._id.toString();
+      const hotelName = req.user.hotelName;
+      
+      const orConditions = [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': req.user._id }
+      ];
+      
+      if (hotelName) {
+        orConditions.push({ 'items.hotelName': hotelName });
+        orConditions.push({ 'items.hotelName': { $regex: new RegExp(`^${hotelName}`, 'i') } });
+      }
+      
+      filter = { $or: orConditions };
     } else if (userRole === 'delivery') {
-      // Delivery person sees orders assigned to them (ready for delivery)
+      // Delivery person sees orders assigned to them
       filter = { 
         'delivery.driverName': req.user.name,
         'delivery.type': 'delivery'
@@ -37,11 +51,21 @@ const getAllOrders = async (req, res, next) => {
 // Get pending delivery orders (for restaurant to assign drivers)
 const getPendingDeliveryOrders = async (req, res, next) => {
   try {
-    const hotelId = req.user._id.toString();
+    const hotelIdStr = req.user._id.toString();
+    const hotelName = req.user.hotelName;
     
-    // Get orders for this restaurant that need delivery assignment
+    const orConditions = [
+      { 'items.hotelId': hotelIdStr },
+      { 'items.hotelId': req.user._id }
+    ];
+    
+    if (hotelName) {
+      orConditions.push({ 'items.hotelName': hotelName });
+      orConditions.push({ 'items.hotelName': { $regex: new RegExp(`^${hotelName}`, 'i') } });
+    }
+    
     const orders = await Order.find({
-      'items.hotelId': hotelId,
+      $or: orConditions,
       'delivery.type': 'delivery',
       'delivery.driverName': { $in: [null, ''] },
       status: { $in: ['confirmed', 'preparing', 'ready'] }
@@ -58,7 +82,6 @@ const getPendingDeliveryOrders = async (req, res, next) => {
 // Get available delivery orders (for delivery persons to pick up)
 const getAvailableDeliveryOrders = async (req, res, next) => {
   try {
-    // Get orders ready for delivery that haven't been assigned
     const orders = await Order.find({
       'delivery.type': 'delivery',
       'delivery.driverName': { $in: [null, ''] },
@@ -100,7 +123,7 @@ const acceptDeliveryOrder = async (req, res, next) => {
 // Get single order
 const getOrderById = async (req, res, next) => {
   try {
-    const filter = req.user.role === 'admin' 
+    const filter = req.user.role === 'restaurant' 
       ? { _id: req.params.id }
       : { _id: req.params.id, user: req.user._id };
     
@@ -115,6 +138,7 @@ const getOrderById = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // Create order with payment & delivery
 const createOrder = async (req, res, next) => {
@@ -139,7 +163,6 @@ const createOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Order must have items' });
     }
 
-    // Calculate totals if not provided
     const calculatedSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const calculatedTotal = totalPrice || (calculatedSubtotal + deliveryFee + tax + tip - discount);
 
@@ -160,6 +183,31 @@ const createOrder = async (req, res, next) => {
       promoCode
     });
 
+    // Send order confirmation email (using hotel's email as sender)
+    const user = await User.findById(req.user._id);
+    if (user && user.email) {
+      const hotelName = items[0]?.hotelName || 'FoodieGo Partner';
+      const hotelId = items[0]?.hotelId;
+      
+      // Get hotel's email to use as sender
+      let hotelEmail = null;
+      if (hotelId) {
+        const hotel = await User.findById(hotelId);
+        if (hotel && hotel.email) {
+          hotelEmail = hotel.email;
+        }
+      }
+      
+      sendOrderConfirmationEmail(user.email, {
+        orderNumber: order.orderNumber,
+        userName: user.name,
+        hotelName,
+        items: order.items,
+        totalPrice: order.totalPrice,
+        address: deliveryAddress?.fullAddress || 'Pickup'
+      }, hotelEmail).catch(err => console.error('Email send failed:', err));
+    }
+
     res.status(201).json({ success: true, data: order });
   } catch (error) {
     console.error('Order creation error:', error);
@@ -167,7 +215,7 @@ const createOrder = async (req, res, next) => {
   }
 };
 
-// Update order status (admin only)
+// Update order status (restaurant only)
 const updateOrderStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -175,11 +223,32 @@ const updateOrderStatus = async (req, res, next) => {
       req.params.id,
       { status },
       { new: true, runValidators: true }
-    ).populate('user', 'name email');
+    ).populate('user', 'name email phone');
     
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+
+    // Send status update email to customer (using hotel's email as sender)
+    if (order.user && order.user.email) {
+      // Get hotel email from order items
+      let hotelEmail = null;
+      const hotelId = order.items[0]?.hotelId;
+      if (hotelId) {
+        const hotel = await User.findById(hotelId);
+        if (hotel && hotel.email) {
+          hotelEmail = hotel.email;
+        }
+      }
+      
+      sendOrderStatusEmail(order.user.email, {
+        orderNumber: order.orderNumber,
+        hotelName: order.items[0]?.hotelName,
+        driverName: order.delivery?.driverName,
+        driverPhone: order.delivery?.driverPhone
+      }, status, hotelEmail).catch(err => console.error('Status email failed:', err));
+    }
+
     res.json({ success: true, data: order });
   } catch (error) {
     next(error);
@@ -264,13 +333,30 @@ const cancelOrder = async (req, res, next) => {
   }
 };
 
-// Delete order (admin can delete any, user can delete own delivered/cancelled)
+// Delete order (restaurant can delete their orders, user can delete own delivered/cancelled)
 const deleteOrder = async (req, res, next) => {
   try {
     let order;
-    if (req.user.role === 'admin') {
-      // Admin can delete any order
-      order = await Order.findByIdAndDelete(req.params.id);
+    const userRole = req.user.role;
+    
+    if (userRole === 'restaurant') {
+      // Restaurant can delete orders for their hotel
+      const hotelIdStr = req.user._id.toString();
+      const hotelName = req.user.hotelName;
+      
+      const orConditions = [
+        { 'items.hotelId': hotelIdStr },
+        { 'items.hotelId': req.user._id }
+      ];
+      
+      if (hotelName) {
+        orConditions.push({ 'items.hotelName': hotelName });
+      }
+      
+      order = await Order.findOneAndDelete({
+        _id: req.params.id,
+        $or: orConditions
+      });
     } else {
       // User can only delete their own delivered or cancelled orders
       order = await Order.findOneAndDelete({

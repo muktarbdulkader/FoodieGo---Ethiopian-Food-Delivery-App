@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../widgets/loading_widget.dart';
@@ -26,6 +27,8 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   @override
   void initState() {
     super.initState();
+    // Ensure delivery session type is set
+    StorageUtils.setSessionType(SessionType.delivery);
     _tabController = TabController(length: 2, vsync: this);
     _loadOrders();
   }
@@ -141,13 +144,13 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello, $name',
+                const Text('Delivery Portal',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text('Welcome, $name',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold)),
-                const Text('Delivery Dashboard',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
@@ -160,6 +163,24 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.refresh, color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () async {
+              await context.read<AuthProvider>().logout();
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/delivery', (r) => false);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.logout, color: Colors.white, size: 20),
             ),
           ),
         ],

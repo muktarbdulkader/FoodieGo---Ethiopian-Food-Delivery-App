@@ -133,6 +133,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// API health check endpoint (for Render)
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Error handling
 app.use(notFound);
 app.use(errorHandler);

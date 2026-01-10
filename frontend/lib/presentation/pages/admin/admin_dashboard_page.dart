@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/repositories/event_repository.dart';
 import '../../widgets/loading_widget.dart';
 import 'manage_foods_page.dart';
@@ -10,6 +11,8 @@ import 'manage_orders_page.dart';
 import 'manage_users_page.dart';
 import 'manage_payments_page.dart';
 import 'manage_events_page.dart';
+import 'manage_promotions_page.dart';
+import 'hotel_settings_page.dart';
 import '../../../state/auth/auth_provider.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -25,6 +28,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   void initState() {
     super.initState();
+    // Ensure admin session type is set
+    StorageUtils.setSessionType(SessionType.admin);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminProvider>().fetchDashboard();
       _loadPendingEvents();
@@ -85,19 +91,70 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildHeader() {
     final user = context.watch<AuthProvider>().user;
+    final stats = context.watch<AdminProvider>().stats;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Welcome, ${user?.name ?? 'Admin'}',
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            if (user?.hotelName != null)
-              Text(user!.hotelName!,
-                  style: const TextStyle(color: AppTheme.textSecondary)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (user?.hotelName != null) ...[
+                Text(
+                  'Welcome to',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user!.hotelName!,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ] else ...[
+                Text(
+                  'Welcome, ${user?.name ?? 'Admin'}',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.person, size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(
+                    user?.name ?? 'Admin',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (stats != null && stats['hotelRating'] != null) ...[
+                    const SizedBox(width: 12),
+                    const Icon(Icons.star, size: 14, color: Color(0xFFFBBF24)),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${(stats['hotelRating'] as num).toStringAsFixed(1)} (${stats['totalReviews'] ?? 0})',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
         ),
         GestureDetector(
           onTap: () async {
@@ -197,8 +254,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 AppTheme.successColor),
             _buildStatCard('Orders', '${stats?['totalOrders'] ?? 0}',
                 Icons.shopping_bag, AppTheme.primaryColor),
-            _buildStatCard('Users', '${stats?['activeUsers'] ?? 0}',
-                Icons.people, AppTheme.secondaryColor),
+            _buildStatCard('Reviews', '${stats?['totalReviews'] ?? 0}',
+                Icons.star, const Color(0xFFFBBF24)),
             _buildStatCard('Menu', '${stats?['totalFoods'] ?? 0}',
                 Icons.restaurant_menu, AppTheme.warningColor),
           ],
@@ -303,6 +360,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       MaterialPageRoute(
                           builder: (_) => const ManageEventsPage()));
                 }, badge: _pendingEventsCount > 0 ? _pendingEventsCount : null),
+                _buildActionCard('Promos', Icons.local_offer, Colors.purple,
+                    () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ManagePromotionsPage()));
+                }),
+                _buildActionCard('Settings', Icons.settings, Colors.blueGrey,
+                    () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const HotelSettingsPage()));
+                }),
               ],
             );
           },

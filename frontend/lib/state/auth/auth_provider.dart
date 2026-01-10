@@ -4,7 +4,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../core/utils/storage_utils.dart';
 
 /// Auth Provider - Extended for Hotel Management
-/// Supports separate admin and user sessions
+/// Supports separate admin, user, and delivery sessions
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
 
@@ -17,7 +17,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
-  bool get isAdmin => _user?.role == 'admin' || _user?.role == 'restaurant';
+  bool get isAdmin => _user?.role == 'restaurant';
   bool get isRestaurant => _user?.role == 'restaurant';
   bool get isDelivery => _user?.role == 'delivery';
   SessionType get sessionType => _sessionType;
@@ -26,16 +26,16 @@ class AuthProvider extends ChangeNotifier {
   void init({SessionType sessionType = SessionType.user}) {
     _sessionType = sessionType;
     StorageUtils.setSessionType(sessionType);
-    _user = _authRepository.getCurrentUser();
+    _user = _authRepository.getCurrentUser(sessionType);
     notifyListeners();
   }
 
-  /// Switch session type (when navigating between admin/user portals)
+  /// Switch session type (when navigating between portals)
   void switchSessionType(SessionType type) {
     if (_sessionType != type) {
       _sessionType = type;
       StorageUtils.setSessionType(type);
-      _user = _authRepository.getCurrentUser();
+      _user = _authRepository.getCurrentUser(type);
       notifyListeners();
     }
   }
@@ -51,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
     String? adminCode,
     String? hotelName,
     String? hotelAddress,
+    String? hotelImage,
   }) async {
     _isLoading = true;
     _error = null;
@@ -67,6 +68,7 @@ class AuthProvider extends ChangeNotifier {
         adminCode: adminCode,
         hotelName: hotelName,
         hotelAddress: hotelAddress,
+        hotelImage: hotelImage,
       );
       _isLoading = false;
       notifyListeners();
@@ -129,5 +131,38 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Update user profile
+  Future<bool> updateProfile({
+    required String name,
+    String? phone,
+    String? address,
+  }) async {
+    try {
+      _user = await _authRepository.updateProfile(
+        name: name,
+        phone: phone,
+        address: address,
+      );
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Refresh user data from storage
+  void refreshUser() {
+    _user = _authRepository.getCurrentUser();
+    notifyListeners();
+  }
+
+  /// Update user object directly (after settings change)
+  void updateUser(User updatedUser) {
+    _user = updatedUser;
+    notifyListeners();
   }
 }
