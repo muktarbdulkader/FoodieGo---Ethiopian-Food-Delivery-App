@@ -1,7 +1,7 @@
 name: foodiego
 description: "FoodieGo - Ethiopian Food Delivery App. Order delicious food from your favorite restaurants."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.5.0

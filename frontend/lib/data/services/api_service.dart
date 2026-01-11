@@ -96,42 +96,26 @@ class ApiService {
       final result = await request();
       _updateNetworkStatus(true);
       return result;
-    } on SocketException catch (e) {
+    } on SocketException {
       _updateNetworkStatus(false);
       if (retryCount < _maxRetries) {
         await Future.delayed(_retryDelay * (retryCount + 1));
         return _executeWithRetry(request, retryCount: retryCount + 1);
       }
-      // Check specific socket errors
-      final msg = e.message.toLowerCase();
-      if (msg.contains('failed host lookup') || msg.contains('no address')) {
-        throw ApiException(
-            'Cannot reach server. Check your internet connection.', 0);
-      }
-      if (msg.contains('connection refused') ||
-          msg.contains('connection reset')) {
-        throw ApiException(
-            'Server unavailable. Please try again in a moment.', 0);
-      }
-      throw ApiException(
-          'No internet connection. Please check your network.', 0);
+      throw ApiException('Network error. Please try again.', 0);
     } on TimeoutException {
       if (retryCount < _maxRetries) {
         await Future.delayed(_retryDelay * (retryCount + 1));
         return _executeWithRetry(request, retryCount: retryCount + 1);
       }
-      // Server timeout - likely server is waking up or slow
-      throw ApiException(
-          'Server is starting up. Please wait a moment and try again.', 408);
+      throw ApiException('Request timed out. Please try again.', 408);
     } on http.ClientException {
       _updateNetworkStatus(false);
       if (retryCount < _maxRetries) {
         await Future.delayed(_retryDelay * (retryCount + 1));
         return _executeWithRetry(request, retryCount: retryCount + 1);
       }
-      throw ApiException(
-          'Unable to connect to server. Please check your internet connection.',
-          0);
+      throw ApiException('Connection error. Please try again.', 0);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -139,8 +123,7 @@ class ApiService {
         await Future.delayed(_retryDelay * (retryCount + 1));
         return _executeWithRetry(request, retryCount: retryCount + 1);
       }
-      throw ApiException(
-          'Something went wrong. Please check your internet and try again.', 0);
+      throw ApiException('Something went wrong. Please try again.', 0);
     }
   }
 
