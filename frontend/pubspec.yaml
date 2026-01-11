@@ -16,6 +16,7 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^3.0.0
   image_picker: ^1.0.7
+  flutter_local_notifications: ^19.5.0
 
 dev_dependencies:
   flutter_test:

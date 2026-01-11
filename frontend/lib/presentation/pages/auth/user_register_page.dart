@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../state/language/language_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
 import '../home/home_page.dart';
 
 class UserRegisterPage extends StatefulWidget {
@@ -34,12 +36,17 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Format phone number before sending
+    final phone = _phoneController.text.trim().isNotEmpty
+        ? Validators.formatPhoneNumber(_phoneController.text.trim())
+        : null;
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.register(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      phone: _phoneController.text.trim(),
+      phone: phone,
       address: _addressController.text.trim(),
     );
 
@@ -99,17 +106,14 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                         const SizedBox(height: 24),
                         _buildTextField(
                             _nameController, loc.fullName, Icons.person_outline,
-                            validator: (v) => v!.isEmpty ? loc.required : null),
+                            validator: Validators.validateName),
                         const SizedBox(height: 16),
                         _buildTextField(
                             _emailController, 'Email', Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
-                            validator: (v) =>
-                                !v!.contains('@') ? 'Invalid email' : null),
+                            validator: Validators.validateEmail),
                         const SizedBox(height: 16),
-                        _buildTextField(_phoneController, 'Phone Number',
-                            Icons.phone_outlined,
-                            keyboardType: TextInputType.phone),
+                        _buildPhoneField(),
                         const SizedBox(height: 16),
                         _buildTextField(_addressController, 'Address',
                             Icons.location_on_outlined,
@@ -200,7 +204,28 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+      validator: Validators.validatePassword,
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return TextFormField(
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[\d\+\-\s]')),
+        LengthLimitingTextInputFormatter(15),
+      ],
+      decoration: InputDecoration(
+        labelText: 'Phone Number',
+        hintText: '+251912345678 or 0912345678',
+        prefixIcon:
+            const Icon(Icons.phone_outlined, color: AppTheme.primaryColor),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        helperText: 'Ethiopian format: +251 or 09...',
+        helperStyle: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+      ),
+      validator: Validators.validateEthiopianPhone,
     );
   }
 

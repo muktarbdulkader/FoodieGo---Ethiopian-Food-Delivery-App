@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
 import '../admin/admin_dashboard_page.dart';
 import '../delivery/delivery_dashboard_page.dart';
 
@@ -83,12 +85,17 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Format phone number before sending
+    final phone = _phoneController.text.trim().isNotEmpty
+        ? Validators.formatPhoneNumber(_phoneController.text.trim())
+        : _phoneController.text.trim();
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.register(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      phone: _phoneController.text.trim(),
+      phone: phone,
       role: _selectedRole,
       adminCode: _adminCodeController.text.trim(),
       hotelName: _selectedRole == 'restaurant'
@@ -283,9 +290,7 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
                             validator: (v) =>
                                 !v!.contains('@') ? 'Invalid email' : null),
                         const SizedBox(height: 12),
-                        _buildTextField(_phoneController, 'Phone Number',
-                            Icons.phone_outlined,
-                            keyboardType: TextInputType.phone),
+                        _buildPhoneField(),
                         const SizedBox(height: 12),
                         _buildPasswordField(),
                         if (_selectedRole == 'restaurant') ...[
@@ -515,6 +520,26 @@ class _AdminRegisterPageState extends State<AdminRegisterPage> {
                   color: Color(0xFF6B35FF), fontWeight: FontWeight.bold)),
         ),
       ],
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return TextFormField(
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[\d\+\-\s]')),
+        LengthLimitingTextInputFormatter(15),
+      ],
+      decoration: InputDecoration(
+        labelText: 'Phone Number',
+        hintText: '+251912345678 or 0912345678',
+        prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF6B35FF)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        helperText: 'Ethiopian format: +251 or 09...',
+        helperStyle: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+      ),
+      validator: Validators.validateRequiredPhone,
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/validators.dart';
 import '../delivery/delivery_dashboard_page.dart';
 import 'delivery_login_page.dart';
 
@@ -50,10 +52,13 @@ class _DeliveryRegisterPageState extends State<DeliveryRegisterPage> {
 
     final authProvider = context.read<AuthProvider>();
 
+    // Format phone number
+    final phone = Validators.formatPhoneNumber(_phoneController.text.trim());
+
     final success = await authProvider.registerDelivery(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
+      phone: phone,
       password: _passwordController.text,
       adminCode: _adminCodeController.text.trim(),
     );
@@ -211,10 +216,20 @@ class _DeliveryRegisterPageState extends State<DeliveryRegisterPage> {
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                             style: const TextStyle(fontSize: 14),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[\d\+\-\s]')),
+                              LengthLimitingTextInputFormatter(15),
+                            ],
                             decoration: _inputDecoration(
-                                'Phone Number', Icons.phone_outlined),
-                            validator: (v) =>
-                                v!.isEmpty ? 'Phone is required' : null,
+                                    'Phone Number', Icons.phone_outlined)
+                                .copyWith(
+                              hintText: '+251912345678',
+                              helperText: 'Ethiopian format: +251 or 09...',
+                              helperStyle: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 10),
+                            ),
+                            validator: Validators.validateRequiredPhone,
                           ),
                           const SizedBox(height: 12),
 

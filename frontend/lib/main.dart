@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/storage_utils.dart';
+import 'core/services/notification_service.dart';
 import 'data/services/api_service.dart';
 import 'state/auth/auth_provider.dart';
 import 'state/food/food_provider.dart';
@@ -38,6 +39,7 @@ void main() async {
   );
 
   await StorageUtils.init();
+  await NotificationService.init();
   runApp(const FoodieGoApp());
 }
 

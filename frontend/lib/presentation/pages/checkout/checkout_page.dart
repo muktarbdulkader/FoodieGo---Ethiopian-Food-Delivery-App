@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../state/cart/cart_provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../state/auth/auth_provider.dart';
@@ -251,6 +252,14 @@ class _CheckoutPageState extends State<CheckoutPage>
 
     if (order != null && mounted) {
       context.read<OrderProvider>().fetchOrders();
+
+      // Show notification
+      NotificationService.showOrderNotification(
+        title: 'Order Placed! 🎉',
+        body: 'Your order #${order.orderNumber} has been placed successfully.',
+        payload: order.id,
+      );
+
       _showSuccessDialog(order);
     } else if (mounted && cart.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
