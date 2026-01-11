@@ -23,6 +23,8 @@ class _LoginPageState extends State<LoginPage>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  int _logoTapCount = 0;
+  bool _showPartnerLogin = false;
 
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -165,22 +167,46 @@ class _LoginPageState extends State<LoginPage>
                       opacity: _fadeAnimation,
                       child: Column(
                         children: [
-                          Container(
-                            padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                    color: AppTheme.primaryColor
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 10))
-                              ],
+                          GestureDetector(
+                            onTap: () {
+                              _logoTapCount++;
+                              if (_logoTapCount >= 5) {
+                                setState(() {
+                                  _showPartnerLogin = !_showPartnerLogin;
+                                  _logoTapCount = 0;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(_showPartnerLogin
+                                        ? 'Partner login enabled'
+                                        : 'Partner login hidden'),
+                                    duration: const Duration(seconds: 1),
+                                    backgroundColor: AppTheme.primaryColor,
+                                  ),
+                                );
+                              }
+                              // Reset tap count after 2 seconds
+                              Future.delayed(const Duration(seconds: 2), () {
+                                if (mounted) _logoTapCount = 0;
+                              });
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: AppTheme.primaryColor
+                                          .withValues(alpha: 0.3),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 10))
+                                ],
+                              ),
+                              child: Icon(Icons.restaurant_menu,
+                                  size: isSmallScreen ? 40 : 48,
+                                  color: AppTheme.primaryColor),
                             ),
-                            child: Icon(Icons.restaurant_menu,
-                                size: isSmallScreen ? 40 : 48,
-                                color: AppTheme.primaryColor),
                           ),
                           SizedBox(height: isSmallScreen ? 12 : 16),
                           Text(loc.appName,
@@ -370,69 +396,70 @@ class _LoginPageState extends State<LoginPage>
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            // Delivery & Restaurant Login Links
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const DeliveryLoginPage()),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+            const SizedBox(height: 20),
+            // Partner login links (hidden by default - tap logo 5 times to show)
+            if (_showPartnerLogin)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const DeliveryLoginPage()),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.delivery_dining,
-                            color: Color(0xFF10B981), size: 18),
-                        SizedBox(width: 6),
-                        Text('Delivery',
-                            style: TextStyle(
-                                color: Color(0xFF10B981),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AdminLoginPage()),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.restaurant,
-                            color: AppTheme.primaryColor, size: 18),
-                        SizedBox(width: 6),
-                        Text('Restaurant',
-                            style: TextStyle(
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delivery_dining,
+                              color: Color(0xFF10B981), size: 16),
+                          SizedBox(width: 4),
+                          Text('Delivery',
+                              style: TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.restaurant,
+                              color: AppTheme.primaryColor, size: 16),
+                          SizedBox(width: 4),
+                          Text('Restaurant',
+                              style: TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

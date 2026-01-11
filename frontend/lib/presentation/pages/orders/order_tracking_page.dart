@@ -51,7 +51,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                       _buildTrackingTimeline(),
                       const SizedBox(height: 24),
                     ],
-                    if (widget.order.delivery != null) _buildDriverInfo(),
+                    _buildDriverInfo(),
                     const SizedBox(height: 24),
                     _buildDeliveryAddress(),
                     const SizedBox(height: 24),
@@ -549,46 +549,68 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   }
 
   Widget _buildDriverInfo() {
-    final delivery = widget.order.delivery!;
-    if (delivery.driverName == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: AppTheme.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+    final delivery = widget.order.delivery;
+
+    // Show driver section only for delivery orders
+    if (delivery == null || delivery.type != 'delivery') {
+      return const SizedBox.shrink();
+    }
+
+    // Check if driver is assigned
+    final hasDriver =
+        delivery.driverName != null && delivery.driverName!.isNotEmpty;
+
+    if (!hasDriver) {
+      // Show "Finding Driver" only for active orders
+      if (['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery']
+          .contains(widget.order.status)) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delivery_dining,
+                    color: AppTheme.primaryColor),
               ),
-              child: const Icon(Icons.delivery_dining,
-                  color: AppTheme.primaryColor),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Finding Driver',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('Please wait...',
-                      style: TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 13)),
-                ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Delivery Driver',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      widget.order.status == 'pending' ||
+                              widget.order.status == 'confirmed'
+                          ? 'Will be assigned soon'
+                          : 'Finding driver...',
+                      style: const TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2)),
-          ],
-        ),
-      );
+              if (widget.order.status != 'pending' &&
+                  widget.order.status != 'confirmed')
+                const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+            ],
+          ),
+        );
+      }
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -621,12 +643,30 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   style: const TextStyle(
                       color: AppTheme.textSecondary, fontSize: 13),
                 ),
+                if (delivery.driverPhone != null &&
+                    delivery.driverPhone!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      delivery.driverPhone!,
+                      style: const TextStyle(
+                          color: AppTheme.primaryColor, fontSize: 12),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (delivery.driverPhone != null)
+          if (delivery.driverPhone != null && delivery.driverPhone!.isNotEmpty)
             GestureDetector(
-              onTap: () {},
+              onTap: () {
+                // Show phone number in snackbar for now
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Call driver: ${delivery.driverPhone}'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
+                );
+              },
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

@@ -512,11 +512,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.phone, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            const Text('Contact Restaurant'),
+            Icon(Icons.phone, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('Contact Restaurant'),
           ],
         ),
         content: Column(
@@ -527,21 +527,45 @@ class _MyEventsPageState extends State<MyEventsPage> {
               booking.hotelName ?? 'Restaurant',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
+            if (booking.hotelAddress != null &&
+                booking.hotelAddress!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      booking.hotelAddress!,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            const Text(
+              'Restaurant Contact:',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Icon(Icons.phone, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  booking.contactPhone.isNotEmpty
-                      ? booking.contactPhone
+                  booking.hotelPhone != null && booking.hotelPhone!.isNotEmpty
+                      ? booking.hotelPhone!
                       : 'No phone available',
                   style: const TextStyle(fontSize: 15),
                 ),
               ],
             ),
-            if (booking.contactEmail != null &&
-                booking.contactEmail!.isNotEmpty) ...[
+            if (booking.hotelEmail != null &&
+                booking.hotelEmail!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -549,7 +573,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      booking.contactEmail!,
+                      booking.hotelEmail!,
                       style: const TextStyle(fontSize: 15),
                     ),
                   ),

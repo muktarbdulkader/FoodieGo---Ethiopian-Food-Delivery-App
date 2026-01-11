@@ -3,12 +3,24 @@
     "short_name": "FoodieGo",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#FF6B35",
+    "background_color": "#000000",
     "theme_color": "#FF6B35",
     "description": "Order delicious food from your favorite Ethiopian restaurants. Fast delivery, easy payment with Telebirr, M-Pesa, CBE Birr.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
-    "categories": ["food", "shopping", "lifestyle"],
+    "categories": [
+        "food",
+        "shopping",
+        "lifestyle"
+    ],
+    "screenshots": [
+        {
+            "src": "screenshots/home.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",
@@ -31,14 +43,6 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
-        }
-    ],
-    "screenshots": [
-        {
-            "src": "screenshots/home.png",
-            "sizes": "1080x1920",
-            "type": "image/png",
-            "form_factor": "narrow"
         }
     ]
 }

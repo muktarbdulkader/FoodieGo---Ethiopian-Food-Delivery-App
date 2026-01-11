@@ -45,7 +45,7 @@ exports.createBooking = async (req, res) => {
 exports.getUserBookings = async (req, res) => {
   try {
     const bookings = await EventBooking.find({ user: req.user._id })
-      .populate('hotel', 'name hotelName hotelImage address')
+      .populate('hotel', 'name hotelName hotelImage address hotelAddress phone email')
       .populate('recommendedFoods', 'name price image')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: bookings });

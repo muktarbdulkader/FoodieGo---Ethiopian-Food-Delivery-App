@@ -3,6 +3,9 @@ class EventBooking {
   final String hotelId;
   final String? hotelName;
   final String? hotelImage;
+  final String? hotelPhone;
+  final String? hotelEmail;
+  final String? hotelAddress;
   final Map<String, dynamic>? user;
   final String eventType;
   final String eventName;
@@ -29,6 +32,9 @@ class EventBooking {
     required this.hotelId,
     this.hotelName,
     this.hotelImage,
+    this.hotelPhone,
+    this.hotelEmail,
+    this.hotelAddress,
     this.user,
     required this.eventType,
     required this.eventName,
@@ -64,6 +70,10 @@ class EventBooking {
       hotelId: hotel is Map ? hotel['_id'] ?? '' : hotel ?? '',
       hotelName: hotel is Map ? hotel['hotelName'] ?? hotel['name'] : null,
       hotelImage: hotel is Map ? hotel['hotelImage'] : null,
+      hotelPhone: hotel is Map ? hotel['phone'] : null,
+      hotelEmail: hotel is Map ? hotel['email'] : null,
+      hotelAddress:
+          hotel is Map ? (hotel['hotelAddress'] ?? hotel['address']) : null,
       user: userData is Map<String, dynamic> ? userData : null,
       eventType: json['eventType'] ?? '',
       eventName: json['eventName'] ?? '',
