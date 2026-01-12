@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.foodiego.app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "25.1.8937393"  // Explicit NDK version for debug symbols stripping
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -53,6 +53,16 @@ android {
     // Enable build config
     buildFeatures {
         buildConfig = true
+    }
+    
+    // Fix for debug symbols stripping error
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 
