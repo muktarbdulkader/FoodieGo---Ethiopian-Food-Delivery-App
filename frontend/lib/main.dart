@@ -132,6 +132,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
           ),
           initialRoute: _getInitialRoute(),
           onGenerateRoute: (settings) {
+            debugPrint('Generating route for: ${settings.name}');
             // ADMIN/RESTAURANT PORTAL - /admin routes
             if (settings.name?.startsWith('/admin') == true) {
               return _buildAdminRoute(settings);
@@ -141,6 +142,10 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
               return _buildDeliveryRoute(settings);
             }
             // USER PORTAL - default routes
+            return _buildUserRoute(settings);
+          },
+          onUnknownRoute: (settings) {
+            debugPrint('Unknown route: ${settings.name}');
             return _buildUserRoute(settings);
           },
         ),
@@ -156,6 +161,9 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     final isUserLoggedIn = StorageUtils.isLoggedIn(SessionType.user);
     final isAdminLoggedIn = StorageUtils.isLoggedIn(SessionType.admin);
     final isDeliveryLoggedIn = StorageUtils.isLoggedIn(SessionType.delivery);
+
+    debugPrint(
+        'Initial route check - lastSession: $lastSession, user: $isUserLoggedIn, admin: $isAdminLoggedIn, delivery: $isDeliveryLoggedIn');
 
     // If last session is still logged in, go there
     switch (lastSession) {

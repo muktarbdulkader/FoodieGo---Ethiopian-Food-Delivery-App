@@ -53,15 +53,17 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   void _startLocationUpdates() {
     // Update location every 30 seconds when online
     _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_isOnline && _myDeliveries.isNotEmpty) {
+      if (mounted && _isOnline && _myDeliveries.isNotEmpty) {
         _updateLocation();
       }
     });
   }
 
   Future<void> _updateLocation() async {
+    if (!mounted) return;
     try {
       final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
       // Find active delivery order
       final activeOrder = _myDeliveries.firstWhere(
         (o) => ['assigned', 'picked_up', 'on_the_way']
@@ -79,16 +81,19 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   }
 
   Future<void> _loadOrders() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final myOrders = await _orderRepo.getAllOrders();
       final available = await _orderRepo.getAvailableDeliveryOrders();
+      if (!mounted) return;
       setState(() {
         _myDeliveries = myOrders;
         _availableOrders = available;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -96,6 +101,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   Future<void> _loadStats() async {
     try {
       final earnings = await _orderRepo.getDriverEarnings();
+      if (!mounted) return;
       setState(() {
         _stats = earnings['stats'] ?? {};
         _walletBalance = (earnings['walletBalance'] ?? 0).toDouble();

@@ -43,13 +43,14 @@ const getAllOrders = async (req, res, next) => {
       filter = { $or: orConditions };
     } else if (userRole === "delivery") {
       // Delivery person sees orders assigned to them (by driverId or driverName)
+      // Don't require delivery.type since it might not be set on all orders
       filter = {
         $or: [
           { "delivery.driverId": req.user._id },
           { "delivery.driverName": req.user.name }
-        ],
-        "delivery.type": "delivery",
+        ]
       };
+      console.log(`Delivery filter for ${req.user.name} (${req.user._id}):`, JSON.stringify(filter));
     } else {
       // Regular user sees only their own orders
       filter = { user: req.user._id };
@@ -59,6 +60,9 @@ const getAllOrders = async (req, res, next) => {
       .populate("user", "name email phone address")
       .populate("restaurant", "name")
       .sort({ createdAt: -1 });
+    
+    console.log(`Found ${orders.length} orders for ${userRole} user ${req.user.name}`);
+    
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     next(error);

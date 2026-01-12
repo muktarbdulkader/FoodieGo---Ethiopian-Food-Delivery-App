@@ -326,14 +326,32 @@ const assignDriver = async (req, res, next) => {
   try {
     const { driverName, driverPhone } = req.body;
     
-    // Find the delivery user to get their ID
-    const deliveryUser = await User.findOne({ name: driverName, role: 'delivery' });
+    console.log(`Assigning driver: ${driverName}, phone: ${driverPhone}`);
+    
+    // Find the delivery user to get their ID - try multiple ways
+    let deliveryUser = await User.findOne({ name: driverName, role: 'delivery' });
+    
+    // If not found by exact name, try by phone
+    if (!deliveryUser && driverPhone) {
+      deliveryUser = await User.findOne({ phone: driverPhone, role: 'delivery' });
+    }
+    
+    // If still not found, try case-insensitive name search
+    if (!deliveryUser) {
+      deliveryUser = await User.findOne({ 
+        name: { $regex: new RegExp(`^${driverName}$`, 'i') }, 
+        role: 'delivery' 
+      });
+    }
+    
+    console.log(`Found delivery user: ${deliveryUser ? deliveryUser._id : 'NOT FOUND'}`);
     
     const updateData = {
       'delivery.driverName': driverName,
       'delivery.driverPhone': driverPhone,
       'delivery.trackingStatus': 'assigned',
       'delivery.assignedAt': new Date(),
+      'delivery.type': 'delivery', // Ensure delivery type is set
       status: 'out_for_delivery'
     };
     
@@ -351,6 +369,8 @@ const assignDriver = async (req, res, next) => {
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    
+    console.log(`Order ${order.orderNumber} assigned to driver. driverId: ${order.delivery?.driverId}, driverName: ${order.delivery?.driverName}`);
 
     // Send email notification to customer (using hotel's email as sender)
     if (order.user && order.user.email) {
@@ -382,6 +402,7 @@ const assignDriver = async (req, res, next) => {
 
     res.json({ success: true, data: order });
   } catch (error) {
+    console.error('Error assigning driver:', error);
     next(error);
   }
 };
