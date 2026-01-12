@@ -63,47 +63,67 @@ const getFoodsByHotel = async (req, res, next) => {
 const getAllHotels = async (req, res, next) => {
   try {
     const { category, search, isOpen, lat, lng, radius } = req.query;
-    const filter = { role: 'restaurant', hotelName: { $exists: true, $ne: null } };
+    // Show all restaurant users - they may not have hotelName set yet
+    const filter = { role: 'restaurant' };
     
     if (category) filter.hotelCategory = category;
     if (isOpen !== undefined) filter.isOpen = isOpen === 'true';
     if (search) {
       filter.$or = [
         { hotelName: { $regex: search, $options: 'i' } },
-        { hotelAddress: { $regex: search, $options: 'i' } }
+        { hotelAddress: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } } // Also search by user name
       ];
     }
 
     let hotels = await User.find(filter)
-      .select('hotelName hotelAddress hotelPhone hotelDescription hotelImage hotelRating hotelCategory isOpen deliveryFee minOrderAmount deliveryRadius location')
-      .sort({ hotelRating: -1 });
+      .select('name hotelName hotelAddress hotelPhone hotelDescription hotelImage hotelRating hotelCategory isOpen deliveryFee minOrderAmount deliveryRadius location email')
+      .sort({ hotelRating: -1, createdAt: -1 });
+
+    console.log(`Found ${hotels.length} restaurants in database`);
+
+    // Transform hotels - use name as fallback for hotelName
+    hotels = hotels.map(hotel => {
+      const hotelObj = hotel.toObject();
+      // Use user's name as fallback if hotelName not set
+      if (!hotelObj.hotelName) {
+        hotelObj.hotelName = hotelObj.name || 'Restaurant';
+      }
+      return hotelObj;
+    });
 
     // If user location provided, calculate distance and sort by proximity
     if (lat && lng) {
       const userLat = parseFloat(lat);
       const userLng = parseFloat(lng);
-      const maxRadius = radius ? parseFloat(radius) : 50; // Default 50km radius
+      const maxRadius = radius ? parseFloat(radius) : 100; // Default 100km radius (increased)
 
-      // Calculate distance for each hotel and filter by radius
+      // Calculate distance for each hotel
       hotels = hotels.map(hotel => {
-        const hotelObj = hotel.toObject();
         if (hotel.location && hotel.location.latitude && hotel.location.longitude) {
           const distance = calculateDistance(
             userLat, userLng,
             hotel.location.latitude, hotel.location.longitude
           );
-          hotelObj.distance = distance;
-          hotelObj.distanceText = distance < 1 
+          hotel.distance = distance;
+          hotel.distanceText = distance < 1 
             ? `${Math.round(distance * 1000)}m` 
             : `${distance.toFixed(1)}km`;
         } else {
-          // Hotels without location get a large distance
-          hotelObj.distance = 9999;
-          hotelObj.distanceText = null;
+          // Hotels without location - don't filter them out, just no distance
+          hotel.distance = null;
+          hotel.distanceText = null;
         }
-        return hotelObj;
-      }).filter(hotel => hotel.distance <= maxRadius)
-        .sort((a, b) => a.distance - b.distance);
+        return hotel;
+      });
+      
+      // Sort by distance (hotels with location first, then others)
+      hotels.sort((a, b) => {
+        if (a.distance === null && b.distance === null) return 0;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
     }
 
     // Get food count for each hotel
@@ -113,8 +133,10 @@ const getAllHotels = async (req, res, next) => {
       return { ...hotel, foodCount };
     }));
 
+    console.log(`Returning ${hotelsWithCount.length} hotels`);
     res.json({ success: true, count: hotelsWithCount.length, data: hotelsWithCount });
   } catch (error) {
+    console.error('Error fetching hotels:', error);
     next(error);
   }
 };

@@ -24,7 +24,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
   bool _hasSubmittedReview = false;
 
   // Live tracking data
-  Map<String, dynamic>? _trackingData;
   Timer? _trackingTimer;
   Timer? _countdownTimer;
   int _estimatedMinutes = 30;
@@ -72,7 +71,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
       final data = await _orderRepo.getDriverLocation(widget.order.id);
       if (mounted) {
         setState(() {
-          _trackingData = data;
           _isLoadingTracking = false;
           if (data['estimatedTime'] != null) {
             _estimatedMinutes = data['estimatedTime'];

@@ -325,14 +325,26 @@ const getDeliveryManagement = async (req, res, next) => {
 const assignDriver = async (req, res, next) => {
   try {
     const { driverName, driverPhone } = req.body;
+    
+    // Find the delivery user to get their ID
+    const deliveryUser = await User.findOne({ name: driverName, role: 'delivery' });
+    
+    const updateData = {
+      'delivery.driverName': driverName,
+      'delivery.driverPhone': driverPhone,
+      'delivery.trackingStatus': 'assigned',
+      'delivery.assignedAt': new Date(),
+      status: 'out_for_delivery'
+    };
+    
+    // Set driverId if we found the delivery user
+    if (deliveryUser) {
+      updateData['delivery.driverId'] = deliveryUser._id;
+    }
+    
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      {
-        'delivery.driverName': driverName,
-        'delivery.driverPhone': driverPhone,
-        'delivery.trackingStatus': 'assigned',
-        status: 'out_for_delivery'
-      },
+      updateData,
       { new: true }
     ).populate('user', 'name phone email');
 
@@ -353,7 +365,6 @@ const assignDriver = async (req, res, next) => {
     }
 
     // Send email notification to delivery driver (using hotel's email as sender)
-    const deliveryUser = await User.findOne({ name: driverName, role: 'delivery' });
     if (deliveryUser && deliveryUser.email) {
       const { sendDriverAssignmentEmail } = require('../utils/email');
       const hotelName = order.items[0]?.hotelName || req.user.hotelName || 'Restaurant';

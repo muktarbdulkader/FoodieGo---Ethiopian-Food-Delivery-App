@@ -42,9 +42,12 @@ const getAllOrders = async (req, res, next) => {
 
       filter = { $or: orConditions };
     } else if (userRole === "delivery") {
-      // Delivery person sees orders assigned to them
+      // Delivery person sees orders assigned to them (by driverId or driverName)
       filter = {
-        "delivery.driverName": req.user.name,
+        $or: [
+          { "delivery.driverId": req.user._id },
+          { "delivery.driverName": req.user.name }
+        ],
         "delivery.type": "delivery",
       };
     } else {
@@ -573,8 +576,10 @@ const sendChatMessage = async (req, res, next) => {
 
     // Verify user is part of this order
     const isCustomer = order.user.toString() === req.user._id.toString();
+    // Check driver by driverId OR driverName (in case driverId wasn't set)
     const isDriver =
-      order.delivery?.driverId?.toString() === req.user._id.toString();
+      order.delivery?.driverId?.toString() === req.user._id.toString() ||
+      order.delivery?.driverName === req.user.name;
 
     if (!isCustomer && !isDriver) {
       return res
@@ -614,8 +619,10 @@ const getChatMessages = async (req, res, next) => {
 
     // Verify user is part of this order
     const isCustomer = order.user.toString() === req.user._id.toString();
+    // Check driver by driverId OR driverName (in case driverId wasn't set)
     const isDriver =
-      order.delivery?.driverId?.toString() === req.user._id.toString();
+      order.delivery?.driverId?.toString() === req.user._id.toString() ||
+      order.delivery?.driverName === req.user.name;
 
     if (!isCustomer && !isDriver) {
       return res

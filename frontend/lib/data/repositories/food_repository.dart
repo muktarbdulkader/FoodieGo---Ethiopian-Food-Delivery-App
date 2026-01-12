@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/food.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
@@ -25,7 +26,9 @@ class FoodRepository {
     if (lat != null && lng != null) {
       url += '?lat=$lat&lng=$lng';
     }
+    debugPrint('Fetching hotels from: $url');
     final response = await ApiService.get(url);
+    debugPrint('Hotels response: ${response['count']} hotels found');
     final List<dynamic> hotelsJson = response['data'] ?? [];
     return hotelsJson.map((json) => Hotel.fromJson(json)).toList();
   }
