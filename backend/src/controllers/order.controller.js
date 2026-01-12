@@ -1,9 +1,17 @@
 /**
  * Order Controller - With Payment, Delivery & Location
+ * Enhanced with Yango-like features: GPS tracking, chat, ratings, earnings
  */
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendDriverAssignmentEmail } = require('../utils/email');
+
+// Helper: Calculate delivery earnings (base + distance bonus)
+const calculateDeliveryEarnings = (order) => {
+  const baseFee = 30; // Base delivery fee in ETB
+  const distanceBonus = (order.delivery?.distance || 0) * 5; // 5 ETB per km
+  return baseFee + distanceBonus;
+};
 
 // Get all orders (filtered by role)
 const getAllOrders = async (req, res, next) => {
@@ -109,9 +117,28 @@ const acceptDeliveryOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Order already assigned to a driver' });
     }
     
+    // Get restaurant location for pickup
+    const hotelId = order.items[0]?.hotelId;
+    let pickupLocation = null;
+    if (hotelId) {
+      const hotel = await User.findById(hotelId);
+      if (hotel && hotel.location) {
+        pickupLocation = {
+          latitude: hotel.location.latitude,
+          longitude: hotel.location.longitude,
+          address: hotel.hotelAddress || hotel.location.address
+        };
+      }
+    }
+    
+    order.delivery.driverId = req.user._id;
     order.delivery.driverName = req.user.name;
     order.delivery.driverPhone = req.user.phone || '';
     order.delivery.trackingStatus = 'assigned';
+    order.delivery.assignedAt = new Date();
+    if (pickupLocation) {
+      order.delivery.pickupLocation = pickupLocation;
+    }
     await order.save();
     
     res.json({ success: true, data: order });
@@ -281,14 +308,58 @@ const updatePaymentStatus = async (req, res, next) => {
 // Update delivery tracking
 const updateDeliveryStatus = async (req, res, next) => {
   try {
-    const { trackingStatus, driverName, driverPhone } = req.body;
+    const { trackingStatus, driverName, driverPhone, latitude, longitude } = req.body;
     const updateData = {};
+    
     if (trackingStatus) updateData['delivery.trackingStatus'] = trackingStatus;
     if (driverName) updateData['delivery.driverName'] = driverName;
     if (driverPhone) updateData['delivery.driverPhone'] = driverPhone;
+    
+    // Update driver location if provided
+    if (latitude && longitude) {
+      updateData['delivery.driverLocation'] = {
+        latitude,
+        longitude,
+        updatedAt: new Date()
+      };
+    }
+    
+    // Track timestamps for each status
+    if (trackingStatus === 'picked_up') {
+      updateData['delivery.pickedUpAt'] = new Date();
+    }
+    
     if (trackingStatus === 'delivered') {
       updateData['delivery.deliveredAt'] = new Date();
       updateData.status = 'delivered';
+      
+      // Update driver stats
+      const order = await Order.findById(req.params.id);
+      if (order && order.delivery?.driverId) {
+        const earnings = calculateDeliveryEarnings(order);
+        const today = new Date().toDateString();
+        
+        await User.findByIdAndUpdate(order.delivery.driverId, {
+          $inc: {
+            'deliveryStats.totalDeliveries': 1,
+            'deliveryStats.totalEarnings': earnings,
+            'deliveryStats.todayDeliveries': 1,
+            'deliveryStats.todayEarnings': earnings,
+            'deliveryStats.weeklyDeliveries': 1,
+            'deliveryStats.weeklyEarnings': earnings,
+            walletBalance: earnings
+          },
+          $set: { 'deliveryStats.lastDeliveryDate': new Date() },
+          $push: {
+            walletTransactions: {
+              type: 'credit',
+              amount: earnings,
+              description: `Delivery #${order.orderNumber}`,
+              date: new Date().toISOString()
+            }
+          }
+        });
+      }
     }
 
     const order = await Order.findByIdAndUpdate(
@@ -389,5 +460,269 @@ module.exports = {
   deleteOrder,
   getPendingDeliveryOrders,
   getAvailableDeliveryOrders,
-  acceptDeliveryOrder
+  acceptDeliveryOrder,
+  updateDriverLocation,
+  getDriverLocation,
+  sendChatMessage,
+  getChatMessages,
+  rateDriver,
+  getDriverEarnings,
+  getDriverStats
+};
+
+// Update driver's current location (called by driver app)
+const updateDriverLocation = async (req, res, next) => {
+  try {
+    const { latitude, longitude, orderId } = req.body;
+    
+    // Update driver's current location in User model
+    await User.findByIdAndUpdate(req.user._id, {
+      currentLocation: {
+        latitude,
+        longitude,
+        updatedAt: new Date()
+      }
+    });
+    
+    // If orderId provided, update order's driver location too
+    if (orderId) {
+      await Order.findByIdAndUpdate(orderId, {
+        'delivery.driverLocation': {
+          latitude,
+          longitude,
+          updatedAt: new Date()
+        }
+      });
+    }
+    
+    res.json({ success: true, message: 'Location updated' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get driver's current location for an order (called by customer)
+const getDriverLocation = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Only return location if order is being delivered
+    if (!['assigned', 'picked_up', 'on_the_way', 'arrived'].includes(order.delivery?.trackingStatus)) {
+      return res.json({ 
+        success: true, 
+        data: null,
+        message: 'Driver not yet assigned or delivery completed'
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: {
+        driverLocation: order.delivery?.driverLocation,
+        pickupLocation: order.delivery?.pickupLocation,
+        deliveryLocation: {
+          latitude: order.deliveryAddress?.latitude,
+          longitude: order.deliveryAddress?.longitude,
+          address: order.deliveryAddress?.fullAddress
+        },
+        trackingStatus: order.delivery?.trackingStatus,
+        estimatedTime: order.delivery?.estimatedTime
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Send chat message
+const sendChatMessage = async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    const orderId = req.params.orderId;
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Determine sender role
+    const senderRole = req.user.role === 'delivery' ? 'driver' : 'user';
+    
+    // Verify user is part of this order
+    const isCustomer = order.user.toString() === req.user._id.toString();
+    const isDriver = order.delivery?.driverId?.toString() === req.user._id.toString();
+    
+    if (!isCustomer && !isDriver) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    const chatMessage = {
+      senderId: req.user._id,
+      senderRole,
+      message,
+      timestamp: new Date(),
+      isRead: false
+    };
+    
+    order.chatMessages.push(chatMessage);
+    await order.save();
+    
+    res.json({ success: true, data: chatMessage });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get chat messages for an order
+const getChatMessages = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.orderId)
+      .select('chatMessages user delivery');
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Verify user is part of this order
+    const isCustomer = order.user.toString() === req.user._id.toString();
+    const isDriver = order.delivery?.driverId?.toString() === req.user._id.toString();
+    
+    if (!isCustomer && !isDriver) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Mark messages as read
+    const otherRole = req.user.role === 'delivery' ? 'user' : 'driver';
+    order.chatMessages.forEach(msg => {
+      if (msg.senderRole === otherRole) {
+        msg.isRead = true;
+      }
+    });
+    await order.save();
+    
+    res.json({ success: true, data: order.chatMessages });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Rate driver after delivery
+const rateDriver = async (req, res, next) => {
+  try {
+    const { rating, review } = req.body;
+    const orderId = req.params.orderId;
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Only customer can rate
+    if (order.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+    
+    // Only rate delivered orders
+    if (order.status !== 'delivered') {
+      return res.status(400).json({ success: false, message: 'Can only rate delivered orders' });
+    }
+    
+    // Save rating to order
+    order.delivery.driverRating = rating;
+    order.delivery.driverReview = review || '';
+    await order.save();
+    
+    // Update driver's average rating
+    if (order.delivery?.driverId) {
+      const driver = await User.findById(order.delivery.driverId);
+      if (driver) {
+        const currentTotal = (driver.deliveryStats?.averageRating || 5) * (driver.deliveryStats?.totalRatings || 0);
+        const newTotalRatings = (driver.deliveryStats?.totalRatings || 0) + 1;
+        const newAverage = (currentTotal + rating) / newTotalRatings;
+        
+        await User.findByIdAndUpdate(order.delivery.driverId, {
+          'deliveryStats.averageRating': Math.round(newAverage * 10) / 10,
+          'deliveryStats.totalRatings': newTotalRatings
+        });
+      }
+    }
+    
+    res.json({ success: true, message: 'Rating submitted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get driver earnings (for driver dashboard)
+const getDriverEarnings = async (req, res, next) => {
+  try {
+    const driver = await User.findById(req.user._id).select('deliveryStats walletBalance walletTransactions');
+    
+    if (!driver) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    
+    // Get recent transactions (last 20)
+    const recentTransactions = (driver.walletTransactions || [])
+      .slice(-20)
+      .reverse();
+    
+    res.json({ 
+      success: true, 
+      data: {
+        stats: driver.deliveryStats || {},
+        walletBalance: driver.walletBalance || 0,
+        recentTransactions
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get driver stats summary
+const getDriverStats = async (req, res, next) => {
+  try {
+    const driver = await User.findById(req.user._id).select('deliveryStats name');
+    
+    // Get today's completed deliveries
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayOrders = await Order.countDocuments({
+      'delivery.driverId': req.user._id,
+      'delivery.deliveredAt': { $gte: today },
+      status: 'delivered'
+    });
+    
+    // Get this week's deliveries
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekOrders = await Order.countDocuments({
+      'delivery.driverId': req.user._id,
+      'delivery.deliveredAt': { $gte: weekStart },
+      status: 'delivered'
+    });
+    
+    res.json({ 
+      success: true, 
+      data: {
+        name: driver?.name,
+        totalDeliveries: driver?.deliveryStats?.totalDeliveries || 0,
+        totalEarnings: driver?.deliveryStats?.totalEarnings || 0,
+        todayDeliveries: todayOrders,
+        weeklyDeliveries: weekOrders,
+        averageRating: driver?.deliveryStats?.averageRating || 5.0,
+        totalRatings: driver?.deliveryStats?.totalRatings || 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 };

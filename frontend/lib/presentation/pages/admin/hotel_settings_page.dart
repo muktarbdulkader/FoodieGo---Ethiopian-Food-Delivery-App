@@ -6,6 +6,7 @@ import 'dart:io';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../location/location_picker_page.dart';
 
 class HotelSettingsPage extends StatefulWidget {
   const HotelSettingsPage({super.key});
@@ -29,6 +30,12 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
   File? _selectedImage;
   String? _currentImageUrl;
   String? _base64Image;
+
+  // Location fields
+  double? _latitude;
+  double? _longitude;
+  String? _locationAddress;
+  String? _locationCity;
 
   final List<String> _categories = [
     'restaurant',
@@ -57,6 +64,11 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
       _selectedCategory = user.hotelCategory ?? 'restaurant';
       _isOpen = user.isOpen ?? true;
       _currentImageUrl = user.hotelImage;
+      // Load location
+      _latitude = user.location?.latitude;
+      _longitude = user.location?.longitude;
+      _locationAddress = user.location?.address;
+      _locationCity = user.location?.city;
     }
   }
 
@@ -127,6 +139,10 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
         isOpen: _isOpen,
         deliveryFee: double.tryParse(_deliveryFeeController.text) ?? 50,
         minOrderAmount: double.tryParse(_minOrderController.text) ?? 0,
+        latitude: _latitude,
+        longitude: _longitude,
+        locationAddress: _locationAddress,
+        locationCity: _locationCity,
       );
 
       // Update auth provider
@@ -293,6 +309,16 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
                   ),
                 ],
               ),
+
+              const SizedBox(height: 24),
+              _buildSectionTitle('Restaurant Location'),
+              const SizedBox(height: 8),
+              Text(
+                'Set your location so customers can find nearby restaurants',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              _buildLocationPicker(),
 
               const SizedBox(height: 32),
 
@@ -477,5 +503,96 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
           ? '${word[0].toUpperCase()}${word.substring(1)}'
           : '';
     }).join(' ');
+  }
+
+  Widget _buildLocationPicker() {
+    final hasLocation = _latitude != null && _longitude != null;
+
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LocationPickerPage(
+              initialLat: _latitude,
+              initialLng: _longitude,
+            ),
+          ),
+        );
+        if (result != null && mounted) {
+          setState(() {
+            _latitude = result['lat'];
+            _longitude = result['lng'];
+            _locationAddress = result['address'];
+            _locationCity = result['name'];
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasLocation ? const Color(0xFF10B981) : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: hasLocation
+                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                    : AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                hasLocation ? Icons.check_circle : Icons.location_on,
+                color: hasLocation
+                    ? const Color(0xFF10B981)
+                    : AppTheme.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasLocation
+                        ? (_locationCity ?? 'Location Set')
+                        : 'Set Restaurant Location',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: hasLocation
+                          ? const Color(0xFF10B981)
+                          : AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hasLocation
+                        ? (_locationAddress ??
+                            '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}')
+                        : 'Tap to pick location on map',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

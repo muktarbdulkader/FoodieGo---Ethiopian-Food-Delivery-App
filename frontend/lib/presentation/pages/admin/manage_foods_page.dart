@@ -33,6 +33,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     final imageCtrl = TextEditingController();
     final prepTimeCtrl = TextEditingController(text: '20');
     final caloriesCtrl = TextEditingController(text: '500');
+    final discountCtrl = TextEditingController(text: '0');
     final customCategoryCtrl = TextEditingController();
     String category = 'Main Course';
     bool useCustomCategory = false;
@@ -222,7 +223,21 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                     const SizedBox(width: 12),
                     Expanded(
                         child: _buildTextField(
+                            discountCtrl, 'Discount %', Icons.local_offer,
+                            isNumber: true)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField(
                             prepTimeCtrl, 'Prep Time (min)', Icons.timer,
+                            isNumber: true)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _buildTextField(caloriesCtrl, 'Calories',
+                            Icons.local_fire_department,
                             isNumber: true)),
                   ],
                 ),
@@ -334,6 +349,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       'name': nameCtrl.text,
                       'description': descCtrl.text,
                       'price': double.tryParse(priceCtrl.text) ?? 0,
+                      'discount': int.tryParse(discountCtrl.text) ?? 0,
                       'category': finalCategory,
                       'image': imageValue,
                       'preparationTime': int.tryParse(prepTimeCtrl.text) ?? 20,
@@ -354,6 +370,168 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                     }
                   },
                   child: const Text('Add Food',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditFoodDialog(food) {
+    final nameCtrl = TextEditingController(text: food.name);
+    final descCtrl = TextEditingController(text: food.description ?? '');
+    final priceCtrl = TextEditingController(text: food.price.toString());
+    final discountCtrl =
+        TextEditingController(text: (food.discount ?? 0).toString());
+    final prepTimeCtrl =
+        TextEditingController(text: (food.preparationTime ?? 20).toString());
+    bool isVegetarian = food.isVegetarian ?? false;
+    bool isSpicy = food.isSpicy ?? false;
+    bool isFeatured = food.isFeatured ?? false;
+    bool isAvailable = food.isAvailable ?? true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          padding: EdgeInsets.fromLTRB(
+              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child:
+                          const Icon(Icons.edit, color: AppTheme.primaryColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Edit ${food.name}',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(nameCtrl, 'Food Name', Icons.fastfood),
+                const SizedBox(height: 12),
+                _buildTextField(descCtrl, 'Description', Icons.description,
+                    maxLines: 2),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField(
+                            priceCtrl, 'Price (ETB)', Icons.attach_money,
+                            isNumber: true)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _buildTextField(
+                            discountCtrl, 'Discount %', Icons.local_offer,
+                            isNumber: true)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(prepTimeCtrl, 'Prep Time (min)', Icons.timer,
+                    isNumber: true),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('Available'),
+                      selected: isAvailable,
+                      onSelected: (v) => setModalState(() => isAvailable = v),
+                      selectedColor:
+                          const Color(0xFF10B981).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF10B981),
+                    ),
+                    FilterChip(
+                      label: const Text('Vegetarian'),
+                      selected: isVegetarian,
+                      onSelected: (v) => setModalState(() => isVegetarian = v),
+                      selectedColor:
+                          const Color(0xFF10B981).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF10B981),
+                    ),
+                    FilterChip(
+                      label: const Text('Spicy'),
+                      selected: isSpicy,
+                      onSelected: (v) => setModalState(() => isSpicy = v),
+                      selectedColor:
+                          const Color(0xFFEF4444).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFFEF4444),
+                    ),
+                    FilterChip(
+                      label: const Text('Featured'),
+                      selected: isFeatured,
+                      onSelected: (v) => setModalState(() => isFeatured = v),
+                      selectedColor:
+                          const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFFF59E0B),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(ctx);
+                    final foodProvider = context.read<FoodProvider>();
+
+                    final success = await context
+                        .read<AdminProvider>()
+                        .updateFood(food.id, {
+                      'name': nameCtrl.text,
+                      'description': descCtrl.text,
+                      'price': double.tryParse(priceCtrl.text) ?? food.price,
+                      'discount': int.tryParse(discountCtrl.text) ?? 0,
+                      'preparationTime': int.tryParse(prepTimeCtrl.text) ?? 20,
+                      'isVegetarian': isVegetarian,
+                      'isSpicy': isSpicy,
+                      'isFeatured': isFeatured,
+                      'isAvailable': isAvailable,
+                    });
+
+                    if (success) {
+                      navigator.pop();
+                      foodProvider.fetchFoods();
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(
+                            content: Text('Food updated!'),
+                            backgroundColor: AppTheme.successColor),
+                      );
+                    }
+                  },
+                  child: const Text('Save Changes',
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -531,6 +709,22 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                       ),
+                      if (food.discount != null && food.discount > 0)
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('-${food.discount}%',
+                              style: const TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
+                        ),
                       if (food.isFeatured)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -591,7 +785,9 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
             onSelected: (value) async {
-              if (value == 'delete') {
+              if (value == 'edit') {
+                _showEditFoodDialog(food);
+              } else if (value == 'delete') {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
@@ -628,6 +824,16 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20, color: AppTheme.primaryColor),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'toggle',
                 child: Row(

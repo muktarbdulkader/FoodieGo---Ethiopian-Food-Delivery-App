@@ -62,7 +62,7 @@ const getFoodsByHotel = async (req, res, next) => {
 // Get all hotels (for users to browse)
 const getAllHotels = async (req, res, next) => {
   try {
-    const { category, search, isOpen } = req.query;
+    const { category, search, isOpen, lat, lng, radius } = req.query;
     const filter = { role: 'restaurant', hotelName: { $exists: true, $ne: null } };
     
     if (category) filter.hotelCategory = category;
@@ -74,21 +74,67 @@ const getAllHotels = async (req, res, next) => {
       ];
     }
 
-    const hotels = await User.find(filter)
-      .select('hotelName hotelAddress hotelPhone hotelDescription hotelImage hotelRating hotelCategory isOpen deliveryFee minOrderAmount deliveryRadius')
+    let hotels = await User.find(filter)
+      .select('hotelName hotelAddress hotelPhone hotelDescription hotelImage hotelRating hotelCategory isOpen deliveryFee minOrderAmount deliveryRadius location')
       .sort({ hotelRating: -1 });
+
+    // If user location provided, calculate distance and sort by proximity
+    if (lat && lng) {
+      const userLat = parseFloat(lat);
+      const userLng = parseFloat(lng);
+      const maxRadius = radius ? parseFloat(radius) : 50; // Default 50km radius
+
+      // Calculate distance for each hotel and filter by radius
+      hotels = hotels.map(hotel => {
+        const hotelObj = hotel.toObject();
+        if (hotel.location && hotel.location.latitude && hotel.location.longitude) {
+          const distance = calculateDistance(
+            userLat, userLng,
+            hotel.location.latitude, hotel.location.longitude
+          );
+          hotelObj.distance = distance;
+          hotelObj.distanceText = distance < 1 
+            ? `${Math.round(distance * 1000)}m` 
+            : `${distance.toFixed(1)}km`;
+        } else {
+          // Hotels without location get a large distance
+          hotelObj.distance = 9999;
+          hotelObj.distanceText = null;
+        }
+        return hotelObj;
+      }).filter(hotel => hotel.distance <= maxRadius)
+        .sort((a, b) => a.distance - b.distance);
+    }
 
     // Get food count for each hotel
     const hotelsWithCount = await Promise.all(hotels.map(async (hotel) => {
-      const foodCount = await Food.countDocuments({ hotelId: hotel._id, isAvailable: true });
-      return { ...hotel.toObject(), foodCount };
+      const hotelId = hotel._id || hotel.id;
+      const foodCount = await Food.countDocuments({ hotelId, isAvailable: true });
+      return { ...hotel, foodCount };
     }));
 
-    res.json({ success: true, count: hotels.length, data: hotelsWithCount });
+    res.json({ success: true, count: hotelsWithCount.length, data: hotelsWithCount });
   } catch (error) {
     next(error);
   }
 };
+
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRad(deg) {
+  return deg * (Math.PI / 180);
+}
 
 // Get single food
 const getFoodById = async (req, res, next) => {

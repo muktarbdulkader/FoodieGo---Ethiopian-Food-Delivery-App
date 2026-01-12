@@ -127,7 +127,14 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() => _isLoadingHotels = true);
     try {
-      final hotels = await context.read<FoodProvider>().fetchHotels();
+      // Get user location if available
+      final authProvider = context.read<AuthProvider>();
+      final userLocation = authProvider.user?.location;
+
+      final hotels = await context.read<FoodProvider>().fetchHotels(
+            lat: userLocation?.latitude,
+            lng: userLocation?.longitude,
+          );
       if (mounted) {
         setState(() {
           _hotels = hotels;
@@ -1138,12 +1145,21 @@ class _HomePageState extends State<HomePage> {
                             style: const TextStyle(
                                 fontSize: 11, fontWeight: FontWeight.w500)),
                         const SizedBox(width: 10),
-                        Icon(Icons.access_time,
-                            size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 3),
-                        Text('30 min',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade500)),
+                        if (hotel.distanceText != null) ...[
+                          Icon(Icons.location_on,
+                              size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 2),
+                          Text(hotel.distanceText!,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500)),
+                        ] else ...[
+                          Icon(Icons.access_time,
+                              size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 3),
+                          Text('30 min',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500)),
+                        ],
                       ],
                     ),
                   ],
@@ -1407,23 +1423,25 @@ class _HomePageState extends State<HomePage> {
                     const Spacer(),
                     Row(
                       children: [
-                        Icon(Icons.access_time,
-                            size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(
-                          '50 Mins',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('•',
-                            style: TextStyle(color: Colors.grey.shade400)),
-                        const SizedBox(width: 8),
+                        if (hotel.distanceText != null) ...[
+                          Icon(Icons.location_on,
+                              size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(
+                            hotel.distanceText!,
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('•',
+                              style: TextStyle(color: Colors.grey.shade400)),
+                          const SizedBox(width: 8),
+                        ],
                         Icon(Icons.delivery_dining,
                             size: 14, color: Colors.grey.shade500),
                         const SizedBox(width: 4),
                         Text(
-                          '0 ETB',
+                          '${hotel.deliveryFee.toInt()} ETB',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade600),
                         ),

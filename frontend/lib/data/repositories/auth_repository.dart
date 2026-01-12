@@ -158,6 +158,10 @@ class AuthRepository {
     double? deliveryFee,
     double? minOrderAmount,
     double? deliveryRadius,
+    double? latitude,
+    double? longitude,
+    String? locationAddress,
+    String? locationCity,
   }) async {
     final body = <String, dynamic>{};
     if (hotelName != null) body['hotelName'] = hotelName;
@@ -170,6 +174,16 @@ class AuthRepository {
     if (deliveryFee != null) body['deliveryFee'] = deliveryFee;
     if (minOrderAmount != null) body['minOrderAmount'] = minOrderAmount;
     if (deliveryRadius != null) body['deliveryRadius'] = deliveryRadius;
+
+    // Add location data
+    if (latitude != null && longitude != null) {
+      body['location'] = {
+        'latitude': latitude,
+        'longitude': longitude,
+        'address': locationAddress,
+        'city': locationCity,
+      };
+    }
 
     final response =
         await ApiService.put('${ApiConstants.auth}/hotel-settings', body);

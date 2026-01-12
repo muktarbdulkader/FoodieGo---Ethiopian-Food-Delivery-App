@@ -87,25 +87,102 @@ class Payment {
       };
 }
 
+class DriverLocation {
+  final double? latitude;
+  final double? longitude;
+  final DateTime? updatedAt;
+
+  DriverLocation({this.latitude, this.longitude, this.updatedAt});
+
+  factory DriverLocation.fromJson(Map<String, dynamic> json) {
+    return DriverLocation(
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+    );
+  }
+}
+
+class PickupLocation {
+  final double? latitude;
+  final double? longitude;
+  final String? address;
+
+  PickupLocation({this.latitude, this.longitude, this.address});
+
+  factory PickupLocation.fromJson(Map<String, dynamic> json) {
+    return PickupLocation(
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      address: json['address']?.toString(),
+    );
+  }
+}
+
+class ChatMessage {
+  final String? senderId;
+  final String senderRole;
+  final String message;
+  final DateTime timestamp;
+  final bool isRead;
+
+  ChatMessage({
+    this.senderId,
+    required this.senderRole,
+    required this.message,
+    required this.timestamp,
+    this.isRead = false,
+  });
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    return ChatMessage(
+      senderId: json['senderId']?.toString(),
+      senderRole: json['senderRole']?.toString() ?? 'user',
+      message: json['message']?.toString() ?? '',
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'])
+          : DateTime.now(),
+      isRead: json['isRead'] ?? false,
+    );
+  }
+}
+
 class Delivery {
   final String type;
   final double fee;
   final int estimatedTime;
   final double? distance;
+  final String? driverId;
   final String? driverName;
   final String? driverPhone;
+  final String? driverPhoto;
   final String trackingStatus;
+  final DriverLocation? driverLocation;
+  final PickupLocation? pickupLocation;
+  final DateTime? assignedAt;
+  final DateTime? pickedUpAt;
   final DateTime? deliveredAt;
+  final int? driverRating;
+  final String? driverReview;
 
   Delivery({
     this.type = 'delivery',
     this.fee = 2.99,
     this.estimatedTime = 30,
     this.distance,
+    this.driverId,
     this.driverName,
     this.driverPhone,
+    this.driverPhoto,
     this.trackingStatus = 'pending',
+    this.driverLocation,
+    this.pickupLocation,
+    this.assignedAt,
+    this.pickedUpAt,
     this.deliveredAt,
+    this.driverRating,
+    this.driverReview,
   });
 
   factory Delivery.fromJson(Map<String, dynamic> json) {
@@ -114,12 +191,28 @@ class Delivery {
       fee: (json['fee'] ?? 2.99).toDouble(),
       estimatedTime: json['estimatedTime'] ?? 30,
       distance: (json['distance'] as num?)?.toDouble(),
+      driverId: json['driverId']?.toString(),
       driverName: json['driverName']?.toString(),
       driverPhone: json['driverPhone']?.toString(),
+      driverPhoto: json['driverPhoto']?.toString(),
       trackingStatus: json['trackingStatus']?.toString() ?? 'pending',
+      driverLocation: json['driverLocation'] is Map
+          ? DriverLocation.fromJson(json['driverLocation'])
+          : null,
+      pickupLocation: json['pickupLocation'] is Map
+          ? PickupLocation.fromJson(json['pickupLocation'])
+          : null,
+      assignedAt: json['assignedAt'] != null
+          ? DateTime.parse(json['assignedAt'])
+          : null,
+      pickedUpAt: json['pickedUpAt'] != null
+          ? DateTime.parse(json['pickedUpAt'])
+          : null,
       deliveredAt: json['deliveredAt'] != null
           ? DateTime.parse(json['deliveredAt'])
           : null,
+      driverRating: json['driverRating'] as int?,
+      driverReview: json['driverReview']?.toString(),
     );
   }
 
@@ -152,6 +245,7 @@ class Order {
   final String? promoCode;
   final String? cancelReason;
   final DateTime? createdAt;
+  final List<ChatMessage> chatMessages;
 
   Order({
     required this.id,
@@ -175,6 +269,7 @@ class Order {
     this.promoCode,
     this.cancelReason,
     this.createdAt,
+    this.chatMessages = const [],
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -222,6 +317,10 @@ class Order {
       cancelReason: json['cancelReason']?.toString(),
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      chatMessages: (json['chatMessages'] as List<dynamic>?)
+              ?.map((msg) => ChatMessage.fromJson(msg))
+              .toList() ??
+          [],
     );
   }
 

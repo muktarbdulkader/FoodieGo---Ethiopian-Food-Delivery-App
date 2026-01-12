@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
@@ -7,6 +9,7 @@ import '../../../core/utils/storage_utils.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../widgets/loading_widget.dart';
+import 'delivery_chat_page.dart';
 
 class DeliveryDashboardPage extends StatefulWidget {
   const DeliveryDashboardPage({super.key});
@@ -23,20 +26,56 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   List<Order> _myDeliveries = [];
   List<Order> _availableOrders = [];
   bool _isLoading = false;
+  bool _isOnline = true;
+  Timer? _locationTimer;
+
+  // Earnings data
+  Map<String, dynamic> _stats = {};
+  double _walletBalance = 0;
 
   @override
   void initState() {
     super.initState();
-    // Ensure delivery session type is set
     StorageUtils.setSessionType(SessionType.delivery);
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadOrders();
+    _loadStats();
+    _startLocationUpdates();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _locationTimer?.cancel();
     super.dispose();
+  }
+
+  void _startLocationUpdates() {
+    // Update location every 30 seconds when online
+    _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_isOnline && _myDeliveries.isNotEmpty) {
+        _updateLocation();
+      }
+    });
+  }
+
+  Future<void> _updateLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      // Find active delivery order
+      final activeOrder = _myDeliveries.firstWhere(
+        (o) => ['assigned', 'picked_up', 'on_the_way']
+            .contains(o.delivery?.trackingStatus),
+        orElse: () => _myDeliveries.first,
+      );
+      await _orderRepo.updateDriverLocation(
+        position.latitude,
+        position.longitude,
+        orderId: activeOrder.id,
+      );
+    } catch (e) {
+      // Silently fail location updates
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -54,6 +93,18 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
     }
   }
 
+  Future<void> _loadStats() async {
+    try {
+      final earnings = await _orderRepo.getDriverEarnings();
+      setState(() {
+        _stats = earnings['stats'] ?? {};
+        _walletBalance = (earnings['walletBalance'] ?? 0).toDouble();
+      });
+    } catch (e) {
+      // Stats loading failed
+    }
+  }
+
   Future<void> _acceptOrder(Order order) async {
     try {
       await _orderRepo.acceptDeliveryOrder(order.id);
@@ -64,6 +115,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
             backgroundColor: Color(0xFF10B981)),
       );
       _loadOrders();
+      _loadStats();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,6 +126,14 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
 
   Future<void> _updateDeliveryStatus(Order order, String status) async {
     try {
+      // Update location when changing status
+      try {
+        final position = await Geolocator.getCurrentPosition();
+        await _orderRepo.updateDriverLocation(
+            position.latitude, position.longitude,
+            orderId: order.id);
+      } catch (_) {}
+
       await _orderRepo.updateDeliveryStatus(order.id, status);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,6 +142,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
             backgroundColor: const Color(0xFF10B981)),
       );
       _loadOrders();
+      if (status == 'delivered') _loadStats();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,6 +161,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
         child: Column(
           children: [
             _buildHeader(user?.name ?? 'Delivery'),
+            _buildEarningsCard(),
             _buildTabs(),
             Expanded(
               child: _isLoading
@@ -109,6 +171,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                       children: [
                         _buildMyDeliveriesList(),
                         _buildAvailableOrdersList(),
+                        _buildEarningsTab(),
                       ],
                     ),
             ),
@@ -154,14 +217,38 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               ],
             ),
           ),
+          // Online/Offline toggle
+          GestureDetector(
+            onTap: () => setState(() => _isOnline = !_isOnline),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _isOnline ? const Color(0xFF10B981) : Colors.grey,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_isOnline ? Icons.wifi : Icons.wifi_off,
+                      color: Colors.white, size: 16),
+                  const SizedBox(width: 4),
+                  Text(_isOnline ? 'Online' : 'Offline',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: _loadOrders,
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.refresh, color: Colors.white, size: 20),
             ),
           ),
@@ -177,10 +264,66 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.logout, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEarningsCard() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+            colors: [Color(0xFF10B981), Color(0xFF34D399)]),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+              blurRadius: 10)
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Today's Earnings",
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppConstants.currency}${(_stats['todayEarnings'] ?? 0).toStringAsFixed(0)}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Container(height: 50, width: 1, color: Colors.white30),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Wallet Balance',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppConstants.currency}${_walletBalance.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
         ],
@@ -200,14 +343,20 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
           Tab(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.local_shipping, size: 16),
-            const SizedBox(width: 6),
-            Text('My Deliveries (${_myDeliveries.length})'),
+            const SizedBox(width: 4),
+            Text('Active (${_myDeliveries.length})'),
           ])),
           Tab(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.list_alt, size: 16),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Text('Available (${_availableOrders.length})'),
+          ])),
+          const Tab(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.account_balance_wallet, size: 16),
+            SizedBox(width: 4),
+            Text('Earnings'),
           ])),
         ],
       ),
@@ -216,7 +365,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
 
   Widget _buildMyDeliveriesList() {
     if (_myDeliveries.isEmpty) {
-      return _buildEmptyState('No deliveries assigned', Icons.local_shipping);
+      return _buildEmptyState('No active deliveries', Icons.local_shipping);
     }
     return RefreshIndicator(
       onRefresh: _loadOrders,
@@ -230,6 +379,10 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   }
 
   Widget _buildAvailableOrdersList() {
+    if (!_isOnline) {
+      return _buildEmptyState(
+          'Go online to see available orders', Icons.wifi_off);
+    }
     if (_availableOrders.isEmpty) {
       return _buildEmptyState('No available orders', Icons.inbox);
     }
@@ -240,6 +393,120 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
         itemCount: _availableOrders.length,
         itemBuilder: (context, index) =>
             _buildDeliveryCard(_availableOrders[index], isMyDelivery: false),
+      ),
+    );
+  }
+
+  Widget _buildEarningsTab() {
+    return RefreshIndicator(
+      onRefresh: _loadStats,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildStatsGrid(),
+            const SizedBox(height: 20),
+            _buildRatingCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.5,
+      children: [
+        _buildStatCard('Total Deliveries', '${_stats['totalDeliveries'] ?? 0}',
+            Icons.delivery_dining, const Color(0xFF3B82F6)),
+        _buildStatCard(
+            'Total Earnings',
+            '${AppConstants.currency}${(_stats['totalEarnings'] ?? 0).toStringAsFixed(0)}',
+            Icons.payments,
+            const Color(0xFF10B981)),
+        _buildStatCard('This Week', '${_stats['weeklyDeliveries'] ?? 0} orders',
+            Icons.calendar_today, const Color(0xFFF59E0B)),
+        _buildStatCard(
+            'Weekly Earnings',
+            '${AppConstants.currency}${(_stats['weeklyEarnings'] ?? 0).toStringAsFixed(0)}',
+            Icons.trending_up,
+            const Color(0xFF8B5CF6)),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingCard() {
+    final rating = (_stats['averageRating'] ?? 5.0).toDouble();
+    final totalRatings = _stats['totalRatings'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text('Your Rating',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ...List.generate(
+                  5,
+                  (i) => Icon(
+                        i < rating.floor()
+                            ? Icons.star
+                            : (i < rating
+                                ? Icons.star_half
+                                : Icons.star_border),
+                        color: const Color(0xFFF59E0B),
+                        size: 32,
+                      )),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('${rating.toStringAsFixed(1)} ($totalRatings ratings)',
+              style: const TextStyle(color: AppTheme.textSecondary)),
+        ],
       ),
     );
   }
@@ -272,7 +539,6 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -306,12 +572,10 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               ],
             ),
           ),
-          // Content
           Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                // Order info
                 Row(
                   children: [
                     Text('#${order.orderNumber}',
@@ -325,7 +589,6 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Customer
                 Row(
                   children: [
                     const Icon(Icons.person,
@@ -342,7 +605,6 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                     ],
                   ],
                 ),
-                // Address
                 if (order.deliveryAddress != null) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -364,14 +626,31 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Actions
-                if (isMyDelivery)
-                  _buildDeliveryActions(order)
-                else
+                if (isMyDelivery) ...[
+                  _buildDeliveryActions(order),
+                  const SizedBox(height: 8),
+                  // Chat button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => DeliveryChatPage(order: order)),
+                      ),
+                      icon: const Icon(Icons.chat, size: 18),
+                      label: const Text('Chat with Customer'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF8B5CF6),
+                        side: const BorderSide(color: Color(0xFF8B5CF6)),
+                      ),
+                    ),
+                  ),
+                ] else
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => _acceptOrder(order),
+                      onPressed: _isOnline ? () => _acceptOrder(order) : null,
                       icon: const Icon(Icons.check, size: 18),
                       label: const Text('Accept Order'),
                       style: ElevatedButton.styleFrom(
@@ -402,7 +681,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               child: const Text('Picked Up', style: TextStyle(fontSize: 12)),
             ),
           ),
-        if (status == 'picked_up') ...[
+        if (status == 'picked_up')
           Expanded(
             child: ElevatedButton(
               onPressed: () => _updateDeliveryStatus(order, 'on_the_way'),
@@ -411,8 +690,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               child: const Text('On The Way', style: TextStyle(fontSize: 12)),
             ),
           ),
-        ],
-        if (status == 'on_the_way') ...[
+        if (status == 'on_the_way')
           Expanded(
             child: ElevatedButton(
               onPressed: () => _updateDeliveryStatus(order, 'arrived'),
@@ -421,8 +699,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               child: const Text('Arrived', style: TextStyle(fontSize: 12)),
             ),
           ),
-        ],
-        if (status == 'arrived') ...[
+        if (status == 'arrived')
           Expanded(
             child: ElevatedButton(
               onPressed: () => _updateDeliveryStatus(order, 'delivered'),
@@ -431,7 +708,6 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
               child: const Text('Delivered ✓', style: TextStyle(fontSize: 12)),
             ),
           ),
-        ],
         if (status == 'delivered')
           const Expanded(
             child: Center(

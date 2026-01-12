@@ -268,6 +268,7 @@ const updateHotelSettings = async (req, res, next) => {
     if (deliveryFee !== undefined) updateData.deliveryFee = deliveryFee;
     if (minOrderAmount !== undefined) updateData.minOrderAmount = minOrderAmount;
     if (deliveryRadius !== undefined) updateData.deliveryRadius = deliveryRadius;
+    if (req.body.location !== undefined) updateData.location = req.body.location;
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

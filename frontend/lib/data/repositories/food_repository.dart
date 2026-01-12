@@ -20,8 +20,12 @@ class FoodRepository {
   }
 
   /// Get all hotels (admin users with hotel info)
-  Future<List<Hotel>> getAllHotels() async {
-    final response = await ApiService.get('${ApiConstants.foods}/hotels');
+  Future<List<Hotel>> getAllHotels({double? lat, double? lng}) async {
+    String url = '${ApiConstants.foods}/hotels';
+    if (lat != null && lng != null) {
+      url += '?lat=$lat&lng=$lng';
+    }
+    final response = await ApiService.get(url);
     final List<dynamic> hotelsJson = response['data'] ?? [];
     return hotelsJson.map((json) => Hotel.fromJson(json)).toList();
   }

@@ -116,4 +116,60 @@ class OrderRepository {
     });
     return Order.fromJson(response['data']);
   }
+
+  /// Update driver location (delivery person)
+  Future<void> updateDriverLocation(double latitude, double longitude,
+      {String? orderId}) async {
+    await ApiService.put('${ApiConstants.orders}/delivery/location', {
+      'latitude': latitude,
+      'longitude': longitude,
+      'orderId': orderId,
+    });
+  }
+
+  /// Get driver location for an order (customer)
+  Future<Map<String, dynamic>> getDriverLocation(String orderId) async {
+    final response =
+        await ApiService.get('${ApiConstants.orders}/$orderId/driver-location');
+    return response['data'] ?? {};
+  }
+
+  /// Send chat message
+  Future<ChatMessage> sendChatMessage(String orderId, String message) async {
+    final response =
+        await ApiService.post('${ApiConstants.orders}/$orderId/chat', {
+      'message': message,
+    });
+    return ChatMessage.fromJson(response['data']);
+  }
+
+  /// Get chat messages for an order
+  Future<List<ChatMessage>> getChatMessages(String orderId) async {
+    final response =
+        await ApiService.get('${ApiConstants.orders}/$orderId/chat');
+    final List<dynamic> messagesJson = response['data'] ?? [];
+    return messagesJson.map((json) => ChatMessage.fromJson(json)).toList();
+  }
+
+  /// Rate driver after delivery
+  Future<void> rateDriver(String orderId, int rating, {String? review}) async {
+    await ApiService.post('${ApiConstants.orders}/$orderId/rate-driver', {
+      'rating': rating,
+      'review': review,
+    });
+  }
+
+  /// Get driver earnings (for delivery dashboard)
+  Future<Map<String, dynamic>> getDriverEarnings() async {
+    final response =
+        await ApiService.get('${ApiConstants.orders}/delivery/earnings');
+    return response['data'] ?? {};
+  }
+
+  /// Get driver stats (for delivery dashboard)
+  Future<Map<String, dynamic>> getDriverStats() async {
+    final response =
+        await ApiService.get('${ApiConstants.orders}/delivery/stats');
+    return response['data'] ?? {};
+  }
 }

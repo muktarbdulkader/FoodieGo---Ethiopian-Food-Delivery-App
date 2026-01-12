@@ -51,14 +51,34 @@ const deliverySchema = new mongoose.Schema({
   fee: { type: Number, default: 2.99 },
   estimatedTime: { type: Number, default: 30 }, // minutes
   distance: { type: Number }, // km
+  driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   driverName: { type: String },
   driverPhone: { type: String },
+  driverPhoto: { type: String },
   trackingStatus: {
     type: String,
     enum: ['pending', 'assigned', 'picked_up', 'on_the_way', 'arrived', 'delivered'],
     default: 'pending'
   },
-  deliveredAt: { type: Date }
+  // Real-time driver location
+  driverLocation: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    updatedAt: { type: Date }
+  },
+  // Pickup location (restaurant)
+  pickupLocation: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    address: { type: String }
+  },
+  // Delivery timestamps
+  assignedAt: { type: Date },
+  pickedUpAt: { type: Date },
+  deliveredAt: { type: Date },
+  // Driver rating for this delivery
+  driverRating: { type: Number, min: 1, max: 5 },
+  driverReview: { type: String }
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema({
@@ -90,7 +110,16 @@ const orderSchema = new mongoose.Schema({
   // Additional
   notes: { type: String, default: '' },
   promoCode: { type: String },
-  cancelReason: { type: String }
+  cancelReason: { type: String },
+  
+  // Chat messages between user and driver
+  chatMessages: [{
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    senderRole: { type: String, enum: ['user', 'driver'] },
+    message: { type: String },
+    timestamp: { type: Date, default: Date.now },
+    isRead: { type: Boolean, default: false }
+  }]
 }, { timestamps: true });
 
 // Generate order number before saving

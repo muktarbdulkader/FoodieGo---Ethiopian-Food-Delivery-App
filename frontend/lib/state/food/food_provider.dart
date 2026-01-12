@@ -99,9 +99,10 @@ class FoodProvider extends ChangeNotifier {
   }
 
   /// Fetch all hotels (admin users with hotel info)
-  Future<List<Hotel>> fetchHotels() async {
+  /// Optionally pass user location to get nearby restaurants sorted by distance
+  Future<List<Hotel>> fetchHotels({double? lat, double? lng}) async {
     try {
-      _hotels = await _foodRepository.getAllHotels();
+      _hotels = await _foodRepository.getAllHotels(lat: lat, lng: lng);
       notifyListeners();
       return _hotels;
     } catch (e) {

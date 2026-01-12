@@ -153,6 +153,8 @@ class Hotel {
   final double deliveryFee;
   final double minOrderAmount;
   final int foodCount;
+  final double? distance; // Distance from user in km
+  final String? distanceText; // Formatted distance text
 
   Hotel({
     required this.id,
@@ -167,6 +169,8 @@ class Hotel {
     this.deliveryFee = 50,
     this.minOrderAmount = 0,
     this.foodCount = 0,
+    this.distance,
+    this.distanceText,
   });
 
   factory Hotel.fromJson(Map<String, dynamic> json) {
@@ -184,6 +188,8 @@ class Hotel {
       deliveryFee: (json['deliveryFee'] ?? 50).toDouble(),
       minOrderAmount: (json['minOrderAmount'] ?? 0).toDouble(),
       foodCount: json['foodCount'] ?? 0,
+      distance: (json['distance'] as num?)?.toDouble(),
+      distanceText: json['distanceText'],
     );
   }
 }

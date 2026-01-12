@@ -132,6 +132,29 @@ const userSchema = new mongoose.Schema({
     description: String,
     date: String
   }],
+  // Delivery driver stats
+  deliveryStats: {
+    totalDeliveries: { type: Number, default: 0 },
+    totalEarnings: { type: Number, default: 0 },
+    todayDeliveries: { type: Number, default: 0 },
+    todayEarnings: { type: Number, default: 0 },
+    weeklyDeliveries: { type: Number, default: 0 },
+    weeklyEarnings: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 5.0 },
+    totalRatings: { type: Number, default: 0 },
+    lastDeliveryDate: { type: Date }
+  },
+  // Driver current location (for real-time tracking)
+  currentLocation: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    updatedAt: { type: Date }
+  },
+  // Driver availability status
+  isAvailable: {
+    type: Boolean,
+    default: true
+  },
   level: {
     type: String,
     default: 'Regular'

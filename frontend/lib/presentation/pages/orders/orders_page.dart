@@ -304,7 +304,10 @@ class _OrdersPageState extends State<OrdersPage>
               ),
               const SizedBox(height: 20),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  // Navigate to home page (index 0)
+                  Navigator.pushReplacementNamed(context, '/');
+                },
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
