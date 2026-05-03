@@ -12,6 +12,7 @@ import 'manage_users_page.dart';
 import 'manage_payments_page.dart';
 import 'manage_events_page.dart';
 import 'manage_promotions_page.dart';
+import 'manage_tables_page.dart';
 import 'hotel_settings_page.dart';
 import '../../../state/auth/auth_provider.dart';
 
@@ -353,6 +354,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ManagePaymentsPage()));
+                }),
+                _buildActionCard('Tables', Icons.table_restaurant, const Color(0xFF10B981), () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ManageTablesPage()));
                 }),
                 _buildActionCard('Events', Icons.celebration, Colors.pink, () {
                   Navigator.push(

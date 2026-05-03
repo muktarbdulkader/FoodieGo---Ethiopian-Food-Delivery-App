@@ -18,6 +18,25 @@ const getAllPromotions = async (req, res, next) => {
   }
 };
 
+// Get active promotions for a specific restaurant (public endpoint)
+const getRestaurantActivePromotions = async (req, res, next) => {
+  try {
+    const { restaurantId } = req.params;
+    const now = new Date();
+    
+    const promotions = await Promotion.find({
+      hotelId: restaurantId,
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    }).sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: promotions });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get promotions for a specific hotel (for restaurant portal)
 const getHotelPromotions = async (req, res, next) => {
   try {
@@ -31,8 +50,11 @@ const getHotelPromotions = async (req, res, next) => {
 
 const validatePromoCode = async (req, res, next) => {
   try {
-    const { code, orderAmount, hotelId } = req.body;
+    const { code, orderAmount, hotelId, restaurantId } = req.body;
     const now = new Date();
+    
+    // Use restaurantId or hotelId (both refer to the same thing)
+    const targetHotelId = restaurantId || hotelId;
     
     // Find promo - optionally filter by hotel
     const query = {
@@ -41,7 +63,7 @@ const validatePromoCode = async (req, res, next) => {
       startDate: { $lte: now },
       endDate: { $gte: now }
     };
-    if (hotelId) query.hotelId = hotelId;
+    if (targetHotelId) query.hotelId = targetHotelId;
     
     const promo = await Promotion.findOne(query);
 
@@ -111,4 +133,12 @@ const deletePromotion = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllPromotions, getHotelPromotions, validatePromoCode, createPromotion, updatePromotion, deletePromotion };
+module.exports = { 
+  getAllPromotions, 
+  getRestaurantActivePromotions,
+  getHotelPromotions, 
+  validatePromoCode, 
+  createPromotion, 
+  updatePromotion, 
+  deletePromotion 
+};

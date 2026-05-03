@@ -1,8 +1,11 @@
 /// API Constants
 /// Contains all API-related configuration values
 class ApiConstants {
+  // Local development URL
+  static const String baseUrl = 'http://localhost:5001/api';
+  
   // Production URL - FoodieGo backend on Render
-  static const String baseUrl = 'https://foodiego-tqz4.onrender.com/api';
+  // static const String baseUrl = 'https://foodiego-tqz4.onrender.com/api';
 
   // Auth endpoints
   static const String auth = '/auth';

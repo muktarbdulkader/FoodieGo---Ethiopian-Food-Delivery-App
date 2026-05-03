@@ -29,7 +29,7 @@ const deliveryAddressSchema = new mongoose.Schema({
 const paymentSchema = new mongoose.Schema({
   method: { 
     type: String, 
-    enum: ['cash', 'card', 'wallet', 'paypal'],
+    enum: ['cash', 'card', 'telebirr', 'mpesa', 'cbe_birr'],
     default: 'cash'
   },
   status: {
@@ -87,6 +87,23 @@ const orderSchema = new mongoose.Schema({
   restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
   items: [orderItemSchema],
   
+  // Order Type - NEW for dine-in support
+  type: {
+    type: String,
+    enum: ['delivery', 'dine_in', 'pickup'],
+    default: 'delivery'
+  },
+  
+  // Dine-in specific fields
+  tableId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Table' 
+  },
+  restaurantId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  },
+  
   // Pricing
   subtotal: { type: Number, required: true },
   deliveryFee: { type: Number, default: 2.99 },
@@ -98,7 +115,7 @@ const orderSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed', 'cancelled'],
     default: 'pending'
   },
   

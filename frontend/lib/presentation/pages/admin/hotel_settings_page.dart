@@ -279,7 +279,7 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
                     Switch(
                       value: _isOpen,
                       onChanged: (v) => setState(() => _isOpen = v),
-                      activeColor: const Color(0xFF10B981),
+                      activeThumbColor: const Color(0xFF10B981),
                     ),
                   ],
                 ),

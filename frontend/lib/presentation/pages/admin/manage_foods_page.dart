@@ -96,7 +96,8 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
           imageQuality: 80,
         );
         if (pickedFile != null) {
-          final bytes = await File(pickedFile.path).readAsBytes();
+          // For web compatibility, use pickedFile.readAsBytes() directly
+          final bytes = await pickedFile.readAsBytes();
           setModalState(() {
             selectedImage = File(pickedFile.path);
             base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
@@ -263,7 +264,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       Icons.category)
                 else
                   DropdownButtonFormField<String>(
-                    value: category,
+                    initialValue: category,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.category),
                       border: OutlineInputBorder(
@@ -824,7 +825,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [

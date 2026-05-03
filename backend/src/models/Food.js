@@ -31,6 +31,16 @@ const foodSchema = new mongoose.Schema({
     name: { type: String },
     price: { type: Number }
   }],
+  // NEW: Barcode for scanning (unique index defined separately below)
+  barcode: { type: String },
+  // NEW: Menu types - food can be available for multiple menu types
+  menuTypes: [{ 
+    type: String, 
+    enum: ['delivery', 'dine_in', 'takeaway'], 
+    default: ['delivery', 'dine_in'] 
+  }],
+  // NEW: Dine-in specific pricing (optional, if different from delivery)
+  dineInPrice: { type: Number },
   // Engagement metrics
   viewCount: { type: Number, default: 0 },
   likeCount: { type: Number, default: 0 },
@@ -43,5 +53,7 @@ foodSchema.index({ hotelId: 1, category: 1 });
 foodSchema.index({ hotelName: 1 });
 foodSchema.index({ likeCount: -1 });
 foodSchema.index({ viewCount: -1 });
+foodSchema.index({ barcode: 1 }, { unique: true, sparse: true }); // NEW: Unique index for barcode lookup
+foodSchema.index({ menuTypes: 1 }); // NEW: Index for menu type filtering
 
 module.exports = mongoose.model('Food', foodSchema);

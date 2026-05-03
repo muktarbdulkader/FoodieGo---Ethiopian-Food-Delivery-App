@@ -1,10 +1,19 @@
 const express = require('express');
-const { getAllPromotions, getHotelPromotions, validatePromoCode, createPromotion, updatePromotion, deletePromotion } = require('../controllers/promotion.controller');
+const { 
+  getAllPromotions, 
+  getRestaurantActivePromotions,
+  getHotelPromotions, 
+  validatePromoCode, 
+  createPromotion, 
+  updatePromotion, 
+  deletePromotion 
+} = require('../controllers/promotion.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
 router.get('/', getAllPromotions);
+router.get('/restaurant/:restaurantId/active', getRestaurantActivePromotions); // Public endpoint
 router.get('/hotel', protect, authorize('restaurant'), getHotelPromotions);
 router.post('/validate', protect, validatePromoCode);
 router.post('/', protect, authorize('restaurant'), createPromotion);

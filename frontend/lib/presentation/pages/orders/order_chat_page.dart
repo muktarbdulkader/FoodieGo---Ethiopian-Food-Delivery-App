@@ -347,7 +347,7 @@ class _OrderChatPageState extends State<OrderChatPage> {
               onTap: _sendMessage,
               child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppTheme.primaryColor,
                   shape: BoxShape.circle,
                 ),

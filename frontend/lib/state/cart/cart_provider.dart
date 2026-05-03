@@ -124,4 +124,39 @@ class CartProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Place dine-in order (for QR-based table ordering)
+  Future<Order?> placeOrderDineIn({
+    required String restaurantId,
+    required String tableId,
+    required double subtotal,
+    required double tax,
+    required double totalPrice,
+  }) async {
+    if (_items.isEmpty) return null;
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final order = await _orderRepository.createDineInOrder(
+        restaurantId: restaurantId,
+        tableId: tableId,
+        items: _items,
+        subtotal: subtotal,
+        tax: tax,
+        totalPrice: totalPrice,
+      );
+      _items.clear();
+      _isLoading = false;
+      notifyListeners();
+      return order;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
 }

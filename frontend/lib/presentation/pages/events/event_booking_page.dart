@@ -755,7 +755,7 @@ class _EventBookingPageState extends State<EventBookingPage> {
             style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _foodPreference,
+          initialValue: _foodPreference,
           decoration: _inputDecoration('', ''),
           items: const [
             DropdownMenuItem(value: 'ethiopian', child: Text('🇪🇹 Ethiopian')),

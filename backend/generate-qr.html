@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foodiego - QR Code Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 18px;
+      opacity: 0.9;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #FF6B35;
+      margin-top: 10px;
+    }
+
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .qr-item {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      border: 2px solid #e0e0e0;
+      transition: all 0.3s;
+    }
+
+    .qr-item:hover {
+      border-color: #667eea;
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .qr-item canvas {
+      max-width: 100%;
+      height: auto;
+      margin: 15px 0;
+      border-radius: 10px;
+    }
+
+    .table-info {
+      font-weight: 600;
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .table-capacity {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+
+    .download-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .download-btn:hover {
+      background: #218838;
+      transform: scale(1.05);
+    }
+
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .info-box h3 {
+      color: #1976d2;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .info-box p {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+      .card:first-child {
+        display: none;
+      }
+      .qr-item {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🍽️ Foodiego QR Generator</h1>
+      <p>Generate QR codes for your restaurant tables</p>
+    </div>
+
+    <div class="card">
+      <div class="info-box">
+        <h3>📱 How it works</h3>
+        <p>
+          1. Enter your restaurant ID and table details<br>
+          2. Click "Generate QR Codes"<br>
+          3. Download individual QR codes or print all at once<br>
+          4. Place QR codes on your tables<br>
+          5. Customers scan to order!
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="restaurantId">Restaurant ID *</label>
+        <input type="text" id="restaurantId" placeholder="e.g., 507f1f77bcf86cd799439011" required>
+      </div>
+
+      <div class="form-group">
+        <label for="restaurantName">Restaurant Name</label>
+        <input type="text" id="restaurantName" placeholder="e.g., Pizza Palace">
+      </div>
+
+      <div class="form-group">
+        <label for="tableCount">Number of Tables *</label>
+        <input type="number" id="tableCount" min="1" max="100" value="10" required>
+      </div>
+
+      <div class="form-group">
+        <label for="tablePrefix">Table Prefix</label>
+        <input type="text" id="tablePrefix" placeholder="e.g., T" value="T" maxlength="5">
+      </div>
+
+      <div class="form-group">
+        <label for="capacity">Default Capacity</label>
+        <select id="capacity">
+          <option value="2">2 people</option>
+          <option value="4" selected>4 people</option>
+          <option value="6">6 people</option>
+          <option value="8">8 people</option>
+          <option value="10">10 people</option>
+        </select>
+      </div>
+
+      <button class="btn" onclick="generateQRCodes()">🎨 Generate QR Codes</button>
+    </div>
+
+    <div id="qrCodesSection" class="card hidden">
+      <h2 style="margin-bottom: 20px; color: #333;">Generated QR Codes</h2>
+      <button class="btn btn-secondary" onclick="window.print()">🖨️ Print All QR Codes</button>
+      <div id="qrGrid" class="qr-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    function generateQRCodes() {
+      const restaurantId = document.getElementById('restaurantId').value.trim();
+      const restaurantName = document.getElementById('restaurantName').value.trim() || 'Restaurant';
+      const tableCount = parseInt(document.getElementById('tableCount').value);
+      const tablePrefix = document.getElementById('tablePrefix').value.trim() || 'T';
+      const capacity = parseInt(document.getElementById('capacity').value);
+
+      if (!restaurantId) {
+        alert('Please enter a Restaurant ID');
+        return;
+      }
+
+      if (!tableCount || tableCount < 1 || tableCount > 100) {
+        alert('Please enter a valid number of tables (1-100)');
+        return;
+      }
+
+      const qrGrid = document.getElementById('qrGrid');
+      qrGrid.innerHTML = '';
+
+      // Generate QR codes for each table
+      for (let i = 1; i <= tableCount; i++) {
+        const tableNumber = `${tablePrefix}${String(i).padStart(2, '0')}`;
+        const tableId = generateTableId(); // Generate a mock table ID
+        const qrData = `foodiego://menu?restaurantId=${restaurantId}&tableId=${tableId}`;
+
+        // Create QR item container
+        const qrItem = document.createElement('div');
+        qrItem.className = 'qr-item';
+        qrItem.innerHTML = `
+          <div class="table-info">${restaurantName}</div>
+          <div class="table-info">Table ${tableNumber}</div>
+          <div class="table-capacity">Capacity: ${capacity} people</div>
+          <canvas id="qr-${i}"></canvas>
+          <button class="download-btn" onclick="downloadQR('qr-${i}', '${restaurantName}-${tableNumber}')">
+            ⬇️ Download
+          </button>
+        `;
+        qrGrid.appendChild(qrItem);
+
+        // Generate QR code
+        QRCode.toCanvas(
+          document.getElementById(`qr-${i}`),
+          qrData,
+          {
+            width: 200,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          },
+          function (error) {
+            if (error) console.error(error);
+          }
+        );
+      }
+
+      // Show QR codes section
+      document.getElementById('qrCodesSection').classList.remove('hidden');
+      
+      // Scroll to QR codes
+      document.getElementById('qrCodesSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function generateTableId() {
+      // Generate a mock MongoDB ObjectId-like string
+      const timestamp = Math.floor(Date.now() / 1000).toString(16);
+      const random = Math.random().toString(16).substring(2, 18);
+      return (timestamp + random).substring(0, 24);
+    }
+
+    function downloadQR(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `${filename}.png`;
+      link.href = url;
+      link.click();
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        generateQRCodes();
+      }
+    });
+  </script>
+</body>
+</html>

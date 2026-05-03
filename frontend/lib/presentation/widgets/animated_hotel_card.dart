@@ -114,7 +114,7 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
                             color: Colors.white,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.favorite_border,
                             color: AppTheme.primaryColor,
                             size: 18,
@@ -137,7 +137,7 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
                               ),
                             ],
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.restaurant,
                             color: AppTheme.primaryColor,
                             size: 16,
@@ -169,7 +169,7 @@ class _AnimatedHotelCardState extends State<AnimatedHotelCard>
                             ),
                             Row(
                               children: [
-                                Icon(Icons.star_outline,
+                                const Icon(Icons.star_outline,
                                     color: AppTheme.accentYellow, size: 14),
                                 const SizedBox(width: 2),
                                 Text(

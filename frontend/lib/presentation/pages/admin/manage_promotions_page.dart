@@ -94,7 +94,7 @@ class _ManagePromotionsPageState extends State<ManagePromotionsPage> {
                 const SizedBox(height: 12),
                 // Promo Type Selector
                 DropdownButtonFormField<String>(
-                  value: promoType,
+                  initialValue: promoType,
                   decoration:
                       const InputDecoration(labelText: 'Promotion Purpose'),
                   items: _promoTypes
@@ -108,7 +108,7 @@ class _ManagePromotionsPageState extends State<ManagePromotionsPage> {
                 const SizedBox(height: 12),
                 // Discount Type - Full width
                 DropdownButtonFormField<String>(
-                  value: discountType,
+                  initialValue: discountType,
                   decoration: const InputDecoration(labelText: 'Discount Type'),
                   items: const [
                     DropdownMenuItem(
@@ -150,8 +150,9 @@ class _ManagePromotionsPageState extends State<ManagePromotionsPage> {
                             lastDate:
                                 DateTime.now().add(const Duration(days: 365)),
                           );
-                          if (date != null)
+                          if (date != null) {
                             setDialogState(() => startDate = date);
+                          }
                         },
                         child: InputDecorator(
                           decoration:
@@ -172,8 +173,9 @@ class _ManagePromotionsPageState extends State<ManagePromotionsPage> {
                             lastDate:
                                 DateTime.now().add(const Duration(days: 365)),
                           );
-                          if (date != null)
+                          if (date != null) {
                             setDialogState(() => endDate = date);
+                          }
                         },
                         child: InputDecorator(
                           decoration:

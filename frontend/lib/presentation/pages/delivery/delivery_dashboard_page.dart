@@ -6,6 +6,7 @@ import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../widgets/loading_widget.dart';
@@ -41,13 +42,59 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
     _loadOrders();
     _loadStats();
     _startLocationUpdates();
+    _startOrderPolling(); // NEW: Poll for new assignments
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _locationTimer?.cancel();
+    _orderPollingTimer?.cancel(); // NEW
     super.dispose();
+  }
+
+  Timer? _orderPollingTimer; // NEW
+
+  /// Poll for new order assignments every 10 seconds (NEW)
+  void _startOrderPolling() {
+    _orderPollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted && _isOnline) {
+        _checkForNewAssignments();
+      }
+    });
+  }
+
+  /// Check for new assignments and show notification (NEW)
+  Future<void> _checkForNewAssignments() async {
+    try {
+      final myOrders = await _orderRepo.getAllOrders();
+      
+      // Check if there are new orders we haven't seen before
+      final newOrders = myOrders.where((order) {
+        final isNew = !_myDeliveries.any((existing) => existing.id == order.id);
+        final isAssigned = order.delivery?.trackingStatus == 'assigned';
+        return isNew && isAssigned;
+      }).toList();
+
+      if (newOrders.isNotEmpty && mounted) {
+        // Show notification for each new assignment
+        for (final order in newOrders) {
+          await NotificationService.showDriverAssignmentNotification(
+            orderNumber: order.orderNumber,
+            restaurantName: order.items.isNotEmpty ? order.items.first.hotelName : 'Restaurant',
+            customerName: order.userName ?? 'Customer',
+            deliveryAddress: order.deliveryAddress?.fullAddress ?? 'Address',
+            totalPrice: order.totalPrice,
+            orderId: order.id,
+          );
+        }
+        
+        // Refresh the list
+        _loadOrders();
+      }
+    } catch (e) {
+      // Silently fail polling
+    }
   }
 
   void _startLocationUpdates() {

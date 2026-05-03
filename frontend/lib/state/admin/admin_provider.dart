@@ -157,6 +157,30 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  /// Assign driver with notification (NEW)
+  Future<bool> assignDriverWithNotification({
+    required String orderId,
+    required String driverId,
+    required String driverName,
+    String? driverPhone,
+  }) async {
+    try {
+      await _adminRepo.assignDriverWithNotification(
+        orderId: orderId,
+        driverId: driverId,
+        driverName: driverName,
+        driverPhone: driverPhone,
+      );
+      await fetchAllOrders();
+      await fetchDeliveries();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> updateUserRole(String userId, String role) async {
     try {
       await _adminRepo.updateUserRole(userId, role);

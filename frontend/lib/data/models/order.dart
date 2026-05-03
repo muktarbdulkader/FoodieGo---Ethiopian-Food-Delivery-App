@@ -246,6 +246,12 @@ class Order {
   final String? cancelReason;
   final DateTime? createdAt;
   final List<ChatMessage> chatMessages;
+  
+  // NEW: Dine-in support
+  final String type; // 'delivery', 'dine_in', 'pickup'
+  final String? tableId;
+  final String? restaurantId;
+  final String? tableNumber; // Populated from table
 
   Order({
     required this.id,
@@ -270,6 +276,10 @@ class Order {
     this.cancelReason,
     this.createdAt,
     this.chatMessages = const [],
+    this.type = 'delivery', // NEW
+    this.tableId, // NEW
+    this.restaurantId, // NEW
+    this.tableNumber, // NEW
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -285,6 +295,16 @@ class Order {
       userPhone = json['user']['phone'];
     } else {
       oderId = json['user']?.toString() ?? '';
+    }
+
+    // Handle tableId - can be string or object
+    String? tableId;
+    String? tableNumber;
+    if (json['tableId'] is Map) {
+      tableId = json['tableId']['_id'] ?? json['tableId']['id'];
+      tableNumber = json['tableId']['tableNumber'];
+    } else if (json['tableId'] is String) {
+      tableId = json['tableId'];
     }
 
     return Order(
@@ -321,6 +341,10 @@ class Order {
               ?.map((msg) => ChatMessage.fromJson(msg))
               .toList() ??
           [],
+      type: json['type']?.toString() ?? 'delivery', // NEW
+      tableId: tableId, // NEW
+      restaurantId: json['restaurantId']?.toString(), // NEW
+      tableNumber: tableNumber, // NEW
     );
   }
 
@@ -338,6 +362,9 @@ class Order {
       'delivery': delivery?.toJson(),
       'notes': notes,
       'promoCode': promoCode,
+      'type': type, // NEW
+      'tableId': tableId, // NEW
+      'restaurantId': restaurantId, // NEW
     };
   }
 
@@ -355,6 +382,8 @@ class Order {
         return 'Out for Delivery';
       case 'delivered':
         return 'Delivered';
+      case 'completed':
+        return 'Completed';
       case 'cancelled':
         return 'Cancelled';
       default:

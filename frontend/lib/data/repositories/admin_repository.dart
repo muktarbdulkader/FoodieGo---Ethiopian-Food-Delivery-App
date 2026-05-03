@@ -59,6 +59,20 @@ class AdminRepository {
     });
   }
 
+  /// Assign driver with notification (NEW)
+  Future<void> assignDriverWithNotification({
+    required String orderId,
+    required String driverId,
+    required String driverName,
+    String? driverPhone,
+  }) async {
+    await ApiService.put('/orders/$orderId/assign-driver', {
+      'driverId': driverId,
+      'driverName': driverName,
+      'driverPhone': driverPhone,
+    });
+  }
+
   // Get all delivery users for driver assignment
   Future<List<Map<String, dynamic>>> getDeliveryUsers() async {
     final response = await ApiService.get('/admin/delivery-users');

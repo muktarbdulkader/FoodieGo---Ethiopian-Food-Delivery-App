@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:app_links/app_links.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/storage_utils.dart';
 import 'core/services/notification_service.dart';
@@ -11,6 +12,7 @@ import 'state/cart/cart_provider.dart';
 import 'state/order/order_provider.dart';
 import 'state/admin/admin_provider.dart';
 import 'state/language/language_provider.dart';
+import 'state/dine_in/dine_in_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/auth/admin_login_page.dart';
 import 'presentation/pages/auth/delivery_login_page.dart';
@@ -18,6 +20,9 @@ import 'presentation/pages/home/home_page.dart';
 import 'presentation/pages/admin/admin_dashboard_page.dart';
 import 'presentation/pages/language/language_selection_page.dart';
 import 'presentation/pages/delivery/delivery_dashboard_page.dart';
+import 'presentation/pages/dine_in/qr_scanner_page.dart';
+import 'presentation/pages/dine_in/dine_in_menu_page.dart';
+import 'presentation/pages/splash/splash_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -57,6 +62,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   late AuthProvider _deliveryAuthProvider;
   late LanguageProvider _languageProvider;
   bool _isInitialized = false;
+  late AppLinks _appLinks;
 
   @override
   void initState() {
@@ -78,6 +84,10 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     StorageUtils.setSessionType(lastSession);
 
     _initLanguage();
+    _initDeepLinks();
+
+    // Set up notification tap handler for driver assignments
+    NotificationService.setNotificationTapCallback(_handleNotificationTap);
 
     // Set up 401 handler - logout only the current session
     ApiService.setUnauthorizedCallback(() {
@@ -94,6 +104,71 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
           break;
       }
     });
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    // Handle initial link if app was opened from a link
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) {
+        _handleDeepLink(initialLink);
+      }
+    } catch (e) {
+      debugPrint('Error getting initial link: $e');
+    }
+
+    // Listen for links while app is running
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    }, onError: (err) {
+      debugPrint('Error listening to deep links: $err');
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    debugPrint('Deep link received: $uri');
+    
+    // Handle dine-in menu deep link
+    // Example: https://your-app.web.app/dine-in-menu?restaurantId=xxx&tableId=T05
+    if (uri.path == '/dine-in-menu') {
+      final restaurantId = uri.queryParameters['restaurantId'];
+      final tableId = uri.queryParameters['tableId'];
+      
+      if (restaurantId != null && tableId != null) {
+        // Navigate to dine-in menu page
+        Future.delayed(const Duration(milliseconds: 500), () {
+          navigatorKey.currentState?.pushNamed(
+            '/dine-in-menu',
+            arguments: {
+              'restaurantId': restaurantId,
+              'tableId': tableId,
+            },
+          );
+        });
+      }
+    }
+  }
+
+  void _handleNotificationTap(String? payload) {
+    if (payload == null) return;
+
+    // Handle driver assignment notification
+    if (payload.startsWith('driver_assignment:')) {
+      final orderId = payload.split(':')[1];
+      
+      // Navigate to delivery dashboard
+      // Check if user is logged in as delivery
+      if (_deliveryAuthProvider.isLoggedIn && 
+          _deliveryAuthProvider.user?.role == 'delivery') {
+        // Navigate to delivery dashboard
+        navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/delivery',
+          (route) => false,
+        );
+      }
+    }
   }
 
   Future<void> _initLanguage() async {
@@ -120,6 +195,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => DineInProvider()),
       ],
       child: Consumer<LanguageProvider>(
         builder: (context, langProvider, _) => MaterialApp(
@@ -133,6 +209,18 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
           initialRoute: _getInitialRoute(),
           onGenerateRoute: (settings) {
             debugPrint('Generating route for: ${settings.name}');
+            
+            // SPLASH SCREEN - Show first
+            if (settings.name == '/splash') {
+              return PageRouteBuilder(
+                settings: settings,
+                pageBuilder: (_, __, ___) => const SplashPage(),
+                transitionsBuilder: (_, animation, __, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+              );
+            }
+            
             // ADMIN/RESTAURANT PORTAL - /admin routes
             if (settings.name?.startsWith('/admin') == true) {
               return _buildAdminRoute(settings);
@@ -155,35 +243,8 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
   /// Determine initial route based on last session and login status
   String _getInitialRoute() {
-    final lastSession = StorageUtils.currentSessionType;
-
-    // Check which sessions are logged in
-    final isUserLoggedIn = StorageUtils.isLoggedIn(SessionType.user);
-    final isAdminLoggedIn = StorageUtils.isLoggedIn(SessionType.admin);
-    final isDeliveryLoggedIn = StorageUtils.isLoggedIn(SessionType.delivery);
-
-    debugPrint(
-        'Initial route check - lastSession: $lastSession, user: $isUserLoggedIn, admin: $isAdminLoggedIn, delivery: $isDeliveryLoggedIn');
-
-    // If last session is still logged in, go there
-    switch (lastSession) {
-      case SessionType.admin:
-        if (isAdminLoggedIn) return '/admin';
-        break;
-      case SessionType.delivery:
-        if (isDeliveryLoggedIn) return '/delivery';
-        break;
-      case SessionType.user:
-        if (isUserLoggedIn) return '/';
-        break;
-    }
-
-    // If last session is not logged in, check others
-    if (isAdminLoggedIn) return '/admin';
-    if (isDeliveryLoggedIn) return '/delivery';
-
-    // Default to user login
-    return '/';
+    // Always show splash screen first
+    return '/splash';
   }
 
   /// Build admin/restaurant portal route
@@ -248,6 +309,31 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
   /// Build user portal route
   PageRouteBuilder _buildUserRoute(RouteSettings settings) {
+    // Handle specific routes
+    if (settings.name == '/qr-scanner') {
+      return PageRouteBuilder(
+        settings: settings,
+        pageBuilder: (_, __, ___) => const QRScannerPage(),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      );
+    }
+    
+    if (settings.name == '/dine-in-menu') {
+      final args = settings.arguments as Map<String, dynamic>?;
+      return PageRouteBuilder(
+        settings: settings,
+        pageBuilder: (_, __, ___) => DineInMenuPage(
+          restaurantId: args?['restaurantId'] ?? '',
+          tableId: args?['tableId'] ?? '',
+        ),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      );
+    }
+    
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => FutureBuilder<bool>(

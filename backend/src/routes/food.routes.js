@@ -6,7 +6,8 @@ const {
   getAllFoods, 
   getFoodsByHotel,
   getAllHotels,
-  getFoodById, 
+  getFoodById,
+  getFoodByBarcode,
   createFood, 
   updateFood, 
   deleteFood,
@@ -25,6 +26,7 @@ router.get('/hotels', getAllHotels);
 router.get('/hotels/:hotelId/foods', getFoodsByHotel);
 router.get('/categories', getCategories);
 router.get('/popular', getPopularFoods);
+router.get('/barcode/:barcode', getFoodByBarcode); // Barcode lookup
 router.get('/:id', getFoodById);
 router.post('/:id/view', incrementViewCount);
 

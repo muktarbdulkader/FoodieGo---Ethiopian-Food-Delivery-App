@@ -1,6 +1,6 @@
 /**
  * Order Routes - With Payment, Delivery & Tracking
- * Enhanced with Yango-like features
+ * Enhanced with Yango-like features + Dine-in support
  */
 const express = require('express');
 const { 
@@ -21,13 +21,20 @@ const {
   getChatMessages,
   rateDriver,
   getDriverEarnings,
-  getDriverStats
+  getDriverStats,
+  getDineInOrders, // NEW
+  callWaiter, // NEW
+  assignDriverToOrder, // NEW
 } = require('../controllers/order.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
 router.use(protect);
+
+// Dine-in routes (NEW)
+router.get('/dine-in', getDineInOrders);
+router.post('/dine-in/call-waiter', callWaiter);
 
 // Delivery routes (must be before /:id routes)
 router.get('/delivery/available', getAvailableDeliveryOrders);
@@ -48,6 +55,7 @@ router.post('/:orderId/rate-driver', rateDriver);
 
 // Restaurant routes - manage orders for their hotel
 router.get('/restaurant/pending-delivery', authorize('restaurant'), getPendingDeliveryOrders);
+router.put('/:id/assign-driver', authorize('restaurant'), assignDriverToOrder);
 
 // User routes
 router.get('/', getAllOrders);

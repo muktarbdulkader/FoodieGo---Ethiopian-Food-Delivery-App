@@ -429,7 +429,7 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Icon(Icons.person_outline,
+                            const Icon(Icons.person_outline,
                                 size: 12, color: AppTheme.textSecondary),
                             const SizedBox(width: 3),
                             Text(
@@ -442,7 +442,7 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
                                   style: TextStyle(
                                       color: AppTheme.textSecondary,
                                       fontSize: 12)),
-                              Icon(Icons.store_outlined,
+                              const Icon(Icons.store_outlined,
                                   size: 12, color: AppTheme.textSecondary),
                               const SizedBox(width: 2),
                               Expanded(
@@ -1363,15 +1363,17 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
                         ? null
                         : () async {
                             Navigator.pop(dialogContext);
-                            await adminProvider.assignDriver(
-                              order.id,
-                              selectedDriver!['name'] ?? '',
-                              selectedDriver!['phone'] ?? '',
+                            // Use new method with driver ID for notification
+                            await adminProvider.assignDriverWithNotification(
+                              orderId: order.id,
+                              driverId: selectedDriver!['_id'] ?? '',
+                              driverName: selectedDriver!['name'] ?? '',
+                              driverPhone: selectedDriver!['phone'],
                             );
                             scaffoldMessenger.showSnackBar(
                               SnackBar(
                                 content: Text(
-                                    'Driver ${selectedDriver!['name']} assigned!'),
+                                    'Driver ${selectedDriver!['name']} assigned! They will receive a notification.'),
                                 backgroundColor: const Color(0xFF8B5CF6),
                               ),
                             );

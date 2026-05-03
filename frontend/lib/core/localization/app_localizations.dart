@@ -148,6 +148,52 @@ class AppLocalizations {
   String get topUp => get('top_up');
   String get transactions => get('transactions');
   String get noTransactions => get('no_transactions');
+  
+  // Checkout page - Extended
+  String get completeYourOrder => get('complete_your_order');
+  String get deliveryMethod => get('delivery_method');
+  String get delivery => get('delivery');
+  String get pickup => get('pickup');
+  String get free => get('free');
+  String get deliveryLocation => get('delivery_location');
+  String get autoDetected => get('auto_detected');
+  String get locationFound => get('location_found');
+  String get locationNotAvailable => get('location_not_available');
+  String get tapToEnable => get('tap_to_enable');
+  String get gettingLocation => get('getting_location');
+  String get deliveryInstructions => get('delivery_instructions');
+  String get deliveryInstructionsHint => get('delivery_instructions_hint');
+  String get completePayment => get('complete_payment');
+  String get checkYourPhone => get('check_your_phone');
+  String get paymentPromptSent => get('payment_prompt_sent');
+  String get enterPinToAuthorize => get('enter_pin_to_authorize');
+  String get paymentProcessedInstantly => get('payment_processed_instantly');
+  String get iPaid => get('i_paid');
+  String get arrivingSoon => get('arriving_soon');
+  String get readyForPickup => get('ready_for_pickup');
+  String get arrivingIn => get('arriving_in');
+  String get readyIn => get('ready_in');
+  String get promoCode => get('promo_code');
+  String get enterPromoCode => get('enter_promo_code');
+  String get apply => get('apply');
+  String get youSave => get('you_save');
+  String get addATip => get('add_a_tip');
+  String get showAppreciation => get('show_appreciation');
+  String get none => get('none');
+  String get tax => get('tax');
+  String get tip => get('tip');
+  String get discount => get('discount');
+  String get pleaseEnterPhone => get('please_enter_phone');
+  String get pleaseEnableLocation => get('please_enable_location');
+  String get telebirr => get('telebirr');
+  String get mpesa => get('mpesa');
+  String get cbeBirr => get('cbe_birr');
+  String get cash => get('cash');
+  String get card => get('card');
+  String get payWith => get('pay_with');
+  String get creditDebitCard => get('credit_debit_card');
+  String get cashOnDeliveryDesc => get('cash_on_delivery_desc');
+  String get visaMastercard => get('visa_mastercard');
 }
 
 // English Translations
@@ -272,6 +318,51 @@ const Map<String, String> _englishTranslations = {
   'top_up': 'Top Up',
   'transactions': 'Transactions',
   'no_transactions': 'No transactions yet',
+  // Checkout - Extended
+  'complete_your_order': 'Complete your order',
+  'delivery_method': 'Delivery Method',
+  'delivery': 'Delivery',
+  'pickup': 'Pickup',
+  'free': 'Free',
+  'delivery_location': 'Delivery Location',
+  'auto_detected': 'Auto-detected from your device',
+  'location_found': 'Location Found',
+  'location_not_available': 'Location not available',
+  'tap_to_enable': 'Tap to enable location',
+  'getting_location': 'Getting your location...',
+  'delivery_instructions': 'Delivery Instructions (Optional)',
+  'delivery_instructions_hint': 'E.g., Ring doorbell, leave at door...',
+  'complete_payment': 'Complete Payment',
+  'check_your_phone': 'Check Your Phone',
+  'payment_prompt_sent': 'Payment prompt sent to your phone',
+  'enter_pin_to_authorize': 'Enter your PIN to authorize',
+  'payment_processed_instantly': 'Payment will be processed instantly',
+  'i_paid': 'I Paid',
+  'arriving_soon': 'Arriving Soon',
+  'ready_for_pickup': 'Ready for Pickup',
+  'arriving_in': 'Arriving in',
+  'ready_in': 'Ready in',
+  'promo_code': 'Promo Code',
+  'enter_promo_code': 'Enter promo code',
+  'apply': 'Apply',
+  'you_save': 'You save',
+  'add_a_tip': 'Add a Tip',
+  'show_appreciation': 'Show appreciation for your delivery driver 💝',
+  'none': 'None',
+  'tax': 'Tax',
+  'tip': 'Tip',
+  'discount': 'Discount',
+  'please_enter_phone': 'Please enter your phone number',
+  'please_enable_location': 'Please enable location to continue',
+  'telebirr': 'Telebirr',
+  'mpesa': 'M-Pesa',
+  'cbe_birr': 'CBE Birr',
+  'cash': 'Cash',
+  'card': 'Card',
+  'pay_with': 'Pay with',
+  'credit_debit_card': 'Credit/Debit Card',
+  'cash_on_delivery_desc': 'Pay when you receive',
+  'visa_mastercard': 'Visa, Mastercard',
 };
 
 // Afaan Oromoo Translations
@@ -396,6 +487,51 @@ const Map<String, String> _oromoTranslations = {
   'top_up': 'Guuti',
   'transactions': 'Dabarsiiwwan',
   'no_transactions': 'Dabarsiin hin jiru',
+  // Checkout - Extended
+  'complete_your_order': 'Ajaja kee xumuri',
+  'delivery_method': 'Mala Geejjibaa',
+  'delivery': 'Geejjiba',
+  'pickup': 'Fudhachuu',
+  'free': 'Bilisaa',
+  'delivery_location': 'Bakka Geejjibaa',
+  'auto_detected': 'Meeshaa kee irraa ofumaan argame',
+  'location_found': 'Bakki Argame',
+  'location_not_available': 'Bakki hin argamne',
+  'tap_to_enable': 'Bakka dandeessiisuuf tuqi',
+  'getting_location': 'Bakka kee argachaa jira...',
+  'delivery_instructions': 'Qajeelfama Geejjibaa (Filannoo)',
+  'delivery_instructions_hint': 'Fakkeenyaaf, Bilbila rukuti, balbala irratti dhiisi...',
+  'complete_payment': 'Kaffaltii Xumuri',
+  'check_your_phone': 'Bilbila Kee Ilaali',
+  'payment_prompt_sent': 'Gaaffiin kaffaltii bilbila keetti ergame',
+  'enter_pin_to_authorize': 'Hayyamuuf PIN kee galchi',
+  'payment_processed_instantly': 'Kaffaltiin battalumatti raawwatama',
+  'i_paid': 'Kaffalee Jira',
+  'arriving_soon': 'Dhiyootti Dhufaa Jira',
+  'ready_for_pickup': 'Fudhatamuu Qophaa\'e',
+  'arriving_in': 'Keessatti dhufaa jira',
+  'ready_in': 'Keessatti qophaa\'a',
+  'promo_code': 'Koodii Piromooshinii',
+  'enter_promo_code': 'Koodii piromooshinii galchi',
+  'apply': 'Fayyadami',
+  'you_save': 'Qusatte',
+  'add_a_tip': 'Tip Dabali',
+  'show_appreciation': 'Konkolaataa geejjibaa keetiif galata agarsiisi 💝',
+  'none': 'Homaa',
+  'tax': 'Gibira',
+  'tip': 'Tip',
+  'discount': 'Hir\'ina',
+  'please_enter_phone': 'Maaloo lakkoofsa bilbilaa kee galchi',
+  'please_enable_location': 'Itti fufuuf bakka dandeessisi',
+  'telebirr': 'Telebirr',
+  'mpesa': 'M-Pesa',
+  'cbe_birr': 'CBE Birr',
+  'cash': 'Qarshii',
+  'card': 'Kaardii',
+  'pay_with': 'Kanaan kaffali',
+  'credit_debit_card': 'Kaardii Liqii/Deebii',
+  'cash_on_delivery_desc': 'Yeroo fudhattuu kaffali',
+  'visa_mastercard': 'Visa, Mastercard',
 };
 
 // Amharic Translations
@@ -520,4 +656,49 @@ const Map<String, String> _amharicTranslations = {
   'top_up': 'ሙላ',
   'transactions': 'ግብይቶች',
   'no_transactions': 'ገና ግብይት የለም',
+  // Checkout - Extended
+  'complete_your_order': 'ትዕዛዝህን አጠናቅቅ',
+  'delivery_method': 'የማድረሻ ዘዴ',
+  'delivery': 'ማድረሻ',
+  'pickup': 'መውሰጃ',
+  'free': 'ነጻ',
+  'delivery_location': 'የማድረሻ ቦታ',
+  'auto_detected': 'ከመሣሪያህ በራስ-ሰር ተገኝቷል',
+  'location_found': 'ቦታ ተገኝቷል',
+  'location_not_available': 'ቦታ አይገኝም',
+  'tap_to_enable': 'ቦታን ለማንቃት ንካ',
+  'getting_location': 'ቦታህን በማግኘት ላይ...',
+  'delivery_instructions': 'የማድረሻ መመሪያዎች (አማራጭ)',
+  'delivery_instructions_hint': 'ለምሳሌ፣ ደወል ደውል፣ በበሩ ላይ ተው...',
+  'complete_payment': 'ክፍያ አጠናቅቅ',
+  'check_your_phone': 'ስልክህን ፈትሽ',
+  'payment_prompt_sent': 'የክፍያ ጥያቄ ወደ ስልክህ ተልኳል',
+  'enter_pin_to_authorize': 'ለማረጋገጥ ፒን አስገባ',
+  'payment_processed_instantly': 'ክፍያ ወዲያውኑ ይሰራል',
+  'i_paid': 'ከፍያለሁ',
+  'arriving_soon': 'በቅርቡ በመድረስ ላይ',
+  'ready_for_pickup': 'ለመውሰጃ ዝግጁ',
+  'arriving_in': 'በ',
+  'ready_in': 'በ ዝግጁ',
+  'promo_code': 'የማስተዋወቂያ ኮድ',
+  'enter_promo_code': 'የማስተዋወቂያ ኮድ አስገባ',
+  'apply': 'ተግብር',
+  'you_save': 'ቆጥበሃል',
+  'add_a_tip': 'ጉርሻ ጨምር',
+  'show_appreciation': 'ለአድራሻ ሹፌርህ አድናቆት አሳይ 💝',
+  'none': 'ምንም',
+  'tax': 'ግብር',
+  'tip': 'ጉርሻ',
+  'discount': 'ቅናሽ',
+  'please_enter_phone': 'እባክህ ስልክ ቁጥርህን አስገባ',
+  'please_enable_location': 'ለመቀጠል እባክህ ቦታን አንቃ',
+  'telebirr': 'ቴሌብር',
+  'mpesa': 'ኤም-ፔሳ',
+  'cbe_birr': 'ሲቢኢ ብር',
+  'cash': 'ጥሬ ገንዘብ',
+  'card': 'ካርድ',
+  'pay_with': 'በ ክፈል',
+  'credit_debit_card': 'የክሬዲት/ዴቢት ካርድ',
+  'cash_on_delivery_desc': 'ሲደርስህ ክፈል',
+  'visa_mastercard': 'ቪዛ፣ ማስተርካርድ',
 };

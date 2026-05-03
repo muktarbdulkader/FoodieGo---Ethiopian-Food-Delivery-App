@@ -108,6 +108,24 @@ class OrderRepository {
     return Order.fromJson(response['data']);
   }
 
+  /// Assign driver to order with notification (restaurant) - NEW
+  Future<Order> assignDriverToOrder({
+    required String orderId,
+    required String driverId,
+    required String driverName,
+    String? driverPhone,
+  }) async {
+    final response = await ApiService.put(
+      '${ApiConstants.orders}/$orderId/assign-driver',
+      {
+        'driverId': driverId,
+        'driverName': driverName,
+        'driverPhone': driverPhone,
+      },
+    );
+    return Order.fromJson(response['data']);
+  }
+
   /// Update delivery status (delivery person)
   Future<Order> updateDeliveryStatus(String id, String trackingStatus) async {
     final response =
@@ -171,5 +189,28 @@ class OrderRepository {
     final response =
         await ApiService.get('${ApiConstants.orders}/delivery/stats');
     return response['data'] ?? {};
+  }
+
+  /// Create dine-in order (QR-based table ordering)
+  Future<Order> createDineInOrder({
+    required String restaurantId,
+    required String tableId,
+    required List<CartItem> items,
+    required double subtotal,
+    double tax = 0,
+    required double totalPrice,
+    String? notes,
+  }) async {
+    final response = await ApiService.post('${ApiConstants.orders}/dine-in', {
+      'restaurantId': restaurantId,
+      'tableId': tableId,
+      'items': items.map((item) => item.toJson()).toList(),
+      'subtotal': subtotal,
+      'tax': tax,
+      'totalPrice': totalPrice,
+      'notes': notes,
+    });
+
+    return Order.fromJson(response['data']);
   }
 }

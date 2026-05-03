@@ -32,12 +32,33 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             
-            <!-- Deep Links -->
+            <!-- Deep Links - Custom Scheme -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="foodiego"/>
+            </intent-filter>
+            
+            <!-- App Links - HTTPS URLs (for web deployment) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <!-- Replace with your actual Firebase hosting domain -->
+                <data android:scheme="https"/>
+                <data android:host="foodiego-app.web.app"/>
+                <data android:pathPrefix="/dine-in-menu"/>
+            </intent-filter>
+            
+            <!-- Alternative domain if you have custom domain -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="www.foodiego.com"/>
+                <data android:pathPrefix="/dine-in-menu"/>
             </intent-filter>
         </activity>
         

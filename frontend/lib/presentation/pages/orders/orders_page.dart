@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/order.dart';
-import '../../widgets/order_card.dart';
 import '../../widgets/loading_widget.dart';
 import 'order_tracking_page.dart';
 
@@ -16,28 +15,19 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  String _selectedFilter = 'All';
-
-  final List<String> _filters = ['All', 'Active', 'Completed', 'Cancelled'];
+  late TabController _tabController;
+  int _selectedTabIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-    _controller.forward();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _selectedTabIndex = _tabController.index;
+      });
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -48,7 +38,8 @@ class _OrdersPageState extends State<OrdersPage>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -58,10 +49,9 @@ class _OrdersPageState extends State<OrdersPage>
       backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            _buildFilters(),
+            _buildTabBar(),
             Expanded(
               child: Consumer<OrderProvider>(
                 builder: (context, orderProvider, _) {
@@ -85,128 +75,83 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   Widget _buildHeader() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: AppTheme.secondaryGradient,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.secondaryColor.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          const Text(
+            'My Orders',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
           ),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  // Check if we can pop, otherwise go to home
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.arrow_back_ios_new,
-                      color: Colors.white, size: 18),
+          const Spacer(),
+          Container(
+            width: 200,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search order...',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
                 ),
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.receipt_long_rounded,
-                    color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Orders',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Track your order history',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () => context.read<OrderProvider>().fetchOrders(),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child:
-                      const Icon(Icons.refresh, color: Colors.white, size: 20),
-                ),
-              ),
-            ],
+              onChanged: (value) => setState(() {}),
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.headset_mic_outlined, color: Colors.grey.shade700),
+              onPressed: () {
+                // Contact support
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilters() {
-    return SizedBox(
-      height: 44,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: _filters.length,
-        itemBuilder: (context, index) {
-          final filter = _filters[index];
-          final isSelected = _selectedFilter == filter;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedFilter = filter),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: isSelected ? AppTheme.secondaryGradient : null,
-                color: isSelected ? null : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: isSelected ? null : AppTheme.cardShadow,
-              ),
-              child: Text(
-                filter,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.textSecondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          );
-        },
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppTheme.primaryColor,
+        unselectedLabelColor: Colors.grey.shade500,
+        labelStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        indicatorColor: AppTheme.primaryColor,
+        indicatorWeight: 3,
+        tabs: const [
+          Tab(text: 'All Order'),
+          Tab(text: 'In progress'),
+          Tab(text: 'Completed'),
+        ],
       ),
     );
   }
@@ -266,83 +211,93 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   Widget _buildEmptyState() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 48,
+                color: AppTheme.secondaryColor.withValues(alpha: 0.5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No orders yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your order history will appear here',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/');
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  Icons.receipt_long_outlined,
-                  size: 48,
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.5),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'No orders yet',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                child: const Text(
+                  'Browse Menu',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Your order history will appear here',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              ),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () {
-                  // Navigate to home page (index 0)
-                  Navigator.pushReplacementNamed(context, '/');
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Browse Menu',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildOrdersList(OrderProvider orderProvider) {
-    // Filter orders based on selected filter
-    final filteredOrders = orderProvider.orders.where((order) {
-      if (_selectedFilter == 'All') return true;
-      if (_selectedFilter == 'Active') {
+    // Filter orders based on selected tab
+    List<Order> filteredOrders = orderProvider.orders;
+    
+    if (_selectedTabIndex == 1) {
+      // In progress
+      filteredOrders = orderProvider.orders.where((order) {
         return ['pending', 'confirmed', 'preparing', 'out_for_delivery']
             .contains(order.status);
-      }
-      if (_selectedFilter == 'Completed') return order.status == 'delivered';
-      if (_selectedFilter == 'Cancelled') return order.status == 'cancelled';
-      return true;
-    }).toList();
+      }).toList();
+    } else if (_selectedTabIndex == 2) {
+      // Completed
+      filteredOrders = orderProvider.orders.where((order) {
+        return order.status == 'delivered';
+      }).toList();
+    }
+
+    // Apply search filter
+    if (_searchController.text.isNotEmpty) {
+      filteredOrders = filteredOrders.where((order) {
+        final searchLower = _searchController.text.toLowerCase();
+        final orderNumber = order.orderNumber.toLowerCase();
+        final orderId = order.id.toLowerCase();
+        return orderNumber.contains(searchLower) || orderId.contains(searchLower);
+      }).toList();
+    }
 
     if (filteredOrders.isEmpty) {
       return Center(
@@ -352,8 +307,12 @@ class _OrdersPageState extends State<OrdersPage>
             Icon(Icons.receipt_long_outlined,
                 size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('No $_selectedFilter orders',
-                style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              _searchController.text.isNotEmpty
+                  ? 'No orders found'
+                  : 'No orders in this category',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
           ],
         ),
       );
@@ -361,146 +320,274 @@ class _OrdersPageState extends State<OrdersPage>
 
     return RefreshIndicator(
       onRefresh: () => orderProvider.fetchOrders(),
-      color: AppTheme.secondaryColor,
+      color: AppTheme.primaryColor,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        padding: const EdgeInsets.all(20),
         physics: const BouncingScrollPhysics(),
         itemCount: filteredOrders.length,
         itemBuilder: (context, index) {
           final order = filteredOrders[index];
-          final canDelete =
-              order.status == 'delivered' || order.status == 'cancelled';
-
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: Duration(milliseconds: 400 + (index * 100)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, 30 * (1 - value)),
-                child: Opacity(opacity: value, child: child),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Dismissible(
-                key: Key(order.id),
-                direction: canDelete
-                    ? DismissDirection.endToStart
-                    : DismissDirection.none,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.errorColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (direction) async {
-                  if (!canDelete) return false;
-                  return await _showDeleteConfirmation(order);
-                },
-                onDismissed: (direction) {
-                  orderProvider.deleteOrder(order.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Order deleted'),
-                      backgroundColor: AppTheme.successColor,
-                    ),
-                  );
-                },
-                child: Stack(
-                  children: [
-                    OrderCard(
-                      order: order,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (_, __, ___) =>
-                                OrderTrackingPage(order: order),
-                            transitionsBuilder: (_, animation, __, child) {
-                              return FadeTransition(
-                                  opacity: animation, child: child);
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    // Delete button for completed/cancelled orders
-                    if (canDelete)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () =>
-                              _confirmDeleteOrder(order, orderProvider),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AppTheme.errorColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.delete_outline,
-                                size: 18, color: AppTheme.errorColor),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildOrderCard(order),
           );
         },
       ),
     );
   }
 
-  Future<bool> _showDeleteConfirmation(Order order) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.delete_outline, color: AppTheme.errorColor),
-                SizedBox(width: 8),
-                Text('Delete Order'),
-              ],
-            ),
-            content: Text(
-                'Delete order #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(order.id.length - 6)} from history?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete',
-                    style: TextStyle(color: AppTheme.errorColor)),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
-  void _confirmDeleteOrder(Order order, OrderProvider orderProvider) async {
-    final confirm = await _showDeleteConfirmation(order);
-    if (confirm) {
-      final success = await orderProvider.deleteOrder(order.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Order deleted' : 'Failed to delete order'),
-            backgroundColor:
-                success ? AppTheme.successColor : AppTheme.errorColor,
+  Widget _buildOrderCard(Order order) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrderTrackingPage(order: order),
           ),
         );
-      }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.shopping_bag_outlined, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Order ID: ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            Text(
+                              order.orderNumber.isNotEmpty
+                                  ? 'ID-${order.orderNumber}'
+                                  : 'ID-${order.id.substring(order.id.length - 4).toUpperCase()}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              'Amount: ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            Text(
+                              '₦${order.totalPrice.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Item: ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            Text(
+                              '${order.items.length}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                size: 12, color: Colors.grey.shade400),
+                            const SizedBox(width: 4),
+                            Text(
+                              'ETA: ${_formatETA(order.createdAt)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatusBadge(order.status),
+                ],
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(16)),
+              ),
+              child: Center(
+                child: Text(
+                  _getActionButtonText(order.status),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bgColor;
+    Color textColor;
+    String label;
+    IconData icon;
+
+    switch (status) {
+      case 'pending':
+        bgColor = const Color(0xFFE3F2FD);
+        textColor = const Color(0xFF1976D2);
+        label = 'Processing';
+        icon = Icons.schedule;
+        break;
+      case 'confirmed':
+      case 'preparing':
+        bgColor = const Color(0xFFFFF3E0);
+        textColor = const Color(0xFFF57C00);
+        label = 'Delayed';
+        icon = Icons.warning_amber;
+        break;
+      case 'out_for_delivery':
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF388E3C);
+        label = 'Out for Delivery';
+        icon = Icons.local_shipping;
+        break;
+      case 'delivered':
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF388E3C);
+        label = 'Delivered';
+        icon = Icons.check_circle;
+        break;
+      case 'cancelled':
+        bgColor = const Color(0xFFFFEBEE);
+        textColor = const Color(0xFFD32F2F);
+        label = 'Cancelled';
+        icon = Icons.cancel;
+        break;
+      default:
+        bgColor = Colors.grey.shade100;
+        textColor = Colors.grey.shade700;
+        label = 'Unknown';
+        icon = Icons.help_outline;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getActionButtonText(String status) {
+    switch (status) {
+      case 'pending':
+      case 'confirmed':
+        return 'View Order';
+      case 'preparing':
+        return 'Contact Support';
+      case 'out_for_delivery':
+        return 'Track order';
+      case 'delivered':
+        return 'Reorder';
+      case 'cancelled':
+        return 'View Details';
+      default:
+        return 'View Order';
+    }
+  }
+
+  String _formatETA(DateTime? date) {
+    if (date == null) return 'Dec 25 2025';
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    // Add estimated delivery time (e.g., 30 minutes from order time)
+    final eta = date.add(const Duration(minutes: 30));
+    return '${months[eta.month - 1]} ${eta.day} ${eta.year}';
   }
 }

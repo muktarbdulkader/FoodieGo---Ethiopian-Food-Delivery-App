@@ -156,8 +156,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
   Widget _buildLiveTrackingCard() {
     final delivery = widget.order.delivery;
-    if (delivery == null || delivery.type != 'delivery')
+    if (delivery == null || delivery.type != 'delivery') {
       return const SizedBox.shrink();
+    }
 
     final hasDriver =
         delivery.driverName != null && delivery.driverName!.isNotEmpty;
@@ -769,8 +770,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
   Widget _buildDriverInfo() {
     final delivery = widget.order.delivery;
-    if (delivery == null || delivery.type != 'delivery')
+    if (delivery == null || delivery.type != 'delivery') {
       return const SizedBox.shrink();
+    }
 
     final hasDriver =
         delivery.driverName != null && delivery.driverName!.isNotEmpty;

@@ -175,7 +175,7 @@ class AppTheme {
         surface: surfaceColor,
         error: errorColor,
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: textPrimary,
         elevation: 0,
@@ -214,7 +214,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        hintStyle: TextStyle(color: textHint, fontSize: 14),
+        hintStyle: const TextStyle(color: textHint, fontSize: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusXXLarge),
           borderSide: BorderSide(color: Colors.grey.shade300),

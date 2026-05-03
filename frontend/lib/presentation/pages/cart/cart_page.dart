@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/cart/cart_provider.dart';
+import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../widgets/cart_item_tile.dart';
@@ -259,7 +260,11 @@ class _CartPageState extends State<CartPage>
   }
 
   Widget _buildCheckoutSection(BuildContext context, CartProvider cart) {
-    const deliveryFee = 50.0;
+    final dineInProvider = context.watch<DineInProvider>();
+    final isDineIn = dineInProvider.isDineInMode;
+    
+    // For dine-in, no delivery fee
+    final deliveryFee = isDineIn ? 0.0 : 50.0;
     final total = cart.totalPrice + deliveryFee;
 
     return Container(
@@ -280,8 +285,10 @@ class _CartPageState extends State<CartPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildPriceRow('Subtotal', cart.totalPrice),
-            const SizedBox(height: 6),
-            _buildPriceRow('Delivery', deliveryFee),
+            if (!isDineIn) ...[
+              const SizedBox(height: 6),
+              _buildPriceRow('Delivery', deliveryFee),
+            ],
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
               child: Divider(height: 1),
@@ -303,23 +310,7 @@ class _CartPageState extends State<CartPage>
             ),
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const CheckoutPage(),
-                    transitionsBuilder: (_, animation, __, child) {
-                      return SlideTransition(
-                        position: Tween<Offset>(
-                                begin: const Offset(1, 0), end: Offset.zero)
-                            .animate(CurvedAnimation(
-                                parent: animation, curve: Curves.easeOutCubic)),
-                        child: child,
-                      );
-                    },
-                  ),
-                );
-              },
+              onTap: () => _handleCheckout(context, cart, dineInProvider),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -327,17 +318,19 @@ class _CartPageState extends State<CartPage>
                   gradient: AppTheme.primaryGradient,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.shopping_bag_outlined,
+                    const Icon(Icons.shopping_bag_outlined,
                         color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Checkout',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15)),
+                    const SizedBox(width: 8),
+                    Text(
+                      isDineIn ? 'Place Order' : 'Checkout',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15),
+                    ),
                   ],
                 ),
               ),
@@ -346,6 +339,131 @@ class _CartPageState extends State<CartPage>
         ),
       ),
     );
+  }
+
+  Future<void> _handleCheckout(
+    BuildContext context,
+    CartProvider cart,
+    DineInProvider dineInProvider,
+  ) async {
+    final isDineIn = dineInProvider.isDineInMode;
+
+    if (isDineIn) {
+      // Dine-in order
+      final restaurantId = dineInProvider.currentRestaurantId;
+      final tableId = dineInProvider.currentTable?.id;
+
+      if (restaurantId == null || tableId == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid table session'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show loading
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      try {
+        final order = await cart.placeOrderDineIn(
+          restaurantId: restaurantId,
+          tableId: tableId,
+          subtotal: cart.totalPrice,
+          tax: 0,
+          totalPrice: cart.totalPrice,
+        );
+
+        if (context.mounted) {
+          Navigator.pop(context); // Close loading dialog
+
+          if (order != null) {
+            // Show success
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 28),
+                    SizedBox(width: 12),
+                    Text('Order Placed!'),
+                  ],
+                ),
+                content: const Text(
+                  'Your order has been sent to the kitchen. You can track it in the Orders page.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx); // Close dialog
+                      Navigator.pop(context); // Close cart page
+                    },
+                    child: const Text('Continue'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx); // Close dialog
+                      Navigator.pop(context); // Close cart page
+                      Navigator.pushNamed(context, '/orders');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                    ),
+                    child: const Text('View Orders'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to place order'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      // Regular delivery order - go to checkout page
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const CheckoutPage(),
+          transitionsBuilder: (_, animation, __, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                      begin: const Offset(1, 0), end: Offset.zero)
+                  .animate(CurvedAnimation(
+                      parent: animation, curve: Curves.easeOutCubic)),
+              child: child,
+            );
+          },
+        ),
+      );
+    }
   }
 
   Widget _buildPriceRow(String label, double price) {

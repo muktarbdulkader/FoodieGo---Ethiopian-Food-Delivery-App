@@ -60,6 +60,12 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _isInitialized = false;
   static const String _notificationsKey = 'app_notifications';
+  static Function(String?)? _onNotificationTapCallback;
+
+  /// Set callback for notification tap handling
+  static void setNotificationTapCallback(Function(String?) callback) {
+    _onNotificationTapCallback = callback;
+  }
 
   /// Initialize notification service
   static Future<void> init() async {
@@ -87,8 +93,10 @@ class NotificationService {
   }
 
   static void _onNotificationTap(NotificationResponse response) {
-    // Handle notification tap - can navigate to specific page
-    // based on response.payload
+    // Handle notification tap - navigate based on payload
+    if (response.payload != null && _onNotificationTapCallback != null) {
+      _onNotificationTapCallback!(response.payload);
+    }
   }
 
   /// Get all stored notifications
@@ -247,6 +255,60 @@ class NotificationService {
     );
 
     final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    await _notifications.show(id, title, body, details, payload: payload);
+
+    // Save to history
+    await _saveNotification(AppNotification(
+      id: id.toString(),
+      title: title,
+      body: body,
+      type: 'delivery',
+      timestamp: DateTime.now(),
+      payload: payload,
+    ));
+  }
+
+  /// Show driver assignment notification (for drivers)
+  static Future<void> showDriverAssignmentNotification({
+    required String orderNumber,
+    required String restaurantName,
+    required String customerName,
+    required String deliveryAddress,
+    required double totalPrice,
+    String? orderId,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'driver_assignment_channel',
+      'Driver Assignments',
+      channelDescription: 'New delivery assignments',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: Color(0xFF8B5CF6),
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    final title = '🚗 New Delivery Assignment!';
+    final body =
+        'Order #$orderNumber from $restaurantName - ETB ${totalPrice.toStringAsFixed(0)}';
+
+    final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // Payload format: "driver_assignment:orderId"
+    final payload = orderId != null ? 'driver_assignment:$orderId' : null;
+    
     await _notifications.show(id, title, body, details, payload: payload);
 
     // Save to history

@@ -172,6 +172,26 @@ const getFoodById = async (req, res, next) => {
   }
 };
 
+// Get food by barcode (for scanning)
+const getFoodByBarcode = async (req, res, next) => {
+  try {
+    const { barcode } = req.params;
+    const food = await Food.findOne({ barcode })
+      .populate('hotelId', 'hotelName hotelImage hotelRating hotelAddress isOpen deliveryFee');
+    
+    if (!food) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `Food item with barcode ${barcode} not found` 
+      });
+    }
+    
+    res.json({ success: true, data: food });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Create food (admin only - linked to their hotel)
 const createFood = async (req, res, next) => {
   try {
@@ -322,7 +342,8 @@ module.exports = {
   getAllFoods, 
   getFoodsByHotel,
   getAllHotels,
-  getFoodById, 
+  getFoodById,
+  getFoodByBarcode,
   createFood, 
   updateFood, 
   deleteFood,

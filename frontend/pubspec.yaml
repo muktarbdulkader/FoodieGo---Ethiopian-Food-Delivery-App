@@ -17,6 +17,9 @@ dependencies:
   geocoding: ^3.0.0
   image_picker: ^1.0.7
   flutter_local_notifications: ^19.5.0
+  mobile_scanner: ^5.2.3  # NEW: QR code scanner
+  qr_flutter: ^4.1.0  # NEW: QR code generator (for restaurant dashboard)
+  app_links: ^6.3.2  # NEW: Deep link handling for APK
 
 dev_dependencies:
   flutter_test:

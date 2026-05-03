@@ -1,4 +1,5 @@
 /// Validation utilities for form fields
+library;
 
 class Validators {
   /// Validate Ethiopian phone number

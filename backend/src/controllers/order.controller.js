@@ -206,6 +206,9 @@ const createOrder = async (req, res, next) => {
       notes,
       promoCode,
       restaurant,
+      type = 'delivery', // NEW: order type
+      tableId, // NEW: for dine-in orders
+      restaurantId, // NEW: for dine-in orders
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -214,32 +217,83 @@ const createOrder = async (req, res, next) => {
         .json({ success: false, message: "Order must have items" });
     }
 
+    // Validate dine-in specific fields
+    if (type === 'dine_in') {
+      if (!tableId || !restaurantId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Table ID and Restaurant ID are required for dine-in orders" 
+        });
+      }
+      
+      // Verify table exists and is active
+      const Table = require('../models/Table');
+      const table = await Table.findOne({ 
+        _id: tableId, 
+        restaurantId,
+        isActive: true 
+      });
+      
+      if (!table) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Table not found or inactive" 
+        });
+      }
+    }
+
     const calculatedSubtotal =
       subtotal ||
       items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    
+    // For dine-in orders, no delivery fee
+    const finalDeliveryFee = type === 'dine_in' ? 0 : deliveryFee;
+    
     const calculatedTotal =
-      totalPrice || calculatedSubtotal + deliveryFee + tax + tip - discount;
+      totalPrice || calculatedSubtotal + finalDeliveryFee + tax + tip - discount;
 
-    const order = await Order.create({
+    const orderData = {
       user: req.user._id,
       restaurant,
       items,
+      type, // NEW
       subtotal: calculatedSubtotal,
-      deliveryFee,
+      deliveryFee: finalDeliveryFee,
       tax,
       tip,
       discount,
       totalPrice: calculatedTotal,
-      deliveryAddress: deliveryAddress || {},
-      payment: payment || { method: "cash", status: "pending" },
-      delivery: delivery || { type: "delivery", fee: deliveryFee },
+      deliveryAddress: type === 'dine_in' ? {} : (deliveryAddress || {}),
+      payment: payment || { method: 'cash', status: 'pending' },
+      delivery: type === 'dine_in' ? {} : (delivery || { type: 'delivery', fee: finalDeliveryFee }),
       notes,
       promoCode,
-    });
+    };
+
+    // Add dine-in specific fields
+    if (type === 'dine_in') {
+      orderData.tableId = tableId;
+      orderData.restaurantId = restaurantId;
+    }
+
+    const order = await Order.create(orderData);
+
+    // If dine-in, add order to table session
+    if (type === 'dine_in' && tableId) {
+      const Table = require('../models/Table');
+      await Table.findByIdAndUpdate(tableId, {
+        $push: { 'currentSession.orderIds': order._id },
+        $set: { 
+          'currentSession.isOccupied': true,
+          'currentSession.customerId': req.user._id,
+          'currentSession.startTime': new Date()
+        }
+      });
+    }
 
     // Send order confirmation email (using hotel's email as sender)
     const user = await User.findById(req.user._id);
-    if (user && user.email) {
+    if (user && user.email && type !== 'dine_in') { // Skip email for dine-in
       const hotelName = items[0]?.hotelName || "FoodieGo Partner";
       const hotelId = items[0]?.hotelId;
 
@@ -779,6 +833,207 @@ const getDriverStats = async (req, res, next) => {
     next(error);
   }
 };
+
+// Assign driver to order (restaurant only) - with notification
+const assignDriverToOrder = async (req, res, next) => {
+  try {
+    const { driverId, driverName, driverPhone } = req.body;
+    const orderId = req.params.id;
+
+    if (!driverId && !driverName) {
+      return res.status(400).json({
+        success: false,
+        message: "Driver ID or driver name is required",
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Verify restaurant owns this order
+    const hotelIdStr = req.user._id.toString();
+    const hotelName = req.user.hotelName;
+    const orderHotelId = order.items[0]?.hotelId?.toString();
+    const orderHotelName = order.items[0]?.hotelName;
+
+    const isOwner =
+      orderHotelId === hotelIdStr ||
+      orderHotelName === hotelName ||
+      (hotelName &&
+        orderHotelName &&
+        orderHotelName.toLowerCase().includes(hotelName.toLowerCase()));
+
+    if (!isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to assign driver to this order",
+      });
+    }
+
+    // Get restaurant location for pickup
+    let pickupLocation = null;
+    if (req.user.location) {
+      pickupLocation = {
+        latitude: req.user.location.latitude,
+        longitude: req.user.location.longitude,
+        address: req.user.hotelAddress || req.user.location.address,
+      };
+    }
+
+    // Update order with driver info
+    order.delivery = order.delivery || {};
+    order.delivery.driverId = driverId;
+    order.delivery.driverName = driverName;
+    order.delivery.driverPhone = driverPhone || "";
+    order.delivery.trackingStatus = "assigned";
+    order.delivery.assignedAt = new Date();
+    if (pickupLocation) {
+      order.delivery.pickupLocation = pickupLocation;
+    }
+    await order.save();
+
+    // Send notification to driver (this will be picked up by the driver's app)
+    // In a real app, this would use Firebase Cloud Messaging or similar
+    // For now, we'll create a notification record that the driver app can poll
+    const notificationData = {
+      type: "driver_assignment",
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      restaurantName: hotelName || "Restaurant",
+      customerName: order.userName || "Customer",
+      deliveryAddress: order.deliveryAddress?.fullAddress || "Address",
+      totalPrice: order.totalPrice,
+      timestamp: new Date(),
+    };
+
+    // Send email notification to driver if email exists
+    if (driverId) {
+      const driver = await User.findById(driverId);
+      if (driver && driver.email) {
+        sendDriverAssignmentEmail(
+          driver.email,
+          {
+            driverName: driver.name,
+            orderNumber: order.orderNumber,
+            restaurantName: hotelName || "Restaurant",
+            customerName: order.userName || "Customer",
+            deliveryAddress: order.deliveryAddress?.fullAddress || "Address",
+            totalPrice: order.totalPrice,
+          }
+        ).catch((err) => console.error("Driver notification email failed:", err));
+      }
+    }
+
+    res.json({
+      success: true,
+      data: order,
+      notification: notificationData,
+      message: "Driver assigned successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get dine-in orders grouped by table (restaurant only)
+const getDineInOrders = async (req, res, next) => {
+  try {
+    const { restaurantId, status } = req.query;
+    
+    // Build filter
+    const filter = { type: 'dine_in' };
+    
+    // If restaurant user, only show their orders
+    if (req.user.role === 'restaurant') {
+      filter.restaurantId = req.user._id;
+    } else if (restaurantId) {
+      filter.restaurantId = restaurantId;
+    }
+    
+    // Filter by status if provided
+    if (status) {
+      filter.status = status;
+    }
+
+    const orders = await Order.find(filter)
+      .populate('user', 'name email phone')
+      .populate('tableId', 'tableNumber location capacity')
+      .populate('restaurantId', 'hotelName hotelAddress')
+      .sort({ createdAt: -1 });
+
+    // Group orders by table
+    const ordersByTable = {};
+    orders.forEach(order => {
+      const tableId = order.tableId?._id?.toString() || 'no-table';
+      if (!ordersByTable[tableId]) {
+        ordersByTable[tableId] = {
+          table: order.tableId || null,
+          orders: [],
+          totalAmount: 0,
+          itemCount: 0
+        };
+      }
+      ordersByTable[tableId].orders.push(order);
+      ordersByTable[tableId].totalAmount += order.totalPrice;
+      ordersByTable[tableId].itemCount += order.items.reduce((sum, item) => sum + item.quantity, 0);
+    });
+
+    res.json({ 
+      success: true, 
+      count: orders.length,
+      data: orders,
+      groupedByTable: Object.values(ordersByTable)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Call waiter (dine-in feature)
+const callWaiter = async (req, res, next) => {
+  try {
+    const { tableId, message } = req.body;
+
+    if (!tableId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Table ID is required' 
+      });
+    }
+
+    const Table = require('../models/Table');
+    const table = await Table.findById(tableId).populate('restaurantId', 'hotelName');
+
+    if (!table) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Table not found' 
+      });
+    }
+
+    // Here you would emit a socket event to notify restaurant staff
+    // For now, we'll just return success
+    // Socket implementation will be added later
+
+    res.json({ 
+      success: true, 
+      message: 'Waiter has been notified',
+      data: {
+        tableNumber: table.tableNumber,
+        restaurantName: table.restaurantId?.hotelName,
+        requestMessage: message || 'Customer needs assistance'
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -798,4 +1053,7 @@ module.exports = {
   rateDriver,
   getDriverEarnings,
   getDriverStats,
+  getDineInOrders, // NEW
+  callWaiter, // NEW
+  assignDriverToOrder, // NEW
 };

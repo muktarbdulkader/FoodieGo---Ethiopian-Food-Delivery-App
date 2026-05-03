@@ -102,7 +102,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     Container(
                       width: 100,
                       height: 100,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         gradient: AppTheme.primaryGradient,
                         shape: BoxShape.circle,
                       ),

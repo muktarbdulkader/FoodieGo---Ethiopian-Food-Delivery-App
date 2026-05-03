@@ -20,6 +20,17 @@ class FoodRepository {
     return Food.fromJson(response['data']);
   }
 
+  /// Get food by barcode (for scanning)
+  Future<Food?> getFoodByBarcode(String barcode) async {
+    try {
+      final response = await ApiService.get('${ApiConstants.foods}/barcode/$barcode');
+      return Food.fromJson(response['data']);
+    } catch (e) {
+      debugPrint('Error fetching food by barcode: $e');
+      return null;
+    }
+  }
+
   /// Get all hotels (admin users with hotel info)
   Future<List<Hotel>> getAllHotels({double? lat, double? lng}) async {
     String url = '${ApiConstants.foods}/hotels';

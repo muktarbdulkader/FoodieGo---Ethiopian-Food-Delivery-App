@@ -147,12 +147,16 @@ class _ManagePaymentsPageState extends State<ManagePaymentsPage> {
     switch (method) {
       case 'card':
         return 'Card';
-      case 'wallet':
-        return 'Wallet';
-      case 'paypal':
-        return 'PayPal';
-      default:
+      case 'telebirr':
+        return 'Telebirr';
+      case 'mpesa':
+        return 'M-Pesa';
+      case 'cbe_birr':
+        return 'CBE Birr';
+      case 'cash':
         return 'Cash';
+      default:
+        return method ?? 'Unknown';
     }
   }
 
@@ -240,12 +244,16 @@ class _ManagePaymentsPageState extends State<ManagePaymentsPage> {
     switch (method) {
       case 'card':
         return Icons.credit_card;
-      case 'wallet':
-        return Icons.account_balance_wallet;
-      case 'paypal':
-        return Icons.paypal;
-      default:
+      case 'telebirr':
+        return Icons.phone_android;
+      case 'mpesa':
+        return Icons.phone_iphone;
+      case 'cbe_birr':
+        return Icons.account_balance;
+      case 'cash':
         return Icons.money;
+      default:
+        return Icons.payment;
     }
   }
 

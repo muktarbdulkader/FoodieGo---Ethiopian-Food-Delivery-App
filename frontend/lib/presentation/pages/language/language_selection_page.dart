@@ -62,7 +62,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage>
 
   @override
   Widget build(BuildContext context) {
-    final languages = LanguageProvider.supportedLanguages;
+    const languages = LanguageProvider.supportedLanguages;
 
     return Scaffold(
       body: Container(
