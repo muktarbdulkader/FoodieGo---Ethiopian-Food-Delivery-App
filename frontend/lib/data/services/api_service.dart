@@ -140,7 +140,9 @@ class ApiService {
       'Accept': 'application/json'
     };
     final token = StorageUtils.getToken();
-    if (token != null) headers['Authorization'] = 'Bearer $token';
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     return headers;
   }
 

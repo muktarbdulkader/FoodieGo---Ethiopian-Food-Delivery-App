@@ -25,8 +25,14 @@ class DineInProvider extends ChangeNotifier {
       _currentTable = await _tableRepository.getTableByQRCode(restaurantId, tableId);
       _currentRestaurantId = restaurantId;
       
-      // Start table session
-      await _tableRepository.startTableSession(tableId);
+      // Try to start table session if user is logged in
+      // If not logged in, skip session start (user can still view menu)
+      try {
+        await _tableRepository.startTableSession(tableId);
+      } catch (e) {
+        debugPrint('Could not start table session (user may not be logged in): $e');
+        // Continue anyway - user can view menu without session
+      }
       
       _isLoading = false;
       notifyListeners();

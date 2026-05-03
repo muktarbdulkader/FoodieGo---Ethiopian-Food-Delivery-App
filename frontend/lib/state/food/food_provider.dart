@@ -132,10 +132,19 @@ class FoodProvider extends ChangeNotifier {
 
   /// Fetch foods by hotel ID with optional menu type filter
   Future<List<Food>> fetchFoodsByHotel(String hotelId, {String? menuType}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
     try {
-      return await _foodRepository.getFoodsByHotel(hotelId, menuType: menuType);
+      _foods = await _foodRepository.getFoodsByHotel(hotelId, menuType: menuType);
+      _applyFilters();
+      _isLoading = false;
+      notifyListeners();
+      return _foods;
     } catch (e) {
       _error = e.toString();
+      _isLoading = false;
       notifyListeners();
       return [];
     }

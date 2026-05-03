@@ -2,11 +2,9 @@
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../state/food/food_provider.dart';
 import '../../../state/cart/cart_provider.dart';
-import '../../../state/language/language_provider.dart';
 import '../../../data/models/user.dart';
 import '../../../data/models/food.dart';
 import '../../../data/services/api_service.dart';
