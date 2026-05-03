@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/models/promotion.dart';
 import '../../../data/services/api_service.dart';
 
@@ -26,6 +27,9 @@ class _ManagePromotionsPageState extends State<ManagePromotionsPage> {
   @override
   void initState() {
     super.initState();
+    // CRITICAL: Set admin session type FIRST before any API calls
+    StorageUtils.setSessionType(SessionType.admin);
+    
     _loadPromotions();
   }
 

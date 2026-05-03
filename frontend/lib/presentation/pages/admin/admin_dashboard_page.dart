@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/storage_utils.dart';
 import '../../../data/repositories/event_repository.dart';
 import '../../widgets/loading_widget.dart';
+import '../../widgets/admin_auth_check.dart';
 import 'manage_foods_page.dart';
 import 'manage_orders_page.dart';
 import 'manage_users_page.dart';
@@ -29,12 +29,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   void initState() {
     super.initState();
-    // Ensure admin session type is set
-    StorageUtils.setSessionType(SessionType.admin);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AdminProvider>().fetchDashboard();
-      _loadPendingEvents();
+    // Session type is set by AdminAuthCheck wrapper
+    // Delay to ensure everything is ready
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        context.read<AdminProvider>().fetchDashboard();
+        _loadPendingEvents();
+      }
     });
   }
 
@@ -53,6 +54,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    return AdminAuthCheck(
+      child: _buildDashboard(context),
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(

@@ -45,9 +45,13 @@ class FoodRepository {
   }
 
   /// Get foods by hotel ID
-  Future<List<Food>> getFoodsByHotel(String hotelId) async {
-    final response =
-        await ApiService.get('${ApiConstants.foods}/hotels/$hotelId/foods');
+  /// Get foods by hotel ID with optional menu type filter
+  Future<List<Food>> getFoodsByHotel(String hotelId, {String? menuType}) async {
+    String url = '${ApiConstants.foods}/hotels/$hotelId/foods';
+    if (menuType != null) {
+      url += '?menuType=$menuType';
+    }
+    final response = await ApiService.get(url);
     final List<dynamic> foodsJson = response['data'] ?? [];
     return foodsJson.map((json) => Food.fromJson(json)).toList();
   }

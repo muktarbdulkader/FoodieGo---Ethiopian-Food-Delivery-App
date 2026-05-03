@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../location/location_picker_page.dart';
 
@@ -49,6 +50,9 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
   @override
   void initState() {
     super.initState();
+    // CRITICAL: Set admin session type FIRST before any API calls
+    StorageUtils.setSessionType(SessionType.admin);
+    
     _loadCurrentSettings();
   }
 

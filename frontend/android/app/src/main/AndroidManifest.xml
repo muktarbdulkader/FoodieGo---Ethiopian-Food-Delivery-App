@@ -45,9 +45,9 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <!-- Replace with your actual Firebase hosting domain -->
+                <!-- Your Firebase hosting domain -->
                 <data android:scheme="https"/>
-                <data android:host="foodiego-app.web.app"/>
+                <data android:host="foodiego-99b1e.web.app"/>
                 <data android:pathPrefix="/dine-in-menu"/>
             </intent-filter>
             

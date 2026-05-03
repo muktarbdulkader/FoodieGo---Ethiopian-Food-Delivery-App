@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:ui' as ui;
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../data/repositories/table_repository.dart';
 import '../../../data/models/table.dart';
 import '../../widgets/loading_widget.dart';
@@ -25,6 +26,8 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
   @override
   void initState() {
     super.initState();
+    // CRITICAL: Set admin session type FIRST
+    StorageUtils.setSessionType(SessionType.admin);
     _loadTables();
   }
 

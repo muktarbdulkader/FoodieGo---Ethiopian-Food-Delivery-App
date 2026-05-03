@@ -36,10 +36,22 @@ const getAllFoods = async (req, res, next) => {
 const getFoodsByHotel = async (req, res, next) => {
   try {
     const { hotelId } = req.params;
-    const { category } = req.query;
+    const { category, menuType } = req.query;
     
     const filter = { hotelId, isAvailable: true };
     if (category && category !== 'All') filter.category = category;
+    
+    // Filter by menu type if provided (e.g., 'dine_in', 'delivery', 'takeaway')
+    // If menuType is specified, find foods that either:
+    // 1. Have the menuType in their menuTypes array, OR
+    // 2. Don't have menuTypes set (legacy foods - show them for all menu types)
+    if (menuType) {
+      filter.$or = [
+        { menuTypes: menuType },
+        { menuTypes: { $exists: false } },
+        { menuTypes: { $size: 0 } }
+      ];
+    }
 
     const foods = await Food.find(filter).sort({ isFeatured: -1, createdAt: -1 });
     

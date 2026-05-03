@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import '../../../state/food/food_provider.dart';
 import '../../../state/admin/admin_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../widgets/loading_widget.dart';
+import '../../widgets/admin_auth_check.dart';
 
 class ManageFoodsPage extends StatefulWidget {
   const ManageFoodsPage({super.key});
@@ -21,6 +22,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
   @override
   void initState() {
     super.initState();
+    // Session type is set by AdminAuthCheck wrapper
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FoodProvider>().fetchFoods();
     });
@@ -30,6 +32,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
+    final dineInPriceCtrl = TextEditingController();
     final imageCtrl = TextEditingController();
     final prepTimeCtrl = TextEditingController(text: '20');
     final caloriesCtrl = TextEditingController(text: '500');
@@ -40,7 +43,10 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     bool isVegetarian = false;
     bool isSpicy = false;
     bool isFeatured = false;
-    File? selectedImage;
+    bool isDelivery = true;
+    bool isDineIn = true;
+    bool isTakeaway = false;
+    Uint8List? selectedImageBytes;
     String? base64Image;
 
     final defaultCategories = [
@@ -96,10 +102,9 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
           imageQuality: 80,
         );
         if (pickedFile != null) {
-          // For web compatibility, use pickedFile.readAsBytes() directly
           final bytes = await pickedFile.readAsBytes();
           setModalState(() {
-            selectedImage = File(pickedFile.path);
+            selectedImageBytes = bytes;
             base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
             imageCtrl.text = ''; // Clear URL if image selected
           });
@@ -152,19 +157,19 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
-                    child: selectedImage != null
+                    child: selectedImageBytes != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.file(selectedImage!, fit: BoxFit.cover),
+                                Image.memory(selectedImageBytes!, fit: BoxFit.cover),
                                 Positioned(
                                   top: 8,
                                   right: 8,
                                   child: GestureDetector(
                                     onTap: () => setModalState(() {
-                                      selectedImage = null;
+                                      selectedImageBytes = null;
                                       base64Image = null;
                                     }),
                                     child: Container(
@@ -219,7 +224,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                   children: [
                     Expanded(
                         child: _buildTextField(
-                            priceCtrl, 'Price (ETB)', Icons.attach_money,
+                            priceCtrl, 'Delivery Price (ETB)', Icons.attach_money,
                             isNumber: true)),
                     const SizedBox(width: 12),
                     Expanded(
@@ -228,6 +233,10 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                             isNumber: true)),
                   ],
                 ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                    dineInPriceCtrl, 'Dine-In Price (ETB) - Optional', Icons.restaurant,
+                    isNumber: true),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -240,6 +249,40 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                         child: _buildTextField(caloriesCtrl, 'Calories',
                             Icons.local_fire_department,
                             isNumber: true)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Menu Types Section
+                const Text('Available For',
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('Delivery'),
+                      selected: isDelivery,
+                      onSelected: (v) => setModalState(() => isDelivery = v),
+                      selectedColor:
+                          const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF3B82F6),
+                    ),
+                    FilterChip(
+                      label: const Text('Dine-In'),
+                      selected: isDineIn,
+                      onSelected: (v) => setModalState(() => isDineIn = v),
+                      selectedColor:
+                          const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF8B5CF6),
+                    ),
+                    FilterChip(
+                      label: const Text('Takeaway'),
+                      selected: isTakeaway,
+                      onSelected: (v) => setModalState(() => isTakeaway = v),
+                      selectedColor:
+                          const Color(0xFF10B981).withValues(alpha: 0.2),
+                      checkmarkColor: const Color(0xFF10B981),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -325,6 +368,21 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       return;
                     }
 
+                    // Build menuTypes array
+                    List<String> menuTypes = [];
+                    if (isDelivery) menuTypes.add('delivery');
+                    if (isDineIn) menuTypes.add('dine_in');
+                    if (isTakeaway) menuTypes.add('takeaway');
+
+                    if (menuTypes.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                            content: Text('Please select at least one menu type'),
+                            backgroundColor: AppTheme.errorColor),
+                      );
+                      return;
+                    }
+
                     final finalCategory =
                         useCustomCategory && customCategoryCtrl.text.isNotEmpty
                             ? customCategoryCtrl.text
@@ -345,8 +403,8 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                     final navigator = Navigator.of(ctx);
                     final foodProvider = context.read<FoodProvider>();
 
-                    final success =
-                        await context.read<AdminProvider>().createFood({
+                    // Build food data
+                    final foodData = {
                       'name': nameCtrl.text,
                       'description': descCtrl.text,
                       'price': double.tryParse(priceCtrl.text) ?? 0,
@@ -358,15 +416,41 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       'isVegetarian': isVegetarian,
                       'isSpicy': isSpicy,
                       'isFeatured': isFeatured,
-                    });
+                      'menuTypes': menuTypes,
+                    };
 
-                    if (success) {
-                      navigator.pop();
-                      foodProvider.fetchFoods();
+                    // Add dineInPrice if provided
+                    if (dineInPriceCtrl.text.isNotEmpty) {
+                      final dineInPrice = double.tryParse(dineInPriceCtrl.text);
+                      if (dineInPrice != null) {
+                        foodData['dineInPrice'] = dineInPrice;
+                      }
+                    }
+
+                    try {
+                      final success =
+                          await context.read<AdminProvider>().createFood(foodData);
+
+                      if (success) {
+                        navigator.pop();
+                        foodProvider.fetchFoods();
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(
+                              content: Text('Food added successfully!'),
+                              backgroundColor: AppTheme.successColor),
+                        );
+                      } else {
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                              content: Text('Failed to add food: ${context.read<AdminProvider>().error ?? "Unknown error"}'),
+                              backgroundColor: AppTheme.errorColor),
+                        );
+                      }
+                    } catch (e) {
                       scaffoldMessenger.showSnackBar(
-                        const SnackBar(
-                            content: Text('Food added successfully!'),
-                            backgroundColor: AppTheme.successColor),
+                        SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: AppTheme.errorColor),
                       );
                     }
                   },
@@ -565,6 +649,12 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
 
   @override
   Widget build(BuildContext context) {
+    return AdminAuthCheck(
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
