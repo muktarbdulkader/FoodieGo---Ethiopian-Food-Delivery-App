@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
+import 'package:vibration/vibration.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../widgets/connection_status_indicator.dart';
+import '../../widgets/connection_banner.dart';
 
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
@@ -22,7 +24,6 @@ class OrderStatusPage extends StatefulWidget {
 }
 
 class _OrderStatusPageState extends State<OrderStatusPage> {
-  Timer? _pollTimer;
   Map<String, dynamic>? _orderData;
   bool _isLoading = true;
   String? _error;
@@ -36,13 +37,6 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     // Setup WebSocket listener
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupWebSocket();
-    });
-    
-    // Fallback polling every 30 seconds (in case WebSocket fails)
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_webSocketProvider?.isConnected != true) {
-        _loadOrderStatus();
-      }
     });
   }
   
@@ -61,14 +55,142 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   void _handleOrderUpdate(dynamic data) {
     debugPrint('[ORDER STATUS] Received update: $data');
     
+    final status = data['status'];
+    final orderNumber = data['orderNumber'] ?? 'N/A';
+    
+    // Show snackbar for status updates
+    if (mounted) {
+      final message = _getStatusUpdateMessage(status, orderNumber);
+      final backgroundColor = _getStatusColor(status);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(_getStatusIcon(status), color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: backgroundColor,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
+    
+    // Trigger vibration for important status changes
+    if (status == 'ready') {
+      _vibratePattern(); // Order ready - pattern vibration
+    } else if (status == 'cancelled') {
+      _vibrateLong(); // Order cancelled - long vibration
+      // Show dialog for cancellation
+      if (mounted) {
+        _showCancellationDialog(orderNumber);
+      }
+    }
+    
     // Reload order status to get latest data
     _loadOrderStatus();
+  }
+  
+  String _getStatusUpdateMessage(String status, String orderNumber) {
+    switch (status) {
+      case 'confirmed':
+        return 'Order #$orderNumber has been accepted by the kitchen!';
+      case 'preparing':
+        return 'Your order #$orderNumber is being prepared';
+      case 'ready':
+        return 'Order #$orderNumber is ready! Please collect from counter';
+      case 'completed':
+        return 'Order #$orderNumber has been served. Enjoy your meal!';
+      case 'cancelled':
+        return 'Order #$orderNumber has been cancelled';
+      default:
+        return 'Order #$orderNumber status updated to $status';
+    }
+  }
+  
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'confirmed':
+        return Icons.check_circle;
+      case 'preparing':
+        return Icons.restaurant;
+      case 'ready':
+        return Icons.done_all;
+      case 'completed':
+        return Icons.celebration;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.info;
+    }
+  }
+  
+  void _showCancellationDialog(String orderNumber) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red[400], size: 32),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Order Cancelled',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Your order #$orderNumber has been cancelled. Please contact the waiter for assistance.',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _vibratePattern() async {
+    // Pattern: 200ms on, 100ms off, 200ms on
+    final hasVibrator = await Vibration.hasVibrator();
+    if (hasVibrator == true) {
+      Vibration.vibrate(pattern: [0, 200, 100, 200]);
+    }
+  }
+  
+  Future<void> _vibrateLong() async {
+    // Long vibration: 500ms
+    final hasVibrator = await Vibration.hasVibrator();
+    if (hasVibrator == true) {
+      Vibration.vibrate(duration: 500);
+    }
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    
     // Leave room and remove listeners
     if (_webSocketProvider != null) {
       final roomName = 'table:${widget.tableId}';
@@ -196,18 +318,19 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Order Status'),
-        actions: [
-          const ConnectionStatusIndicator(),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadOrderStatus,
-          ),
-        ],
-      ),
+    return ConnectionBanner(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Order Status'),
+          actions: [
+            const ConnectionStatusIndicator(),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadOrderStatus,
+            ),
+          ],
+        ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -256,6 +379,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       ),
                     )
                   : _buildOrderStatus(),
+      ),
     );
   }
 
@@ -591,6 +715,44 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   }
 
   Future<void> _callWaiter() async {
+    // Check if connected
+    final isConnected = _webSocketProvider?.isConnected ?? false;
+    
+    if (!isConnected) {
+      // Queue the action for when connection is restored
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('Offline - Request will be sent when connection is restored'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      // Queue the message
+      _webSocketProvider?.emit('waiter:called', {
+        'tableId': widget.tableId,
+        'message': 'Customer needs assistance',
+      });
+      return;
+    }
+    
     try {
       await ApiService.postPublic(
         '${ApiConstants.orders}/dine-in/call-waiter',
@@ -603,8 +765,15 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Waiter has been notified!'),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Waiter has been notified!'),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -612,8 +781,15 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to call waiter: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Failed to call waiter: $e')),
+              ],
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

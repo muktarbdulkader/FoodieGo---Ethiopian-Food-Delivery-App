@@ -7,6 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../widgets/connection_status_indicator.dart';
+import '../../widgets/order_timer.dart';
+import '../../widgets/connection_banner.dart';
 
 class KitchenOrdersPage extends StatefulWidget {
   const KitchenOrdersPage({super.key});
@@ -279,20 +281,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kitchen Orders'),
-        actions: [
-          const ConnectionStatusIndicator(),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadOrders,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
+    return ConnectionBanner(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Kitchen Orders'),
+          actions: [
+            const ConnectionStatusIndicator(),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadOrders,
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
           // Filter Tabs
           Container(
             color: Colors.grey[100],
@@ -352,6 +355,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -390,7 +394,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
           _selectedFilter = value;
         });
       },
-      selectedColor: color.withOpacity(0.2),
+      selectedColor: color.withValues(alpha: 0.2),
       checkmarkColor: color,
       labelStyle: TextStyle(
         color: isSelected ? color : Colors.black87,
@@ -429,7 +433,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(10),
                 topRight: Radius.circular(10),
@@ -473,6 +477,13 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                           color: Colors.grey[600],
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      // Order Timer
+                      if (order.createdAt != null)
+                        OrderTimer(
+                          orderTime: order.createdAt!,
+                          showFlashing: order.status != 'completed' && order.status != 'cancelled',
+                        ),
                     ],
                   ),
                 ),
@@ -519,7 +530,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                             width: 30,
                             height: 30,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
@@ -731,11 +742,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             ),
             ElevatedButton(
               onPressed: () => _updateOrderStatus(order, 'completed'),
-              child: const Text('Complete'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
+              child: const Text('Complete'),
             ),
           ],
         ),

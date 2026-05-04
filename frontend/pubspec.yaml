@@ -23,6 +23,7 @@ dependencies:
   web: ^1.1.0  # NEW: Modern web API replacement for dart:html
   socket_io_client: ^2.0.3+1  # NEW: WebSocket client for real-time updates
   audioplayers: ^6.1.0  # NEW: Sound alerts for kitchen dashboard
+  vibration: ^2.0.0  # NEW: Vibration alerts for mobile devices
 
 dev_dependencies:
   flutter_test:
@@ -32,3 +33,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/sounds/notification.mp3
+    - assets/sounds/bell.mp3
