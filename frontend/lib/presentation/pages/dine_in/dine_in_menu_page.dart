@@ -8,6 +8,7 @@ import '../../../state/cart/cart_provider.dart';
 import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/food.dart';
 import '../cart/cart_page.dart';
+import 'order_status_page.dart';
 
 class DineInMenuPage extends StatefulWidget {
   final String restaurantId;
@@ -367,6 +368,74 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
           );
         },
       ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(Icons.home, 'Menu', true),
+                _buildNavItem(Icons.favorite_border, 'Favorites', false),
+                _buildNavItem(Icons.receipt_long, 'Orders', false),
+                _buildNavItem(Icons.person_outline, 'Profile', false),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, bool isActive) {
+    return InkWell(
+      onTap: () {
+        // Handle navigation
+        if (label == 'Orders') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderStatusPage(
+                tableId: widget.tableId,
+                restaurantId: widget.restaurantId,
+              ),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? AppTheme.primaryColor : Colors.grey,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? AppTheme.primaryColor : Colors.grey,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -374,10 +443,14 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
     final localizations = AppLocalizations(_currentLanguage);
     
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 200,
       floating: false,
       pinned: true,
       backgroundColor: AppTheme.primaryColor,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
+      ),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 8),
@@ -396,61 +469,127 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withValues(alpha: 0.8),
-              ],
-            ),
-          ),
-          child: Consumer2<DineInProvider, FoodProvider>(
-            builder: (context, dineIn, foodProvider, _) {
-              final restaurantName = foodProvider.foods.isNotEmpty 
-                  ? foodProvider.foods.first.hotelName 
-                  : localizations.get('restaurant_menu');
-              
-              return SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        restaurantName,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.table_restaurant, 
-                            size: 16, 
-                            color: Colors.white70,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${localizations.get('table')} ${dineIn.getTableNumber() ?? widget.tableId}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background gradient
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.7),
+                    AppTheme.primaryColor.withValues(alpha: 0.9),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+            // Hero content
+            Consumer2<DineInProvider, FoodProvider>(
+              builder: (context, dineIn, foodProvider, _) {
+                final restaurantName = foodProvider.foods.isNotEmpty 
+                    ? foodProvider.foods.first.hotelName 
+                    : localizations.get('restaurant_menu');
+                
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Hero title
+                        const Text(
+                          'Your Table,',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            height: 1.2,
+                          ),
+                        ),
+                        const Text(
+                          'Your Taste',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Restaurant and table info
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.restaurant,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    restaurantName,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.table_restaurant,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${localizations.get('table')} ${dineIn.getTableNumber() ?? widget.tableId}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -680,20 +819,69 @@ class _FoodCard extends StatelessWidget {
                         GestureDetector(
                           onTap: () {
                             context.read<CartProvider>().addToCart(food);
+                            
+                            // Show animated success message
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(Icons.check_circle, color: Colors.white),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text('${food.name} added to cart'),
-                                    ),
-                                  ],
+                                content: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text(
+                                              'Added to Cart!',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              food.name,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.white70,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.shopping_cart,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                backgroundColor: Colors.green,
+                                backgroundColor: Colors.green.shade600,
                                 duration: const Duration(seconds: 2),
                                 behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                margin: const EdgeInsets.all(16),
+                                elevation: 6,
                               ),
                             );
                           },
@@ -702,6 +890,13 @@ class _FoodCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: const Icon(
                               Icons.add_shopping_cart,
@@ -829,18 +1024,65 @@ class _FoodCard extends StatelessWidget {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(Icons.check_circle, color: Colors.white),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text('${food.name} added to cart'),
-                              ),
-                            ],
+                          content: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'Added to Cart!',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        food.name,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white70,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.shopping_cart,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
                           ),
-                          backgroundColor: Colors.green,
+                          backgroundColor: Colors.green.shade600,
                           duration: const Duration(seconds: 2),
                           behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                          elevation: 6,
                         ),
                       );
                     },
@@ -856,6 +1098,7 @@ class _FoodCard extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      elevation: 4,
                     ),
                   ),
                 ],

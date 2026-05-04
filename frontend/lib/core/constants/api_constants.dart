@@ -4,8 +4,11 @@ class ApiConstants {
   // Production URL - FoodieGo backend on Render
   static const String baseUrl = 'https://foodiego-tqz4.onrender.com/api';
   
-  // Local development URL
+  // // Local development URL (for testing)
   // static const String baseUrl = 'http://localhost:5001/api';
+  
+  // Socket URL (for real-time updates)
+  static const String socketUrl = 'https://foodiego-tqz4.onrender.com';
 
   // Auth endpoints
   static const String auth = '/auth';

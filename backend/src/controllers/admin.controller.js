@@ -26,7 +26,7 @@ const getDashboardStats = async (req, res, next) => {
     // Count stats for this hotel only (including reviews)
     const [totalFoods, totalOrders, pendingOrders, totalReviews] = await Promise.all([
       Food.countDocuments({ hotelId }),
-      Order.countDocuments(hotelFilter),
+      Order.countDocuments({ ...hotelFilter, status: { $ne: 'cancelled' } }),
       Order.countDocuments({ ...hotelFilter, status: 'pending' }),
       Review.countDocuments({ hotel: hotelId })
     ]);
@@ -83,6 +83,7 @@ const getDashboardStats = async (req, res, next) => {
 
     // Top selling foods for this hotel
     const topFoods = await Order.aggregate([
+      { $match: { status: { $ne: 'cancelled' } } },
       { $unwind: '$items' },
       { 
         $match: { 
@@ -150,7 +151,7 @@ const getAllUsers = async (req, res, next) => {
     
     // Get order stats for each user from this hotel
     const userStats = await Order.aggregate([
-      { $match: hotelFilter },
+      { $match: { ...hotelFilter, status: { $ne: 'cancelled' } } },
       { $group: { _id: '$user', orderCount: { $sum: 1 }, totalSpent: { $sum: '$totalPrice' } } }
     ]);
     

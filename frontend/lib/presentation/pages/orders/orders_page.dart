@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../state/order/order_provider.dart';
+import '../../../state/auth/auth_provider.dart';
+import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/order.dart';
 import '../../widgets/loading_widget.dart';
 import 'order_tracking_page.dart';
+import '../dine_in/order_status_page.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -31,7 +34,11 @@ class _OrdersPageState extends State<OrdersPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<OrderProvider>().fetchOrders(silent: true);
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        // Only fetch orders if user is logged in
+        if (authProvider.isLoggedIn) {
+          context.read<OrderProvider>().fetchOrders(silent: true);
+        }
       }
     });
   }
@@ -45,6 +52,23 @@ class _OrdersPageState extends State<OrdersPage>
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final dineInProvider = Provider.of<DineInProvider>(context, listen: false);
+    
+    // Guest user with active dine-in order
+    if (!authProvider.isLoggedIn) {
+      if (dineInProvider.currentTable != null && dineInProvider.currentRestaurantId != null) {
+        return OrderStatusPage(
+          tableId: dineInProvider.currentTable!.id,
+          restaurantId: dineInProvider.currentRestaurantId!,
+        );
+      }
+      
+      // Guest user without active order - show login prompt
+      return _buildLoginPrompt();
+    }
+    
+    // Logged in user - show order history
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
@@ -589,5 +613,92 @@ class _OrdersPageState extends State<OrdersPage>
     // Add estimated delivery time (e.g., 30 minutes from order time)
     final eta = date.add(const Duration(minutes: 30));
     return '${months[eta.month - 1]} ${eta.day} ${eta.year}';
+  }
+
+  Widget _buildLoginPrompt() {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.login,
+                    size: 64,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Login to View Orders',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Sign in to view your order history and track deliveries',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: AppTheme.primaryColor,
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/register');
+                  },
+                  child: const Text(
+                    'Don\'t have an account? Sign up',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

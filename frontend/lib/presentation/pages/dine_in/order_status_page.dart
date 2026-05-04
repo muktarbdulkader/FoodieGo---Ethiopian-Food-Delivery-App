@@ -6,8 +6,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
-import '../../widgets/connection_status_indicator.dart';
-import '../../widgets/connection_banner.dart';
 
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
@@ -318,19 +316,16 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ConnectionBanner(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Order Status'),
-          actions: [
-            const ConnectionStatusIndicator(),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadOrderStatus,
-            ),
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Order Status'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadOrderStatus,
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -379,7 +374,6 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       ),
                     )
                   : _buildOrderStatus(),
-      ),
     );
   }
 
