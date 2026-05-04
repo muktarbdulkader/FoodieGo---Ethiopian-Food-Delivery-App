@@ -290,12 +290,16 @@ const createOrder = async (req, res, next) => {
       tip,
       discount,
       totalPrice: calculatedTotal,
-      deliveryAddress: type === 'dine_in' ? {} : (deliveryAddress || {}),
       payment: payment || { method: 'cash', status: 'pending' },
-      delivery: type === 'dine_in' ? {} : (delivery || { type: 'delivery', fee: finalDeliveryFee }),
       notes,
       promoCode,
     };
+
+    // Add delivery-specific fields only for delivery orders
+    if (type !== 'dine_in') {
+      orderData.deliveryAddress = deliveryAddress || {};
+      orderData.delivery = delivery || { type: 'delivery', fee: finalDeliveryFee };
+    }
 
     // Add dine-in specific fields
     if (type === 'dine_in') {

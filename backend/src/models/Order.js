@@ -15,7 +15,7 @@ const orderItemSchema = new mongoose.Schema({
 
 const deliveryAddressSchema = new mongoose.Schema({
   label: { type: String, default: 'Home' }, // Home, Work, Other
-  fullAddress: { type: String, required: true },
+  fullAddress: { type: String, required: false }, // Optional for dine-in orders
   street: { type: String },
   city: { type: String },
   state: { type: String },
