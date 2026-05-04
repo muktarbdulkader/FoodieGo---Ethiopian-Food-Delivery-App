@@ -20,6 +20,7 @@ dependencies:
   mobile_scanner: ^5.2.3  # NEW: QR code scanner
   qr_flutter: ^4.1.0  # NEW: QR code generator (for restaurant dashboard)
   app_links: ^6.3.2  # NEW: Deep link handling for APK
+  web: ^1.1.0  # NEW: Modern web API replacement for dart:html
 
 dev_dependencies:
   flutter_test:

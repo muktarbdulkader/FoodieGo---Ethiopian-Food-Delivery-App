@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import '../../../core/utils/storage_utils.dart';
 
@@ -106,6 +107,24 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   }
   
   void _navigateToNextScreen() {
+    // For web, check if we're on a dine-in menu URL - if so, don't navigate away
+    if (kIsWeb) {
+      final uri = Uri.base;
+      if (uri.path == '/dine-in-menu' && 
+          uri.queryParameters.containsKey('restaurantId') && 
+          uri.queryParameters.containsKey('tableId')) {
+        // Navigate to dine-in menu with parameters
+        Navigator.of(context).pushReplacementNamed(
+          '/dine-in-menu',
+          arguments: {
+            'restaurantId': uri.queryParameters['restaurantId']!,
+            'tableId': uri.queryParameters['tableId']!,
+          },
+        );
+        return;
+      }
+    }
+    
     final lastSession = StorageUtils.currentSessionType;
     final isUserLoggedIn = StorageUtils.isLoggedIn(SessionType.user);
     final isAdminLoggedIn = StorageUtils.isLoggedIn(SessionType.admin);

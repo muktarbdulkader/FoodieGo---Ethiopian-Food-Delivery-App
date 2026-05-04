@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/admin_auth_check.dart';
+import '../../widgets/category_selector.dart';
 
 class ManageFoodsPage extends StatefulWidget {
   const ManageFoodsPage({super.key});
@@ -37,9 +38,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     final prepTimeCtrl = TextEditingController(text: '20');
     final caloriesCtrl = TextEditingController(text: '500');
     final discountCtrl = TextEditingController(text: '0');
-    final customCategoryCtrl = TextEditingController();
     String category = 'Main Course';
-    bool useCustomCategory = false;
     bool isVegetarian = false;
     bool isSpicy = false;
     bool isFeatured = false;
@@ -48,29 +47,6 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     bool isTakeaway = false;
     Uint8List? selectedImageBytes;
     String? base64Image;
-
-    final defaultCategories = [
-      'Main Course',
-      'Appetizer',
-      'Dessert',
-      'Drinks',
-      'Pizza',
-      'Burger',
-      'Sushi',
-      'Ethiopian',
-      'Fast Food',
-      'Salad',
-      'Breakfast',
-      'Lunch',
-      'Dinner',
-      'Snacks',
-      'Bakery',
-      'Coffee',
-      'Juice',
-      'Seafood',
-      'Vegetarian',
-      'Vegan',
-    ];
 
     Future<void> pickImage(StateSetter setModalState) async {
       final picker = ImagePicker();
@@ -286,40 +262,15 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Category selection with custom option
-                Row(
-                  children: [
-                    const Text('Category',
-                        style: TextStyle(fontWeight: FontWeight.w500)),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: () => setModalState(
-                          () => useCustomCategory = !useCustomCategory),
-                      icon: Icon(useCustomCategory ? Icons.list : Icons.add,
-                          size: 18),
-                      label: Text(useCustomCategory ? 'Use Preset' : 'Custom'),
-                    ),
-                  ],
+                // Category Selector - Professional UI
+                CategorySelector(
+                  initialCategory: category,
+                  onCategorySelected: (selectedCategory) {
+                    setModalState(() {
+                      category = selectedCategory;
+                    });
+                  },
                 ),
-                const SizedBox(height: 8),
-                if (useCustomCategory)
-                  _buildTextField(customCategoryCtrl, 'Enter Custom Category',
-                      Icons.category)
-                else
-                  DropdownButtonFormField<String>(
-                    initialValue: category,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.category),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    items: defaultCategories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (v) => setModalState(() => category = v!),
-                  ),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
@@ -383,10 +334,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                       return;
                     }
 
-                    final finalCategory =
-                        useCustomCategory && customCategoryCtrl.text.isNotEmpty
-                            ? customCategoryCtrl.text
-                            : category;
+                    final finalCategory = category;
 
                     // Determine image: base64 > URL > default
                     String imageValue;
@@ -633,16 +581,66 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
   Widget _buildTextField(
       TextEditingController controller, String label, IconData icon,
       {int maxLines = 1, bool isNumber = false}) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey.shade50,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          floatingLabelStyle: const TextStyle(
+            color: AppTheme.primaryColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+            ),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
       ),
     );
   }

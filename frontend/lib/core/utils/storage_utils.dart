@@ -18,6 +18,7 @@ class StorageUtils {
   static const String _deliveryTokenKey = 'delivery_token';
   static const String _deliveryDataKey = 'delivery_data';
   static const String _lastSessionKey = 'last_session_type';
+  static const String _languageKey = 'app_language';
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -112,5 +113,15 @@ class StorageUtils {
     return isLoggedIn(SessionType.user) ||
         isLoggedIn(SessionType.admin) ||
         isLoggedIn(SessionType.delivery);
+  }
+
+  /// Save language preference
+  static Future<void> setLanguage(String languageCode) async {
+    await _prefs?.setString(_languageKey, languageCode);
+  }
+
+  /// Get saved language preference
+  static Future<String?> getLanguage() async {
+    return _prefs?.getString(_languageKey);
   }
 }

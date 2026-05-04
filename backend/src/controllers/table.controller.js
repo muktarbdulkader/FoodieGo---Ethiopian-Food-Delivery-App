@@ -63,11 +63,21 @@ const getTableByQRCode = async (req, res, next) => {
       });
     }
 
-    const table = await Table.findOne({ 
+    // Try to find by MongoDB _id first, then by tableNumber
+    let table = await Table.findOne({ 
       _id: tableId, 
       restaurantId,
       isActive: true 
     }).populate('restaurantId', 'hotelName hotelAddress hotelPhone hotelImage isOpen deliveryFee');
+
+    // If not found by _id, try by tableNumber (for backward compatibility)
+    if (!table) {
+      table = await Table.findOne({ 
+        tableNumber: tableId, 
+        restaurantId,
+        isActive: true 
+      }).populate('restaurantId', 'hotelName hotelAddress hotelPhone hotelImage isOpen deliveryFee');
+    }
 
     if (!table) {
       return res.status(404).json({ 
@@ -78,7 +88,29 @@ const getTableByQRCode = async (req, res, next) => {
 
     res.json({ success: true, data: table });
   } catch (error) {
-    next(error);
+    // If error is due to invalid ObjectId format, try tableNumber
+    if (error.name === 'CastError') {
+      try {
+        const table = await Table.findOne({ 
+          tableNumber: req.query.tableId, 
+          restaurantId: req.query.restaurantId,
+          isActive: true 
+        }).populate('restaurantId', 'hotelName hotelAddress hotelPhone hotelImage isOpen deliveryFee');
+
+        if (!table) {
+          return res.status(404).json({ 
+            success: false, 
+            message: 'Table not found or inactive' 
+          });
+        }
+
+        return res.json({ success: true, data: table });
+      } catch (err) {
+        next(err);
+      }
+    } else {
+      next(error);
+    }
   }
 };
 

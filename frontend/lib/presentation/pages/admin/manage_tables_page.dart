@@ -241,6 +241,19 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
 
   Future<void> _downloadQRCode(TableModel table) async {
     try {
+      // Validate QR code data
+      if (table.qrCodeData.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('QR code data is missing. Please refresh the table list.'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+        return;
+      }
+      
       // Create a GlobalKey for the QR code widget
       final qrKey = GlobalKey();
       
@@ -295,6 +308,7 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
                   version: QrVersions.auto,
                   size: 300,
                   backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.H,
                 ),
               ),
               const SizedBox(height: 24),

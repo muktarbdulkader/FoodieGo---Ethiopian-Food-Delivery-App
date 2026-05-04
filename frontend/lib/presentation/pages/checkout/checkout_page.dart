@@ -10,6 +10,7 @@ import '../../../state/cart/cart_provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../state/language/language_provider.dart';
+import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/order.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/api_service.dart';
@@ -134,6 +135,17 @@ class _CheckoutPageState extends State<CheckoutPage>
   }
 
   Future<void> _loadUserLocation() async {
+    // Check if this is a dine-in order - skip location for dine-in
+    final dineInProvider = context.read<DineInProvider>();
+    if (dineInProvider.isDineInMode) {
+      // For dine-in, we don't need location - customer is at the restaurant
+      setState(() {
+        _currentAddress = 'Dine-In at Restaurant';
+        _calculatedDeliveryFee = 0; // No delivery fee for dine-in
+      });
+      return;
+    }
+    
     // First check if user already has location saved
     final user = context.read<AuthProvider>().user;
     if (user?.location?.address != null) {
@@ -273,7 +285,12 @@ class _CheckoutPageState extends State<CheckoutPage>
   }
 
   Future<void> _placeOrder() async {
-    if (_deliveryType == 'delivery' && _currentAddress == null) {
+    // Check if this is a dine-in order
+    final dineInProvider = context.read<DineInProvider>();
+    final isDineIn = dineInProvider.isDineInMode;
+    
+    // Skip location check for dine-in orders
+    if (!isDineIn && _deliveryType == 'delivery' && _currentAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
@@ -317,29 +334,43 @@ class _CheckoutPageState extends State<CheckoutPage>
 
     final cart = context.read<CartProvider>();
     final subtotal = cart.totalPrice;
-    final deliveryFee = _deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0;
+    final deliveryFee = isDineIn ? 0.0 : (_deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0);
     final tax = subtotal * 0.15;
     final total = subtotal + deliveryFee + tax + _tip - _promoDiscount;
 
-    final deliveryAddress = _deliveryType == 'delivery'
+    // For dine-in, use table information instead of delivery address
+    final deliveryAddress = isDineIn 
         ? DeliveryAddress(
-            label: 'Current Location',
-            fullAddress: _currentAddress ?? '',
-            street: '',
-            city: _currentCity ?? '',
+            label: 'Dine-In',
+            fullAddress: 'Table ${dineInProvider.getTableNumber() ?? 'Unknown'}${dineInProvider.getTableLocation() != null ? ' - ${dineInProvider.getTableLocation()}' : ''}',
+            street: 'Dine-In Order',
+            city: 'Restaurant',
             zipCode: '',
-            instructions: _instructionsController.text,
-            latitude: _latitude,
-            longitude: _longitude,
+            instructions: _instructionsController.text.isNotEmpty 
+                ? 'Table ${dineInProvider.getTableNumber()}: ${_instructionsController.text}'
+                : 'Table ${dineInProvider.getTableNumber()}',
+            latitude: null,
+            longitude: null,
           )
-        : null;
+        : (_deliveryType == 'delivery'
+            ? DeliveryAddress(
+                label: 'Current Location',
+                fullAddress: _currentAddress ?? '',
+                street: '',
+                city: _currentCity ?? '',
+                zipCode: '',
+                instructions: _instructionsController.text,
+                latitude: _latitude,
+                longitude: _longitude,
+              )
+            : null);
 
     final payment = Payment(method: _selectedPayment, status: 'pending');
     final delivery = Delivery(
-      type: _deliveryType,
+      type: isDineIn ? 'dine_in' : _deliveryType,
       fee: deliveryFee,
-      estimatedTime: _estimatedDeliveryTime ?? (_deliveryType == 'delivery' ? 30 : 15),
-      distance: _distanceKm,
+      estimatedTime: isDineIn ? 15 : (_estimatedDeliveryTime ?? (_deliveryType == 'delivery' ? 30 : 15)),
+      distance: isDineIn ? 0 : _distanceKm,
     );
 
     final order = await cart.placeOrderWithDetails(
@@ -383,8 +414,10 @@ class _CheckoutPageState extends State<CheckoutPage>
 
         // Show notification
         NotificationService.showOrderNotification(
-          title: 'Order Placed! 🎉',
-          body: 'Your order #${order.orderNumber} has been placed successfully.',
+          title: isDineIn ? 'Order Sent to Kitchen! 🍽️' : 'Order Placed! 🎉',
+          body: isDineIn 
+              ? 'Your order for Table ${dineInProvider.getTableNumber()} has been sent to the kitchen.'
+              : 'Your order #${order.orderNumber} has been placed successfully.',
           payload: order.id,
         );
 

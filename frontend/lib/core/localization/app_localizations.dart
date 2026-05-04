@@ -194,6 +194,8 @@ class AppLocalizations {
   String get creditDebitCard => get('credit_debit_card');
   String get cashOnDeliveryDesc => get('cash_on_delivery_desc');
   String get visaMastercard => get('visa_mastercard');
+  String get table => get('table');
+  String get restaurantMenu => get('restaurant_menu');
 }
 
 // English Translations
@@ -363,6 +365,8 @@ const Map<String, String> _englishTranslations = {
   'credit_debit_card': 'Credit/Debit Card',
   'cash_on_delivery_desc': 'Pay when you receive',
   'visa_mastercard': 'Visa, Mastercard',
+  'table': 'Table',
+  'restaurant_menu': 'Restaurant Menu',
 };
 
 // Afaan Oromoo Translations
@@ -532,6 +536,8 @@ const Map<String, String> _oromoTranslations = {
   'credit_debit_card': 'Kaardii Liqii/Deebii',
   'cash_on_delivery_desc': 'Yeroo fudhattuu kaffali',
   'visa_mastercard': 'Visa, Mastercard',
+  'table': 'Minjaala',
+  'restaurant_menu': 'Tarree Nyaataa',
 };
 
 // Amharic Translations
@@ -701,4 +707,6 @@ const Map<String, String> _amharicTranslations = {
   'credit_debit_card': 'የክሬዲት/ዴቢት ካርድ',
   'cash_on_delivery_desc': 'ሲደርስህ ክፈል',
   'visa_mastercard': 'ቪዛ፣ ማስተርካርድ',
+  'table': 'ጠረጴዛ',
+  'restaurant_menu': 'የምግብ ቤት ምናሌ',
 };

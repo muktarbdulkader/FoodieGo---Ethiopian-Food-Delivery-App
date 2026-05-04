@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:app_links/app_links.dart';
@@ -156,8 +157,6 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
     // Handle driver assignment notification
     if (payload.startsWith('driver_assignment:')) {
-      final orderId = payload.split(':')[1];
-      
       // Navigate to delivery dashboard
       // Check if user is logged in as delivery
       if (_deliveryAuthProvider.isLoggedIn && 
@@ -243,19 +242,35 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
   /// Determine initial route based on last session and login status
   String _getInitialRoute() {
-    // Always show splash screen first
+    // For web, check if there's a specific path in the URL
+    if (kIsWeb) {
+      final uri = Uri.base;
+      debugPrint('Initial URL path: ${uri.path}, query: ${uri.query}');
+      
+      // If URL has /dine-in-menu path, return it
+      if (uri.path == '/dine-in-menu' && 
+          uri.queryParameters.containsKey('restaurantId') && 
+          uri.queryParameters.containsKey('tableId')) {
+        return '/dine-in-menu';
+      }
+    }
+    
+    // Default: show splash screen first
     return '/splash';
   }
 
   /// Build admin/restaurant portal route
   PageRouteBuilder _buildAdminRoute(RouteSettings settings) {
+    // Set admin session type IMMEDIATELY before building route
+    StorageUtils.setSessionType(SessionType.admin);
+    
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
         value: _adminAuthProvider,
         child: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            StorageUtils.setSessionType(SessionType.admin);
+            // Session type already set above
 
             if (!auth.isLoggedIn) {
               return const AdminLoginPage();
@@ -279,13 +294,16 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
   /// Build delivery portal route
   PageRouteBuilder _buildDeliveryRoute(RouteSettings settings) {
+    // Set delivery session type IMMEDIATELY before building route
+    StorageUtils.setSessionType(SessionType.delivery);
+    
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
         value: _deliveryAuthProvider,
         child: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            StorageUtils.setSessionType(SessionType.delivery);
+            // Session type already set above
 
             if (!auth.isLoggedIn) {
               return const _DeliveryLoginPage();
@@ -311,6 +329,8 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   PageRouteBuilder _buildUserRoute(RouteSettings settings) {
     // Handle specific routes
     if (settings.name == '/qr-scanner') {
+      // Set user session type for QR scanner
+      StorageUtils.setSessionType(SessionType.user);
       return PageRouteBuilder(
         settings: settings,
         pageBuilder: (_, __, ___) => const QRScannerPage(),
@@ -321,7 +341,24 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     }
     
     if (settings.name == '/dine-in-menu') {
-      final args = settings.arguments as Map<String, dynamic>?;
+      // Set user session type for dine-in menu (guests can view without login)
+      StorageUtils.setSessionType(SessionType.user);
+      
+      // Get arguments from route settings or from URL query parameters (for web)
+      Map<String, dynamic>? args = settings.arguments as Map<String, dynamic>?;
+      
+      // For web, if no arguments provided, try to get from URL
+      if (kIsWeb && args == null) {
+        final uri = Uri.base;
+        if (uri.queryParameters.containsKey('restaurantId') && 
+            uri.queryParameters.containsKey('tableId')) {
+          args = {
+            'restaurantId': uri.queryParameters['restaurantId']!,
+            'tableId': uri.queryParameters['tableId']!,
+          };
+        }
+      }
+      
       return PageRouteBuilder(
         settings: settings,
         pageBuilder: (_, __, ___) => DineInMenuPage(
@@ -333,6 +370,9 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         },
       );
     }
+    
+    // Set user session type for default routes
+    StorageUtils.setSessionType(SessionType.user);
     
     return PageRouteBuilder(
       settings: settings,
@@ -351,7 +391,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
           return Consumer<AuthProvider>(
             builder: (context, auth, _) {
-              StorageUtils.setSessionType(SessionType.user);
+              // Session type already set above
 
               if (!auth.isLoggedIn) {
                 return const LoginPage();
