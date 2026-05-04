@@ -26,6 +26,29 @@ class TableRepository {
     }
   }
 
+  Future<TableModel> getTableById(String tableId) async {
+    try {
+      final token = StorageUtils.getToken();
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/tables/$tableId'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TableModel.fromJson(data['data']);
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['message'] ?? 'Failed to load table');
+      }
+    } catch (e) {
+      throw Exception('Failed to load table: $e');
+    }
+  }
+
   Future<void> startTableSession(String tableId) async {
     try {
       final token = StorageUtils.getToken();

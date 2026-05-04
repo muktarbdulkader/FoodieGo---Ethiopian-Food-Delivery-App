@@ -21,6 +21,8 @@ dependencies:
   qr_flutter: ^4.1.0  # NEW: QR code generator (for restaurant dashboard)
   app_links: ^6.3.2  # NEW: Deep link handling for APK
   web: ^1.1.0  # NEW: Modern web API replacement for dart:html
+  socket_io_client: ^2.0.3+1  # NEW: WebSocket client for real-time updates
+  audioplayers: ^6.1.0  # NEW: Sound alerts for kitchen dashboard
 
 dev_dependencies:
   flutter_test:

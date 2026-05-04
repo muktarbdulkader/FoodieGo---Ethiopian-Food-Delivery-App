@@ -27,7 +27,8 @@
     "node-rsa": "^1.1.1",
     "nodemailer": "^8.0.7",
     "qrcode": "^1.5.3",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

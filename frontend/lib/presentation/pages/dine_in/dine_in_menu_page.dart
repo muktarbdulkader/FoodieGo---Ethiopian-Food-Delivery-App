@@ -6,6 +6,7 @@ import '../../../state/cart/cart_provider.dart';
 import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/food.dart';
 import '../cart/cart_page.dart';
+import '../food/food_detail_page.dart';
 
 class DineInMenuPage extends StatefulWidget {
   final String restaurantId;
@@ -219,10 +220,19 @@ class _FoodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FoodDetailPage(food: food),
+          ),
+        );
+      },
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
@@ -260,7 +270,7 @@ class _FoodCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\$${food.price.toStringAsFixed(2)}',
+                        '${food.price.toStringAsFixed(2)} ETB',
                         style: const TextStyle(
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold,

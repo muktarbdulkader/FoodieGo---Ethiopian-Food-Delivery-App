@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../widgets/cart_item_tile.dart';
 import '../checkout/checkout_page.dart';
+import '../dine_in/order_status_page.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -416,7 +417,16 @@ class _CartPageState extends State<CartPage>
                     onPressed: () {
                       Navigator.pop(ctx); // Close dialog
                       Navigator.pop(context); // Close cart page
-                      Navigator.pushNamed(context, '/orders');
+                      // For dine-in, go to OrderStatusPage (no login required)
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OrderStatusPage(
+                            tableId: tableId,
+                            restaurantId: restaurantId,
+                          ),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,

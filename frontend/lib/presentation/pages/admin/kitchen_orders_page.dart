@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../../data/models/order.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../state/websocket/websocket_provider.dart';
+import '../../../state/auth/auth_provider.dart';
+import '../../widgets/connection_status_indicator.dart';
 
 class KitchenOrdersPage extends StatefulWidget {
-  const KitchenOrdersPage({Key? key}) : super(key: key);
+  const KitchenOrdersPage({super.key});
 
   @override
   State<KitchenOrdersPage> createState() => _KitchenOrdersPageState();
@@ -12,18 +17,133 @@ class KitchenOrdersPage extends StatefulWidget {
 
 class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   final OrderRepository _orderRepository = OrderRepository();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   List<Order> _orders = [];
   bool _isLoading = true;
   String _selectedFilter = 'pending'; // pending, confirmed, preparing, ready
+  WebSocketProvider? _webSocketProvider;
+  String? _restaurantId;
 
   @override
   void initState() {
     super.initState();
     _loadOrders();
-    // Auto-refresh every 10 seconds
-    Future.delayed(const Duration(seconds: 10), () {
-      if (mounted) _loadOrders();
+    
+    // Setup WebSocket listener
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupWebSocket();
     });
+  }
+  
+  void _setupWebSocket() async {
+    _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Get restaurant ID from auth provider
+    _restaurantId = authProvider.user?.id;
+    
+    if (_restaurantId != null) {
+      // Join kitchen room
+      final roomName = 'kitchen:$_restaurantId';
+      _webSocketProvider!.joinRoom(roomName);
+      
+      // Listen for order events
+      _webSocketProvider!.on('order:created', _handleNewOrder);
+      _webSocketProvider!.on('order:updated', _handleOrderUpdate);
+      _webSocketProvider!.on('waiter:called', _handleWaiterCall);
+    }
+  }
+  
+  void _handleNewOrder(dynamic data) {
+    debugPrint('[KITCHEN] New order received: $data');
+    
+    // Play sound alert
+    _playNewOrderSound();
+    
+    // Reload orders
+    _loadOrders();
+    
+    // Show snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('New order #${data['orderNumber']} - Table ${data['tableNumber']}'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+  
+  void _handleOrderUpdate(dynamic data) {
+    debugPrint('[KITCHEN] Order updated: $data');
+    
+    // Reload orders
+    _loadOrders();
+  }
+  
+  void _handleWaiterCall(dynamic data) {
+    debugPrint('[KITCHEN] Waiter called: $data');
+    
+    // Play bell sound
+    _playWaiterCallSound();
+    
+    // Show dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.notifications_active, color: Colors.orange, size: 32),
+              const SizedBox(width: 12),
+              Text('Table ${data['tableNumber']}'),
+            ],
+          ),
+          content: Text(data['message'] ?? 'Customer needs assistance'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+  
+  Future<void> _playNewOrderSound() async {
+    try {
+      // Play a notification sound (you can add custom sound files to assets)
+      await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
+    } catch (e) {
+      debugPrint('[KITCHEN] Error playing sound: $e');
+    }
+  }
+  
+  Future<void> _playWaiterCallSound() async {
+    try {
+      // Play a bell sound
+      await _audioPlayer.play(AssetSource('sounds/bell.mp3'));
+    } catch (e) {
+      debugPrint('[KITCHEN] Error playing sound: $e');
+    }
+  }
+  
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    
+    // Leave room and remove listeners
+    if (_webSocketProvider != null && _restaurantId != null) {
+      final roomName = 'kitchen:$_restaurantId';
+      _webSocketProvider!.leaveRoom(roomName);
+      _webSocketProvider!.off('order:created');
+      _webSocketProvider!.off('order:updated');
+      _webSocketProvider!.off('waiter:called');
+    }
+    
+    super.dispose();
   }
 
   Future<void> _loadOrders() async {
@@ -49,7 +169,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         });
       }
     } catch (e) {
-      print('Error loading kitchen orders: $e');
+      debugPrint('Error loading kitchen orders: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -163,6 +283,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       appBar: AppBar(
         title: const Text('Kitchen Orders'),
         actions: [
+          const ConnectionStatusIndicator(),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadOrders,
@@ -277,9 +399,22 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     );
   }
 
+  String _getTableNumber(Order order) {
+    // Try order.tableNumber first
+    if (order.tableNumber != null && order.tableNumber!.isNotEmpty) {
+      return order.tableNumber!;
+    }
+    // Fall back to tableId
+    if (order.tableId != null) {
+      return 'T-${order.tableId!.substring(0, 6)}';
+    }
+    return 'N/A';
+  }
+
   Widget _buildOrderCard(Order order) {
     final timeAgo = _getTimeAgo(order.createdAt ?? DateTime.now());
     final statusColor = _getStatusColor(order.status);
+    final tableNumber = _getTableNumber(order);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -310,7 +445,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    order.tableNumber ?? 'N/A',
+                    tableNumber,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,

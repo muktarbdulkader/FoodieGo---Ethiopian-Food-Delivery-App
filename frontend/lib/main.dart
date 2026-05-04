@@ -14,6 +14,7 @@ import 'state/order/order_provider.dart';
 import 'state/admin/admin_provider.dart';
 import 'state/language/language_provider.dart';
 import 'state/dine_in/dine_in_provider.dart';
+import 'state/websocket/websocket_provider.dart';
 import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/auth/admin_login_page.dart';
 import 'presentation/pages/auth/delivery_login_page.dart';
@@ -195,6 +196,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(create: (_) => DineInProvider()),
+        ChangeNotifierProvider(create: (_) => WebSocketProvider()),
       ],
       child: Consumer<LanguageProvider>(
         builder: (context, langProvider, _) => MaterialApp(

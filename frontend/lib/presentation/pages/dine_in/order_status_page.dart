@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
+import '../../../state/websocket/websocket_provider.dart';
+import '../../widgets/connection_status_indicator.dart';
 
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
   final String restaurantId;
 
   const OrderStatusPage({
-    Key? key,
+    super.key,
     required this.tableId,
     required this.restaurantId,
-  }) : super(key: key);
+  });
 
   @override
   State<OrderStatusPage> createState() => _OrderStatusPageState();
@@ -23,20 +26,57 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   Map<String, dynamic>? _orderData;
   bool _isLoading = true;
   String? _error;
+  WebSocketProvider? _webSocketProvider;
 
   @override
   void initState() {
     super.initState();
     _loadOrderStatus();
-    // Poll every 5 seconds for updates
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _loadOrderStatus();
+    
+    // Setup WebSocket listener
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupWebSocket();
     });
+    
+    // Fallback polling every 30 seconds (in case WebSocket fails)
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_webSocketProvider?.isConnected != true) {
+        _loadOrderStatus();
+      }
+    });
+  }
+  
+  void _setupWebSocket() {
+    _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
+    
+    // Join table room
+    final roomName = 'table:${widget.tableId}';
+    _webSocketProvider!.joinRoom(roomName);
+    
+    // Listen for order updates
+    _webSocketProvider!.on('order:updated', _handleOrderUpdate);
+    _webSocketProvider!.on('order:created', _handleOrderUpdate);
+  }
+  
+  void _handleOrderUpdate(dynamic data) {
+    debugPrint('[ORDER STATUS] Received update: $data');
+    
+    // Reload order status to get latest data
+    _loadOrderStatus();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    
+    // Leave room and remove listeners
+    if (_webSocketProvider != null) {
+      final roomName = 'table:${widget.tableId}';
+      _webSocketProvider!.leaveRoom(roomName);
+      _webSocketProvider!.off('order:updated');
+      _webSocketProvider!.off('order:created');
+    }
+    
     super.dispose();
   }
 
@@ -149,7 +189,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       // Reload to get updated data
       _loadOrderStatus();
     } catch (e) {
-      print('Error marking notification as read: $e');
+      // Error marking notification as read - silently fail
+      debugPrint('Error marking notification as read: $e');
     }
   }
 
@@ -159,6 +200,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       appBar: AppBar(
         title: const Text('Order Status'),
         actions: [
+          const ConnectionStatusIndicator(),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadOrderStatus,
@@ -322,12 +365,12 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.1),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '${item['quantity']}x',
+                                    'ETB ${item['quantity']}x',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.primaryColor,
@@ -497,7 +540,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(

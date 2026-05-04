@@ -1,9 +1,11 @@
 /**
  * Order Controller - With Payment, Delivery & Location
  * Enhanced with Yango-like features: GPS tracking, chat, ratings, earnings
+ * Real-time WebSocket events for order updates
  */
 const Order = require("../models/Order");
 const User = require("../models/User");
+const socketManager = require("../socket/socket.manager");
 const {
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
@@ -60,6 +62,7 @@ const getAllOrders = async (req, res, next) => {
     const orders = await Order.find(filter)
       .populate("user", "name email phone address")
       .populate("restaurant", "name")
+      .populate("tableId", "tableNumber") // Populate table number for dine-in orders
       .sort({ createdAt: -1 });
     
     console.log(`Found ${orders.length} orders for ${userRole} user ${req.user.name}`);
@@ -360,6 +363,41 @@ const createOrder = async (req, res, next) => {
       }
     }
 
+    // Emit WebSocket event for dine-in orders
+    if (type === 'dine_in' && tableId && restaurantId) {
+      try {
+        // Emit to kitchen room
+        socketManager.broadcastToKitchen(restaurantId, 'order:created', {
+          eventType: 'order:created',
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          tableId: tableId,
+          tableNumber: order.tableNumber,
+          restaurantId: restaurantId,
+          items: order.items,
+          totalPrice: order.totalPrice,
+          status: order.status,
+          notes: order.notes,
+          timestamp: new Date().toISOString()
+        });
+
+        // Emit to table room
+        socketManager.broadcastToTable(tableId, 'order:created', {
+          eventType: 'order:created',
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          tableNumber: order.tableNumber,
+          status: order.status,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log(`[ORDER] WebSocket events emitted for order ${order.orderNumber}`);
+      } catch (socketError) {
+        console.error('[ORDER] Failed to emit WebSocket events:', socketError);
+        // Don't fail the request if socket emission fails
+      }
+    }
+
     res.status(201).json({ success: true, data: order });
   } catch (error) {
     console.error("Order creation error:", error);
@@ -439,6 +477,45 @@ const updateOrderStatus = async (req, res, next) => {
         status,
         hotelEmail
       ).catch((err) => console.error("Status email failed:", err));
+    }
+
+    // Emit WebSocket events for dine-in orders
+    if (order.type === 'dine_in' && order.tableId && order.restaurantId) {
+      try {
+        const eventPayload = {
+          eventType: 'order:updated',
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          tableId: order.tableId.toString(),
+          tableNumber: order.tableNumber,
+          restaurantId: order.restaurantId.toString(),
+          status: order.status,
+          timestamp: new Date().toISOString()
+        };
+
+        // Add notification if present
+        if (order.customerNotification) {
+          eventPayload.notification = {
+            message: order.customerNotification.message,
+            type: order.customerNotification.type,
+            timestamp: order.customerNotification.timestamp.toISOString()
+          };
+        }
+
+        // Emit to kitchen room
+        socketManager.broadcastToKitchen(order.restaurantId.toString(), 'order:updated', eventPayload);
+
+        // Emit to table room
+        socketManager.broadcastToTable(order.tableId.toString(), 'order:updated', eventPayload);
+
+        // Emit to restaurant admin room
+        socketManager.broadcastToRestaurantAdmin(order.restaurantId.toString(), 'order:updated', eventPayload);
+
+        console.log(`[ORDER] WebSocket events emitted for order ${order.orderNumber} status update to ${status}`);
+      } catch (socketError) {
+        console.error('[ORDER] Failed to emit WebSocket events:', socketError);
+        // Don't fail the request if socket emission fails
+      }
     }
 
     res.json({ success: true, data: order });
@@ -1089,9 +1166,24 @@ const callWaiter = async (req, res, next) => {
       });
     }
 
-    // Here you would emit a socket event to notify restaurant staff
-    // For now, we'll just return success
-    // Socket implementation will be added later
+    // Emit WebSocket event to notify restaurant staff
+    try {
+      const restaurantId = table.restaurantId._id.toString();
+      
+      socketManager.broadcastToKitchen(restaurantId, 'waiter:called', {
+        eventType: 'waiter:called',
+        tableId: tableId,
+        tableNumber: table.tableNumber,
+        restaurantId: restaurantId,
+        message: message || 'Customer needs assistance',
+        timestamp: new Date().toISOString()
+      });
+
+      console.log(`[ORDER] Waiter called for table ${table.tableNumber}`);
+    } catch (socketError) {
+      console.error('[ORDER] Failed to emit waiter call event:', socketError);
+      // Don't fail the request if socket emission fails
+    }
 
     res.json({ 
       success: true, 

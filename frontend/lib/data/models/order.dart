@@ -306,6 +306,11 @@ class Order {
     } else if (json['tableId'] is String) {
       tableId = json['tableId'];
     }
+    
+    // Also check if tableNumber is directly in JSON (for new orders)
+    if (tableNumber == null && json['tableNumber'] != null) {
+      tableNumber = json['tableNumber'].toString();
+    }
 
     return Order(
       id: json['_id'] ?? json['id'] ?? '',
