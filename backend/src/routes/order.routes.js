@@ -22,13 +22,22 @@ const {
   rateDriver,
   getDriverEarnings,
   getDriverStats,
-  getDineInOrders, // NEW
-  callWaiter, // NEW
-  assignDriverToOrder, // NEW
+  getDineInOrders,
+  callWaiter,
+  getOrderStatusByTable, // NEW
+  markNotificationRead, // NEW
+  assignDriverToOrder,
 } = require('../controllers/order.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
+
+// Public route for dine-in orders (no authentication required)
+router.post('/', createOrder); // Move this BEFORE protect middleware
+
+// Public route to check order status by table (no auth required for customers)
+router.get('/table/:tableId/status', getOrderStatusByTable);
+router.put('/:orderId/notification/read', markNotificationRead);
 
 router.use(protect);
 
@@ -60,7 +69,7 @@ router.put('/:id/assign-driver', authorize('restaurant'), assignDriverToOrder);
 // User routes
 router.get('/', getAllOrders);
 router.get('/:id', getOrderById);
-router.post('/', createOrder);
+// router.post('/', createOrder); // Moved to public section above
 router.put('/:id/cancel', cancelOrder);
 router.delete('/:id', deleteOrder);
 

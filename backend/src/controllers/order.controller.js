@@ -24,13 +24,14 @@ const getAllOrders = async (req, res, next) => {
     const userRole = req.user.role;
 
     if (userRole === "restaurant") {
-      // Restaurant sees orders containing their hotel's items
+      // Restaurant sees orders containing their hotel's items OR dine-in orders for their restaurant
       const hotelIdStr = req.user._id.toString();
       const hotelName = req.user.hotelName;
 
       const orConditions = [
         { "items.hotelId": hotelIdStr },
         { "items.hotelId": req.user._id },
+        { "restaurantId": req.user._id }, // Dine-in orders for this restaurant
       ];
 
       if (hotelName) {
@@ -192,6 +193,26 @@ const getOrderById = async (req, res, next) => {
 // Create order with payment & delivery
 const createOrder = async (req, res, next) => {
   try {
+    // Optional authentication - allow guest orders for dine-in
+    const token = req.headers.authorization?.split(' ')[1];
+    let user = null;
+    
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        user = await User.findById(decoded.id);
+      } catch (err) {
+        // Invalid token, but allow guest order for dine-in
+        console.log('Invalid token, proceeding as guest');
+      }
+    }
+    
+    // Attach user to request if found
+    if (user) {
+      req.user = user;
+    }
+    
     const {
       items,
       subtotal,
@@ -226,7 +247,7 @@ const createOrder = async (req, res, next) => {
         });
       }
       
-      // Verify table exists and is active
+      // Verify table exists and is active, and get table number
       const Table = require('../models/Table');
       const table = await Table.findOne({ 
         _id: tableId, 
@@ -240,6 +261,9 @@ const createOrder = async (req, res, next) => {
           message: "Table not found or inactive" 
         });
       }
+      
+      // Store table number for easy display
+      req.tableNumber = table.tableNumber;
     }
 
     const calculatedSubtotal =
@@ -252,8 +276,11 @@ const createOrder = async (req, res, next) => {
     const calculatedTotal =
       totalPrice || calculatedSubtotal + finalDeliveryFee + tax + tip - discount;
 
+    // For dine-in orders, user can be guest (no login required)
+    const userId = type === 'dine_in' && !req.user ? null : req.user._id;
+
     const orderData = {
-      user: req.user._id,
+      user: userId,
       restaurant,
       items,
       type, // NEW
@@ -273,6 +300,7 @@ const createOrder = async (req, res, next) => {
     // Add dine-in specific fields
     if (type === 'dine_in') {
       orderData.tableId = tableId;
+      orderData.tableNumber = req.tableNumber; // Add table number for display
       orderData.restaurantId = restaurantId;
     }
 
@@ -281,43 +309,51 @@ const createOrder = async (req, res, next) => {
     // If dine-in, add order to table session
     if (type === 'dine_in' && tableId) {
       const Table = require('../models/Table');
-      await Table.findByIdAndUpdate(tableId, {
+      const updateData = {
         $push: { 'currentSession.orderIds': order._id },
         $set: { 
           'currentSession.isOccupied': true,
-          'currentSession.customerId': req.user._id,
           'currentSession.startTime': new Date()
         }
-      });
+      };
+      
+      // Only set customerId if user is logged in
+      if (userId) {
+        updateData.$set['currentSession.customerId'] = userId;
+      }
+      
+      await Table.findByIdAndUpdate(tableId, updateData);
     }
 
     // Send order confirmation email (using hotel's email as sender)
-    const user = await User.findById(req.user._id);
-    if (user && user.email && type !== 'dine_in') { // Skip email for dine-in
-      const hotelName = items[0]?.hotelName || "FoodieGo Partner";
-      const hotelId = items[0]?.hotelId;
+    if (req.user && type !== 'dine_in') { // Skip email for dine-in or if no user
+      const user = await User.findById(req.user._id);
+      if (user && user.email) {
+        const hotelName = items[0]?.hotelName || "FoodieGo Partner";
+        const hotelId = items[0]?.hotelId;
 
-      // Get hotel's email to use as sender
-      let hotelEmail = null;
-      if (hotelId) {
-        const hotel = await User.findById(hotelId);
-        if (hotel && hotel.email) {
-          hotelEmail = hotel.email;
+        // Get hotel's email to use as sender
+        let hotelEmail = null;
+        if (hotelId) {
+          const hotel = await User.findById(hotelId);
+          if (hotel && hotel.email) {
+            hotelEmail = hotel.email;
+          }
         }
-      }
 
-      sendOrderConfirmationEmail(
-        user.email,
-        {
-          orderNumber: order.orderNumber,
-          userName: user.name,
-          hotelName,
-          items: order.items,
-          totalPrice: order.totalPrice,
-          address: deliveryAddress?.fullAddress || "Pickup",
-        },
-        hotelEmail
-      ).catch((err) => console.error("Email send failed:", err));
+        sendOrderConfirmationEmail(
+          user.email,
+          {
+            orderNumber: order.orderNumber,
+            userName: user.name,
+            hotelName,
+            items: order.items,
+            totalPrice: order.totalPrice,
+            address: deliveryAddress?.fullAddress || "Pickup",
+          },
+          hotelEmail
+        ).catch((err) => console.error("Email send failed:", err));
+      }
     }
 
     res.status(201).json({ success: true, data: order });
@@ -341,6 +377,39 @@ const updateOrderStatus = async (req, res, next) => {
       return res
         .status(404)
         .json({ success: false, message: "Order not found" });
+    }
+
+    // Add customer notification for dine-in orders
+    if (order.type === 'dine_in') {
+      let notificationMessage = '';
+      let notificationType = 'info';
+      
+      if (status === 'confirmed') {
+        notificationMessage = `Your order has been accepted! Table ${order.tableNumber || 'N/A'}. Your food will be ready soon.`;
+        notificationType = 'success';
+      } else if (status === 'cancelled') {
+        notificationMessage = `Sorry, your order has been rejected. Please contact the waiter at Table ${order.tableNumber || 'N/A'} for assistance.`;
+        notificationType = 'error';
+      } else if (status === 'preparing') {
+        notificationMessage = `Your order is being prepared. Table ${order.tableNumber || 'N/A'}.`;
+        notificationType = 'info';
+      } else if (status === 'ready') {
+        notificationMessage = `Your order is ready! Table ${order.tableNumber || 'N/A'}. A waiter will bring it to you shortly.`;
+        notificationType = 'success';
+      } else if (status === 'completed') {
+        notificationMessage = `Thank you for dining with us! Table ${order.tableNumber || 'N/A'}. Enjoy your meal!`;
+        notificationType = 'success';
+      }
+      
+      if (notificationMessage) {
+        order.customerNotification = {
+          message: notificationMessage,
+          type: notificationType,
+          timestamp: new Date(),
+          isRead: false
+        };
+        await order.save();
+      }
     }
 
     // Send status update email to customer (using hotel's email as sender)
@@ -1034,6 +1103,80 @@ const callWaiter = async (req, res, next) => {
   }
 };
 
+// Get order status by table (for customer to check their order)
+const getOrderStatusByTable = async (req, res, next) => {
+  try {
+    const { tableId } = req.params;
+
+    if (!tableId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Table ID is required' 
+      });
+    }
+
+    // Find the most recent order for this table
+    const order = await Order.findOne({ 
+      tableId,
+      type: 'dine_in',
+      status: { $nin: ['completed', 'cancelled'] } // Exclude completed/cancelled orders
+    })
+    .sort({ createdAt: -1 })
+    .populate('tableId', 'tableNumber');
+
+    if (!order) {
+      return res.json({ 
+        success: true, 
+        data: null,
+        message: 'No active order found for this table'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        tableNumber: order.tableNumber,
+        items: order.items,
+        totalPrice: order.totalPrice,
+        createdAt: order.createdAt,
+        notification: order.customerNotification
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Mark notification as read
+const markNotificationRead = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { 'customerNotification.isRead': true },
+      { new: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Order not found' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -1053,7 +1196,9 @@ module.exports = {
   rateDriver,
   getDriverEarnings,
   getDriverStats,
-  getDineInOrders, // NEW
-  callWaiter, // NEW
-  assignDriverToOrder, // NEW
+  getDineInOrders,
+  callWaiter,
+  getOrderStatusByTable, // NEW
+  markNotificationRead, // NEW
+  assignDriverToOrder,
 };

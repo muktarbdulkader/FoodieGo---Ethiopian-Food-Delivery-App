@@ -87,6 +87,58 @@ class ApiService {
     });
   }
 
+  /// Public GET request (no authentication required)
+  static Future<Map<String, dynamic>> getPublic(String endpoint) async {
+    return _executeWithRetry(() async {
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(ApiConstants.timeout);
+      return _handleResponse(response);
+    });
+  }
+
+  /// Public POST request (no authentication required)
+  static Future<Map<String, dynamic>> postPublic(
+      String endpoint, Map<String, dynamic> body) async {
+    return _executeWithRetry(() async {
+      final response = await http
+          .post(
+            Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConstants.timeout);
+      return _handleResponse(response);
+    });
+  }
+
+  /// Public PUT request (no authentication required)
+  static Future<Map<String, dynamic>> putPublic(
+      String endpoint, Map<String, dynamic> body) async {
+    return _executeWithRetry(() async {
+      final response = await http
+          .put(
+            Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConstants.timeout);
+      return _handleResponse(response);
+    });
+  }
+
   /// Execute request with automatic retry on network failures
   static Future<Map<String, dynamic>> _executeWithRetry(
     Future<Map<String, dynamic>> Function() request, {

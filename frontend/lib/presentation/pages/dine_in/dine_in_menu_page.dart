@@ -49,7 +49,7 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                'Table {dineIn.getTableNumber() ?? widget.tableId}',
+                'Table ${dineIn.getTableNumber() ?? widget.tableId}',
                 style: const TextStyle(fontSize: 12, color: Colors.white70),
               ),
             ],
@@ -83,7 +83,7 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
                         minHeight: 16,
                       ),
                       child: Text(
-                        '{cart.itemCount}',
+                        '${cart.itemCount}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -260,7 +260,7 @@ class _FoodCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\{food.price.toStringAsFixed(2)}',
+                        '\$${food.price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold,
@@ -273,7 +273,7 @@ class _FoodCard extends StatelessWidget {
                           context.read<CartProvider>().addToCart(food);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('{food.name} added to cart'),
+                              content: Text('${food.name} added to cart'),
                               duration: const Duration(seconds: 1),
                             ),
                           );

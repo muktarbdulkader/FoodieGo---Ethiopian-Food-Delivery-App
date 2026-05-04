@@ -14,6 +14,7 @@ import 'manage_events_page.dart';
 import 'manage_promotions_page.dart';
 import 'manage_tables_page.dart';
 import 'hotel_settings_page.dart';
+import 'kitchen_orders_page.dart';
 import '../../../state/auth/auth_provider.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -334,6 +335,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               crossAxisSpacing: 10,
               childAspectRatio: aspectRatio,
               children: [
+                _buildActionCard(
+                    'Kitchen', Icons.restaurant, const Color(0xFFFF6B35), () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const KitchenOrdersPage()));
+                }),
                 _buildActionCard(
                     'Orders', Icons.receipt_long, AppTheme.primaryColor, () {
                   Navigator.push(

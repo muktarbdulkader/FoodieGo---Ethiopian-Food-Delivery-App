@@ -324,11 +324,16 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         ),
       );
       
-      // Render the widget offscreen
+      // Render the widget offscreen using a custom pipeline
       final renderObject = RenderRepaintBoundary();
       final pipelineOwner = PipelineOwner();
       final buildOwner = BuildOwner(focusManager: FocusManager());
       
+      // Attach render object to pipeline first
+      renderObject.attach(pipelineOwner);
+      pipelineOwner.rootNode = renderObject;
+      
+      // Attach widget to render tree
       final rootElement = RenderObjectToWidgetAdapter<RenderBox>(
         container: renderObject,
         child: Directionality(
@@ -337,13 +342,11 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         ),
       ).attachToRenderTree(buildOwner);
       
+      // Build and layout
       buildOwner.buildScope(rootElement);
       buildOwner.finalizeTree();
       
-      pipelineOwner.rootNode = renderObject;
-      renderObject.attach(pipelineOwner);
-      
-      // Set size
+      // Set size and layout
       renderObject.layout(const BoxConstraints(
         minWidth: 500,
         maxWidth: 500,
@@ -351,10 +354,18 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         maxHeight: 600,
       ));
       
+      // Paint to create layer (required before toImage)
+      pipelineOwner.flushPaint();
+      
       // Convert to image
       final image = await renderObject.toImage(pixelRatio: 2.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final bytes = byteData!.buffer.asUint8List();
+      
+      if (byteData == null) {
+        throw Exception('Failed to generate QR code image');
+      }
+      
+      final bytes = byteData.buffer.asUint8List();
       
       // Download file (works on web, throws on mobile)
       try {

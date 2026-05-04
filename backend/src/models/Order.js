@@ -83,7 +83,7 @@ const deliverySchema = new mongoose.Schema({
 
 const orderSchema = new mongoose.Schema({
   orderNumber: { type: String },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Optional for guest dine-in orders
   restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
   items: [orderItemSchema],
   
@@ -98,6 +98,9 @@ const orderSchema = new mongoose.Schema({
   tableId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Table' 
+  },
+  tableNumber: { 
+    type: String // Store table number for easy display (e.g., "T05")
   },
   restaurantId: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -136,7 +139,15 @@ const orderSchema = new mongoose.Schema({
     message: { type: String },
     timestamp: { type: Date, default: Date.now },
     isRead: { type: Boolean, default: false }
-  }]
+  }],
+  
+  // Customer notifications for dine-in orders
+  customerNotification: {
+    message: { type: String },
+    type: { type: String, enum: ['success', 'error', 'info', 'warning'] },
+    timestamp: { type: Date },
+    isRead: { type: Boolean, default: false }
+  }
 }, { timestamps: true });
 
 // Generate order number before saving

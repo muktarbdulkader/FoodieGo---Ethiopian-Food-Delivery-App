@@ -201,13 +201,16 @@ class OrderRepository {
     required double totalPrice,
     String? notes,
   }) async {
-    final response = await ApiService.post('${ApiConstants.orders}/dine-in', {
+    // Use the regular order endpoint with type='dine_in'
+    final response = await ApiService.post(ApiConstants.orders, {
+      'type': 'dine_in',
       'restaurantId': restaurantId,
       'tableId': tableId,
       'items': items.map((item) => item.toJson()).toList(),
       'subtotal': subtotal,
       'tax': tax,
       'totalPrice': totalPrice,
+      'deliveryFee': 0,
       'notes': notes,
     });
 
