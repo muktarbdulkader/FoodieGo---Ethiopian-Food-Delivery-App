@@ -121,29 +121,45 @@ class PickupLocation {
 }
 
 class ChatMessage {
+  final String? id;
   final String? senderId;
+  final String? senderName;
   final String senderRole;
   final String message;
   final DateTime timestamp;
   final bool isRead;
+  final String? type; // 'text', 'location', 'image'
+  final Map<String, dynamic>? metadata;
 
   ChatMessage({
+    this.id,
     this.senderId,
+    this.senderName,
     required this.senderRole,
     required this.message,
     required this.timestamp,
     this.isRead = false,
+    this.type = 'text',
+    this.metadata,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
+      id: json['id']?.toString(),
       senderId: json['senderId']?.toString(),
+      senderName: json['senderName']?.toString() ??
+                  json['sender']?.toString() ??
+                  'Unknown',
       senderRole: json['senderRole']?.toString() ?? 'user',
       message: json['message']?.toString() ?? '',
       timestamp: json['timestamp'] != null
           ? DateTime.parse(json['timestamp'])
           : DateTime.now(),
       isRead: json['isRead'] ?? false,
+      type: json['type']?.toString() ?? 'text',
+      metadata: json['metadata'] != null
+          ? Map<String, dynamic>.from(json['metadata'])
+          : null,
     );
   }
 }

@@ -32,8 +32,9 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
   void _showAddFoodDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
+    final deliveryPriceCtrl = TextEditingController();
     final dineInPriceCtrl = TextEditingController();
+    final takeawayPriceCtrl = TextEditingController();
     final imageCtrl = TextEditingController();
     final prepTimeCtrl = TextEditingController(text: '20');
     final caloriesCtrl = TextEditingController(text: '500');
@@ -43,7 +44,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
     bool isSpicy = false;
     bool isFeatured = false;
     bool isDelivery = true;
-    bool isDineIn = true;
+    bool isDineIn = false;
     bool isTakeaway = false;
     Uint8List? selectedImageBytes;
     String? base64Image;
@@ -82,7 +83,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
           setModalState(() {
             selectedImageBytes = bytes;
             base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-            imageCtrl.text = ''; // Clear URL if image selected
+            imageCtrl.text = '';
           });
         }
       }
@@ -95,7 +96,7 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Container(
           padding: EdgeInsets.fromLTRB(
-              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -105,41 +106,51 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Header
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: AppTheme.primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.restaurant_menu,
-                          color: AppTheme.primaryColor),
+                          color: AppTheme.primaryColor, size: 24),
                     ),
                     const SizedBox(width: 12),
-                    const Text('Add New Food',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Expanded(
+                      child: Text('Add New Food Item',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Image picker section
+
+                // Image Section
+                _buildSectionTitle('Food Image'),
                 GestureDetector(
                   onTap: () => pickImage(setModalState),
                   child: Container(
-                    height: 150,
+                    height: 140,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: selectedImageBytes != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.memory(selectedImageBytes!, fit: BoxFit.cover),
+                                Image.memory(selectedImageBytes!,
+                                    fit: BoxFit.cover),
                                 Positioned(
                                   top: 8,
                                   right: 8,
@@ -149,13 +160,13 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                                       base64Image = null;
                                     }),
                                     child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
                                         color: Colors.red,
-                                        shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Icon(Icons.close,
-                                          color: Colors.white, size: 18),
+                                          color: Colors.white, size: 16),
                                     ),
                                   ),
                                 ),
@@ -165,12 +176,13 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate,
-                                  size: 48, color: Colors.grey.shade400),
+                              Icon(Icons.add_photo_alternate_outlined,
+                                  size: 40, color: Colors.grey.shade400),
                               const SizedBox(height: 8),
                               Text('Tap to add food image',
-                                  style:
-                                      TextStyle(color: Colors.grey.shade600)),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14)),
                             ],
                           ),
                   ),
@@ -179,90 +191,136 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                 // Or use URL
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                    Expanded(
+                        child:
+                            Divider(color: Colors.grey.shade300, thickness: 1)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text('OR',
-                          style: TextStyle(color: Colors.grey.shade500)),
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 12)),
                     ),
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                    Expanded(
+                        child:
+                            Divider(color: Colors.grey.shade300, thickness: 1)),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildTextField(imageCtrl, 'Image URL (optional)', Icons.link),
-                const SizedBox(height: 16),
-                _buildTextField(nameCtrl, 'Food Name', Icons.fastfood),
+                _buildModernTextField(
+                    imageCtrl, 'Image URL (optional)', Icons.link),
+                const SizedBox(height: 20),
+
+                // Basic Info Section
+                _buildSectionTitle('Basic Information'),
+                _buildModernTextField(nameCtrl, 'Food Name', Icons.fastfood),
                 const SizedBox(height: 12),
-                _buildTextField(descCtrl, 'Description', Icons.description,
+                _buildModernTextField(
+                    descCtrl, 'Description', Icons.description,
                     maxLines: 2),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _buildTextField(
-                            priceCtrl, 'Delivery Price (ETB)', Icons.attach_money,
-                            isNumber: true)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _buildTextField(
-                            discountCtrl, 'Discount %', Icons.local_offer,
-                            isNumber: true)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                    dineInPriceCtrl, 'Dine-In Price (ETB) - Optional', Icons.restaurant,
-                    isNumber: true),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _buildTextField(
-                            prepTimeCtrl, 'Prep Time (min)', Icons.timer,
-                            isNumber: true)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _buildTextField(caloriesCtrl, 'Calories',
-                            Icons.local_fire_department,
-                            isNumber: true)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Menu Types Section
-                const Text('Available For',
-                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
+                const SizedBox(height: 20),
+
+                // Menu Types Section (moved before pricing)
+                _buildSectionTitle('Available For'),
                 const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8,
+                  spacing: 10,
+                  runSpacing: 8,
                   children: [
-                    FilterChip(
-                      label: const Text('Delivery'),
-                      selected: isDelivery,
+                    _buildMenuTypeChip(
+                      label: 'Delivery',
+                      icon: Icons.delivery_dining,
+                      color: const Color(0xFF3B82F6),
+                      isSelected: isDelivery,
                       onSelected: (v) => setModalState(() => isDelivery = v),
-                      selectedColor:
-                          const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFF3B82F6),
                     ),
-                    FilterChip(
-                      label: const Text('Dine-In'),
-                      selected: isDineIn,
+                    _buildMenuTypeChip(
+                      label: 'Dine-In',
+                      icon: Icons.restaurant,
+                      color: const Color(0xFF8B5CF6),
+                      isSelected: isDineIn,
                       onSelected: (v) => setModalState(() => isDineIn = v),
-                      selectedColor:
-                          const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFF8B5CF6),
                     ),
-                    FilterChip(
-                      label: const Text('Takeaway'),
-                      selected: isTakeaway,
+                    _buildMenuTypeChip(
+                      label: 'Takeaway',
+                      icon: Icons.takeout_dining,
+                      color: const Color(0xFF10B981),
+                      isSelected: isTakeaway,
                       onSelected: (v) => setModalState(() => isTakeaway = v),
-                      selectedColor:
-                          const Color(0xFF10B981).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFF10B981),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                // Category Selector - Professional UI
+                const SizedBox(height: 20),
+
+                // Pricing Section - Dynamic based on selected menu types
+                if (isDelivery || isDineIn || isTakeaway) ...[
+                  _buildSectionTitle('Pricing'),
+                  const SizedBox(height: 12),
+
+                  // Delivery Price
+                  if (isDelivery) ...[
+                    _buildPriceField(
+                      controller: deliveryPriceCtrl,
+                      label: 'Delivery Price (ETB)',
+                      icon: Icons.delivery_dining,
+                      color: const Color(0xFF3B82F6),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Dine-In Price
+                  if (isDineIn) ...[
+                    _buildPriceField(
+                      controller: dineInPriceCtrl,
+                      label: 'Dine-In Price (ETB)',
+                      icon: Icons.restaurant,
+                      color: const Color(0xFF8B5CF6),
+                      hint: 'Same as delivery if empty',
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Takeaway Price
+                  if (isTakeaway) ...[
+                    _buildPriceField(
+                      controller: takeawayPriceCtrl,
+                      label: 'Takeaway Price (ETB)',
+                      icon: Icons.takeout_dining,
+                      color: const Color(0xFF10B981),
+                      hint: 'Same as delivery if empty',
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Discount (always visible when any menu type selected)
+                  _buildPriceField(
+                    controller: discountCtrl,
+                    label: 'Discount %',
+                    icon: Icons.local_offer_outlined,
+                    color: const Color(0xFFEF4444),
+                    isNumber: true,
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // Additional Details
+                _buildSectionTitle('Additional Details'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildModernTextField(prepTimeCtrl,
+                            'Prep Time (min)', Icons.timer_outlined,
+                            isNumber: true)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _buildModernTextField(caloriesCtrl, 'Calories',
+                            Icons.local_fire_department_outlined,
+                            isNumber: true)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Category Section
                 CategorySelector(
                   initialCategory: category,
                   onCategorySelected: (selectedCategory) {
@@ -272,141 +330,196 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Tags
                 Wrap(
-                  spacing: 8,
+                  spacing: 10,
+                  runSpacing: 8,
                   children: [
-                    FilterChip(
-                      label: const Text('Vegetarian'),
-                      selected: isVegetarian,
+                    _buildTagChip(
+                      label: 'Vegetarian',
+                      icon: Icons.eco,
+                      isSelected: isVegetarian,
                       onSelected: (v) => setModalState(() => isVegetarian = v),
-                      selectedColor:
-                          const Color(0xFF10B981).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFF10B981),
+                      color: const Color(0xFF22C55E),
                     ),
-                    FilterChip(
-                      label: const Text('Spicy'),
-                      selected: isSpicy,
+                    _buildTagChip(
+                      label: 'Spicy',
+                      icon: Icons.whatshot,
+                      isSelected: isSpicy,
                       onSelected: (v) => setModalState(() => isSpicy = v),
-                      selectedColor:
-                          const Color(0xFFEF4444).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFFEF4444),
+                      color: const Color(0xFFEF4444),
                     ),
-                    FilterChip(
-                      label: const Text('Featured'),
-                      selected: isFeatured,
+                    _buildTagChip(
+                      label: 'Featured',
+                      icon: Icons.star,
+                      isSelected: isFeatured,
                       onSelected: (v) => setModalState(() => isFeatured = v),
-                      selectedColor:
-                          const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                      checkmarkColor: const Color(0xFFF59E0B),
+                      color: const Color(0xFFF59E0B),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () async {
-                    if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                            content: Text('Please fill required fields'),
-                            backgroundColor: AppTheme.errorColor),
-                      );
-                      return;
-                    }
+                const SizedBox(height: 28),
 
-                    // Build menuTypes array
-                    List<String> menuTypes = [];
-                    if (isDelivery) menuTypes.add('delivery');
-                    if (isDineIn) menuTypes.add('dine_in');
-                    if (isTakeaway) menuTypes.add('takeaway');
+                // Add Food Button
+                Consumer<AdminProvider>(
+                  builder: (context, adminProvider, _) {
+                    final isLoading = adminProvider.isLoading;
+                    
+                    return ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE53935),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
+                      ),
+                      onPressed: isLoading ? null : () async {
+                        // Validate at least one menu type is selected
+                        if (!isDelivery && !isDineIn && !isTakeaway) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please select at least one menu type'),
+                                backgroundColor: AppTheme.errorColor,
+                                duration: Duration(seconds: 2)),
+                          );
+                          return;
+                        }
 
-                    if (menuTypes.isEmpty) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                            content: Text('Please select at least one menu type'),
-                            backgroundColor: AppTheme.errorColor),
-                      );
-                      return;
-                    }
+                        // Validate required fields
+                        if (nameCtrl.text.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter food name'),
+                                backgroundColor: AppTheme.errorColor,
+                                duration: Duration(seconds: 2)),
+                          );
+                          return;
+                        }
 
-                    final finalCategory = category;
+                        // Check that at least one price is entered for selected menu types
+                        if (isDelivery && deliveryPriceCtrl.text.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter delivery price'),
+                                backgroundColor: AppTheme.errorColor,
+                                duration: Duration(seconds: 2)),
+                          );
+                          return;
+                        }
 
-                    // Determine image: base64 > URL > default
-                    String imageValue;
-                    if (base64Image != null) {
-                      imageValue = base64Image!;
-                    } else if (imageCtrl.text.isNotEmpty) {
-                      imageValue = imageCtrl.text;
-                    } else {
-                      imageValue =
-                          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
-                    }
+                        // Build menuTypes array
+                        List<String> menuTypes = [];
+                        if (isDelivery) menuTypes.add('delivery');
+                        if (isDineIn) menuTypes.add('dine_in');
+                        if (isTakeaway) menuTypes.add('takeaway');
 
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(ctx);
-                    final foodProvider = context.read<FoodProvider>();
+                        final finalCategory = category;
 
-                    // Build food data
-                    final foodData = {
-                      'name': nameCtrl.text,
-                      'description': descCtrl.text,
-                      'price': double.tryParse(priceCtrl.text) ?? 0,
-                      'discount': int.tryParse(discountCtrl.text) ?? 0,
-                      'category': finalCategory,
-                      'image': imageValue,
-                      'preparationTime': int.tryParse(prepTimeCtrl.text) ?? 20,
-                      'calories': int.tryParse(caloriesCtrl.text) ?? 500,
-                      'isVegetarian': isVegetarian,
-                      'isSpicy': isSpicy,
-                      'isFeatured': isFeatured,
-                      'menuTypes': menuTypes,
-                    };
+                        // Determine image: base64 > URL > default
+                        String imageValue;
+                        if (base64Image != null) {
+                          imageValue = base64Image!;
+                        } else if (imageCtrl.text.isNotEmpty) {
+                          imageValue = imageCtrl.text;
+                        } else {
+                          imageValue =
+                              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+                        }
 
-                    // Add dineInPrice if provided
-                    if (dineInPriceCtrl.text.isNotEmpty) {
-                      final dineInPrice = double.tryParse(dineInPriceCtrl.text);
-                      if (dineInPrice != null) {
-                        foodData['dineInPrice'] = dineInPrice;
-                      }
-                    }
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(ctx);
+                        final foodProvider = context.read<FoodProvider>();
 
-                    try {
-                      final success =
-                          await context.read<AdminProvider>().createFood(foodData);
+                        // Build food data with proper pricing
+                        final foodData = {
+                          'name': nameCtrl.text,
+                          'description': descCtrl.text,
+                          'price': double.tryParse(deliveryPriceCtrl.text) ?? 0,
+                          'discount': int.tryParse(discountCtrl.text) ?? 0,
+                          'category': finalCategory,
+                          'image': imageValue,
+                          'preparationTime': int.tryParse(prepTimeCtrl.text) ?? 20,
+                          'calories': int.tryParse(caloriesCtrl.text) ?? 500,
+                          'isVegetarian': isVegetarian,
+                          'isSpicy': isSpicy,
+                          'isFeatured': isFeatured,
+                          'menuTypes': menuTypes,
+                        };
 
-                      if (success) {
-                        navigator.pop();
-                        foodProvider.fetchFoods();
-                        scaffoldMessenger.showSnackBar(
-                          const SnackBar(
-                              content: Text('Food added successfully!'),
-                              backgroundColor: AppTheme.successColor),
-                        );
-                      } else {
-                        scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                              content: Text('Failed to add food: ${context.read<AdminProvider>().error ?? "Unknown error"}'),
-                              backgroundColor: AppTheme.errorColor),
-                        );
-                      }
-                    } catch (e) {
-                      scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: AppTheme.errorColor),
-                      );
-                    }
+                        // Add dineInPrice if provided
+                        if (dineInPriceCtrl.text.isNotEmpty) {
+                          final dineInPrice = double.tryParse(dineInPriceCtrl.text);
+                          if (dineInPrice != null) {
+                            foodData['dineInPrice'] = dineInPrice;
+                          }
+                        }
+
+                        // Add takeawayPrice if provided
+                        if (takeawayPriceCtrl.text.isNotEmpty) {
+                          final takeawayPrice =
+                              double.tryParse(takeawayPriceCtrl.text);
+                          if (takeawayPrice != null) {
+                            foodData['takeawayPrice'] = takeawayPrice;
+                          }
+                        }
+
+                        try {
+                          final success = await context
+                              .read<AdminProvider>()
+                              .createFood(foodData);
+
+                          if (success) {
+                            navigator.pop();
+                            foodProvider.fetchFoods();
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                    const SizedBox(width: 12),
+                                    Text('${nameCtrl.text} added!'),
+                                  ],
+                                ),
+                                backgroundColor: AppTheme.successColor,
+                                duration: const Duration(milliseconds: 1500),
+                              ),
+                            );
+                          } else {
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Failed: ${context.read<AdminProvider>().error ?? "Unknown error"}'),
+                                  backgroundColor: AppTheme.errorColor,
+                                  duration: const Duration(seconds: 3)),
+                            );
+                          }
+                        } catch (e) {
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: AppTheme.errorColor,
+                                duration: const Duration(seconds: 3)),
+                          );
+                        }
+                      },
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text('Add Food',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
+                    );
                   },
-                  child: const Text('Add Food',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
                 ),
               ],
             ),
@@ -635,11 +748,208 @@ class _ManageFoodsPageState extends State<ManageFoodsPage> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+            borderSide:
+                const BorderSide(color: AppTheme.primaryColor, width: 2),
           ),
           filled: true,
           fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  // New helper methods for improved Add Food dialog
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF374151),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernTextField(
+      TextEditingController controller, String label, IconData icon,
+      {int maxLines = 1, bool isNumber = false}) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE53935), width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
+
+  Widget _buildMenuTypeChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required Function(bool) onSelected,
+  }) {
+    return InkWell(
+      onTap: () => onSelected(!isSelected),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 18, color: isSelected ? color : Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? color : Colors.grey.shade700,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.check, size: 14, color: color),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color color,
+    String? hint,
+    bool isNumber = true,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Container(
+          margin: const EdgeInsets.only(right: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+            ),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        suffixIcon: label.contains('Discount')
+            ? Container(
+                margin: const EdgeInsets.only(right: 12),
+                child: Chip(
+                  label: const Text('%'),
+                  backgroundColor: const Color(0xFFEF4444).withOpacity(0.1),
+                  side: BorderSide.none,
+                  padding: EdgeInsets.zero,
+                  labelStyle: const TextStyle(
+                    color: Color(0xFFEF4444),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: color, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  Widget _buildTagChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required Function(bool) onSelected,
+  }) {
+    return InkWell(
+      onTap: () => onSelected(!isSelected),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade400,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : color,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+              ),
+            ),
+          ],
         ),
       ),
     );

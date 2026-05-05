@@ -1144,6 +1144,9 @@ const getDineInOrders = async (req, res, next) => {
   }
 };
 
+// In-memory storage for waiter calls (could be moved to database later)
+const waiterCalls = new Map();
+
 // Call waiter (dine-in feature)
 const callWaiter = async (req, res, next) => {
   try {
@@ -1166,17 +1169,32 @@ const callWaiter = async (req, res, next) => {
       });
     }
 
+    const restaurantId = table.restaurantId._id.toString();
+    
+    // Store waiter call
+    const callId = `${tableId}_${Date.now()}`;
+    const waiterCall = {
+      _id: callId,
+      id: callId,
+      tableId: tableId,
+      tableNumber: table.tableNumber,
+      restaurantId: restaurantId,
+      message: message || 'Customer needs assistance',
+      createdAt: new Date().toISOString(),
+      status: 'pending'
+    };
+    
+    // Store in memory (grouped by restaurant)
+    if (!waiterCalls.has(restaurantId)) {
+      waiterCalls.set(restaurantId, []);
+    }
+    waiterCalls.get(restaurantId).push(waiterCall);
+
     // Emit WebSocket event to notify restaurant staff
     try {
-      const restaurantId = table.restaurantId._id.toString();
-      
       socketManager.broadcastToKitchen(restaurantId, 'waiter:called', {
         eventType: 'waiter:called',
-        tableId: tableId,
-        tableNumber: table.tableNumber,
-        restaurantId: restaurantId,
-        message: message || 'Customer needs assistance',
-        timestamp: new Date().toISOString()
+        ...waiterCall
       });
 
       console.log(`[ORDER] Waiter called for table ${table.tableNumber}`);
@@ -1193,6 +1211,55 @@ const callWaiter = async (req, res, next) => {
         restaurantName: table.restaurantId?.hotelName,
         requestMessage: message || 'Customer needs assistance'
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get pending waiter calls (for kitchen display)
+const getPendingWaiterCalls = async (req, res, next) => {
+  try {
+    const restaurantId = req.user._id.toString();
+    
+    // Get calls for this restaurant
+    const calls = waiterCalls.get(restaurantId) || [];
+    
+    // Filter only pending calls
+    const pendingCalls = calls.filter(call => call.status === 'pending');
+    
+    res.json({ 
+      success: true, 
+      count: pendingCalls.length,
+      data: pendingCalls 
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Acknowledge waiter call (mark as attended)
+const acknowledgeWaiterCall = async (req, res, next) => {
+  try {
+    const { callId } = req.params;
+    const restaurantId = req.user._id.toString();
+    
+    const calls = waiterCalls.get(restaurantId) || [];
+    const callIndex = calls.findIndex(call => call._id === callId || call.id === callId);
+    
+    if (callIndex === -1) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Waiter call not found' 
+      });
+    }
+    
+    // Remove the call from pending list
+    calls.splice(callIndex, 1);
+    
+    res.json({ 
+      success: true, 
+      message: 'Waiter call acknowledged' 
     });
   } catch (error) {
     next(error);
@@ -1294,6 +1361,8 @@ module.exports = {
   getDriverStats,
   getDineInOrders,
   callWaiter,
+  getPendingWaiterCalls,
+  acknowledgeWaiterCall,
   getOrderStatusByTable, // NEW
   markNotificationRead, // NEW
   assignDriverToOrder,

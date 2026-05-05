@@ -26,15 +26,23 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   bool _isLoading = true;
   String? _error;
   WebSocketProvider? _webSocketProvider;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadOrderStatus();
     
-    // Setup WebSocket listener
+    // Setup WebSocket listener (for authenticated users)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupWebSocket();
+    });
+    
+    // Auto-refresh every 10 seconds for public users (WebSocket fallback)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        _loadOrderStatus();
+      }
     });
   }
   
@@ -56,11 +64,12 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     final status = data['status'];
     final orderNumber = data['orderNumber'] ?? 'N/A';
     
+    // Use message from kitchen if available, otherwise generate locally
+    final message = data['message'] ?? _getStatusUpdateMessage(status, orderNumber);
+    final backgroundColor = _getStatusColor(status);
+    
     // Show snackbar for status updates
     if (mounted) {
-      final message = _getStatusUpdateMessage(status, orderNumber);
-      final backgroundColor = _getStatusColor(status);
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -89,7 +98,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       _vibrateLong(); // Order cancelled - long vibration
       // Show dialog for cancellation
       if (mounted) {
-        _showCancellationDialog(orderNumber);
+        _showCancellationDialog(orderNumber, reason: data['reason']);
       }
     }
     
@@ -131,7 +140,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     }
   }
   
-  void _showCancellationDialog(String orderNumber) {
+  void _showCancellationDialog(String orderNumber, {String? reason}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -149,9 +158,45 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
             ),
           ],
         ),
-        content: Text(
-          'Your order #$orderNumber has been cancelled. Please contact the waiter for assistance.',
-          style: const TextStyle(fontSize: 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your order #$orderNumber has been cancelled by the kitchen.',
+              style: const TextStyle(fontSize: 16),
+            ),
+            if (reason != null && reason.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reason:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(reason),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            const Text(
+              'Please contact the waiter for assistance or place a new order.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
         ),
         actions: [
           ElevatedButton(
@@ -189,6 +234,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   @override
   void dispose() {
+    // Cancel refresh timer
+    _refreshTimer?.cancel();
+    
     // Leave room and remove listeners
     if (_webSocketProvider != null) {
       final roomName = 'table:${widget.tableId}';
@@ -709,42 +757,30 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   }
 
   Future<void> _callWaiter() async {
-    // Check if connected
-    final isConnected = _webSocketProvider?.isConnected ?? false;
-    
-    if (!isConnected) {
-      // Queue the action for when connection is restored
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
+    // Show loading
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text('Offline - Request will be sent when connection is restored'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Calling waiter...'),
+              ),
+            ],
           ),
-        );
-      }
-      
-      // Queue the message
-      _webSocketProvider?.emit('waiter:called', {
-        'tableId': widget.tableId,
-        'message': 'Customer needs assistance',
-      });
-      return;
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
     
     try {

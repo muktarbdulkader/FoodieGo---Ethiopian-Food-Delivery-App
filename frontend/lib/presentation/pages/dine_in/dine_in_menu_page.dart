@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/storage_utils.dart';
 import '../../../core/localization/app_localizations.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../data/services/api_service.dart';
 import '../../../state/food/food_provider.dart';
 import '../../../state/cart/cart_provider.dart';
 import '../../../state/dine_in/dine_in_provider.dart';
@@ -411,6 +413,16 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
               ),
             ),
           );
+        } else if (label == 'Profile') {
+          // Show profile/settings bottom sheet
+          _showProfileSheet();
+        } else if (label == 'Favorites') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Favorites feature coming soon!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
       },
       borderRadius: BorderRadius.circular(12),
@@ -439,6 +451,179 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
     );
   }
 
+  void _showProfileSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.person, color: AppTheme.primaryColor),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Guest Profile',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildProfileOption(
+              ctx,
+              Icons.language,
+              'Change Language',
+              () {
+                Navigator.pop(ctx);
+                _showLanguageSelector();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildProfileOption(
+              ctx,
+              Icons.receipt_long,
+              'View Orders',
+              () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OrderStatusPage(
+                      tableId: widget.tableId,
+                      restaurantId: widget.restaurantId,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildProfileOption(
+              ctx,
+              Icons.help_outline,
+              'Call Waiter',
+              () {
+                Navigator.pop(ctx);
+                _callWaiter();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileOption(BuildContext ctx, IconData icon, String title, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.primaryColor),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _callWaiter() async {
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(child: Text('Calling waiter...')),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    try {
+      await ApiService.postPublic(
+        '${ApiConstants.orders}/dine-in/call-waiter',
+        {
+          'tableId': widget.tableId,
+          'message': 'Customer needs assistance',
+        },
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Waiter has been notified!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Failed to call waiter: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildSliverAppBar(BuildContext context) {
     final localizations = AppLocalizations(_currentLanguage);
     
@@ -452,6 +637,33 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: IconButton(
+            onPressed: () {
+              // Refresh menu
+              context.read<FoodProvider>().fetchFoodsByHotel(
+                widget.restaurantId,
+                menuType: 'dine_in',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Refreshing menu...'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.refresh, color: Colors.white, size: 20),
+            ),
+            tooltip: 'Refresh Menu',
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: IconButton(
@@ -818,70 +1030,27 @@ class _FoodCard extends StatelessWidget {
                         ),
                         GestureDetector(
                           onTap: () {
+                            // Add to cart immediately
                             context.read<CartProvider>().addToCart(food);
                             
-                            // Show animated success message
+                            // Show simple, fast feedback
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.check_circle,
-                                          color: Colors.green,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Text(
-                                              'Added to Cart!',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              food.name,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.white70,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Icon(
-                                        Icons.shopping_cart,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                    const SizedBox(width: 12),
+                                    Text('${food.name} added to cart'),
+                                  ],
                                 ),
                                 backgroundColor: Colors.green.shade600,
-                                duration: const Duration(seconds: 2),
+                                duration: const Duration(milliseconds: 1500),
                                 behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                margin: const EdgeInsets.only(
+                                  bottom: 80,
+                                  left: 16,
+                                  right: 16,
                                 ),
-                                margin: const EdgeInsets.all(16),
-                                elevation: 6,
                               ),
                             );
                           },
@@ -1024,65 +1193,21 @@ class _FoodCard extends StatelessWidget {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text(
-                                        'Added to Cart!',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        food.name,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.white70,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.shopping_cart,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ],
-                            ),
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                              const SizedBox(width: 12),
+                              Text('${food.name} added to cart'),
+                            ],
                           ),
                           backgroundColor: Colors.green.shade600,
-                          duration: const Duration(seconds: 2),
+                          duration: const Duration(milliseconds: 1500),
                           behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          margin: const EdgeInsets.only(
+                            bottom: 80,
+                            left: 16,
+                            right: 16,
                           ),
-                          margin: const EdgeInsets.all(16),
-                          elevation: 6,
                         ),
                       );
                     },

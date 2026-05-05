@@ -98,8 +98,8 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   }
 
   void _startLocationUpdates() {
-    // Update location every 30 seconds when online
-    _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // Update location every 10 seconds when online for real-time tracking
+    _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted && _isOnline && _myDeliveries.isNotEmpty) {
         _updateLocation();
       }
@@ -682,17 +682,20 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                 if (isMyDelivery) ...[
                   _buildDeliveryActions(order),
                   const SizedBox(height: 8),
-                  // Chat button
+                  // Chat button with live location sharing
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => DeliveryChatPage(order: order)),
+                            builder: (_) => DeliveryChatPage(
+                              order: order,
+                              isDriver: true,
+                            )),
                       ),
                       icon: const Icon(Icons.chat, size: 18),
-                      label: const Text('Chat with Customer'),
+                      label: const Text('Chat & Share Location'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF8B5CF6),
                         side: const BorderSide(color: Color(0xFF8B5CF6)),

@@ -4,7 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
-import 'order_chat_page.dart';
+import '../delivery/delivery_chat_page.dart';
+import '../../widgets/delivery_map_widget.dart';
 
 class OrderTrackingPage extends StatefulWidget {
   final Order order;
@@ -167,125 +168,72 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
     if (!hasDriver || !isActive) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+    return Column(
+      children: [
+        // Live Map with Driver Location
+        DeliveryMapWidget(
+          driverLocation: delivery.driverLocation,
+          restaurantLocation: delivery.pickupLocation,
+          customerLocation: widget.order.deliveryAddress,
+          driverName: delivery.driverName,
+          status: delivery.trackingStatus,
+          distance: delivery.distance,
+          estimatedMinutes: _estimatedMinutes,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+        const SizedBox(height: 20),
+        // Action buttons
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => DeliveryChatPage(
+                            order: widget.order,
+                            isDriver: false,
+                          )),
                 ),
-                child: const Icon(Icons.location_on,
-                    color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Live Tracking',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    Text(_getTrackingStatusText(delivery.trackingStatus),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              if (_isLoadingTracking)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Estimated time countdown
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildTimeInfo(
-                    'Estimated', '$_estimatedMinutes min', Icons.timer),
-                Container(height: 40, width: 1, color: Colors.white30),
-                _buildTimeInfo(
-                    'Distance',
-                    '${(delivery.distance ?? 2.5).toStringAsFixed(1)} km',
-                    Icons.route),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => OrderChatPage(order: widget.order)),
-                  ),
-                  icon: const Icon(Icons.chat, size: 18),
-                  label: const Text('Chat'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF3B82F6),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                icon: const Icon(Icons.chat, size: 18),
+                label: const Text('Chat with Driver'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+            ),
+            const SizedBox(width: 12),
+            if (delivery.driverPhone != null)
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    if (delivery.driverPhone != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Call: ${delivery.driverPhone}'),
-                          backgroundColor: AppTheme.successColor,
-                        ),
-                      );
-                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Calling: ${delivery.driverPhone}'),
+                        backgroundColor: AppTheme.successColor,
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.phone, size: 18),
-                  label: const Text('Call'),
+                  label: const Text('Call Driver'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF3B82F6),
+                    side: const BorderSide(color: Color(0xFF3B82F6)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -877,7 +825,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => OrderChatPage(order: widget.order))),
+                          builder: (_) => DeliveryChatPage(
+                                order: widget.order,
+                                isDriver: false,
+                              ))),
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(

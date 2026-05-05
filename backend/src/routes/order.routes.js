@@ -24,6 +24,8 @@ const {
   getDriverStats,
   getDineInOrders,
   callWaiter,
+  getPendingWaiterCalls,
+  acknowledgeWaiterCall,
   getOrderStatusByTable, // NEW
   markNotificationRead, // NEW
   assignDriverToOrder,
@@ -44,6 +46,8 @@ router.use(protect);
 // Dine-in routes (NEW)
 router.get('/dine-in', getDineInOrders);
 router.post('/dine-in/call-waiter', callWaiter);
+router.get('/dine-in/waiter-calls', authorize('restaurant'), getPendingWaiterCalls);
+router.put('/dine-in/waiter-calls/:callId/acknowledge', authorize('restaurant'), acknowledgeWaiterCall);
 
 // Delivery routes (must be before /:id routes)
 router.get('/delivery/available', getAvailableDeliveryOrders);

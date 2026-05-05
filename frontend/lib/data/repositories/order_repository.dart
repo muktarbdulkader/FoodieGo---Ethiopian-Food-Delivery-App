@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/order.dart';
 import '../models/cart_item.dart';
 import '../services/api_service.dart';
@@ -153,11 +154,19 @@ class OrderRepository {
   }
 
   /// Send chat message
-  Future<ChatMessage> sendChatMessage(String orderId, String message) async {
-    final response =
-        await ApiService.post('${ApiConstants.orders}/$orderId/chat', {
+  Future<ChatMessage> sendChatMessage(
+    String orderId,
+    String message, {
+    String? type,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final body = {
       'message': message,
-    });
+      if (type != null) 'type': type,
+      if (metadata != null) 'metadata': metadata,
+    };
+    final response =
+        await ApiService.post('${ApiConstants.orders}/$orderId/chat', body);
     return ChatMessage.fromJson(response['data']);
   }
 
@@ -215,5 +224,44 @@ class OrderRepository {
     });
 
     return Order.fromJson(response['data']);
+  }
+
+  /// Get pending waiter calls (for kitchen display)
+  Future<List<Map<String, dynamic>>> getPendingWaiterCalls() async {
+    try {
+      final response = await ApiService.get('${ApiConstants.orders}/dine-in/waiter-calls');
+      final List<dynamic> calls = response['data'] ?? [];
+      return calls.map((call) => call as Map<String, dynamic>).toList();
+    } catch (e) {
+      debugPrint('Error fetching waiter calls: $e');
+      return [];
+    }
+  }
+
+  /// Acknowledge waiter call (mark as attended)
+  Future<void> acknowledgeWaiterCall(String callId) async {
+    await ApiService.put('${ApiConstants.orders}/dine-in/waiter-calls/$callId/acknowledge', {});
+  }
+
+  /// Send notification to customer about order status
+  Future<void> sendOrderNotification({
+    required String orderId,
+    required String tableId,
+    required String status,
+    required String message,
+    String? languageCode,
+  }) async {
+    try {
+      await ApiService.post('${ApiConstants.orders}/$orderId/notify', {
+        'tableId': tableId,
+        'status': status,
+        'message': message,
+        'languageCode': languageCode ?? 'en',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error sending notification: $e');
+      // Don't throw - notifications are best-effort
+    }
   }
 }
