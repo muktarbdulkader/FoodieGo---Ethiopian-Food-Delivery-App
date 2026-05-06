@@ -170,6 +170,30 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
 
     return Column(
       children: [
+        // Tracking status message
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: AppTheme.primaryColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _getTrackingStatusText(delivery.trackingStatus!),
+                  style: const TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         // Live Map with Driver Location
         DeliveryMapWidget(
           driverLocation: delivery.driverLocation,
@@ -233,22 +257,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
               ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildTimeInfo(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white70, size: 20),
-        const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
-        Text(label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11)),
       ],
     );
   }

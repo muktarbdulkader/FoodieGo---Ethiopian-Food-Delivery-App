@@ -128,6 +128,63 @@ function initializeSocketServer(httpServer) {
       }
     });
 
+    // Handle chat messages
+    socket.on('chat:message', (data) => {
+      try {
+        const { orderId, message, senderRole, type, metadata } = data;
+        
+        if (!orderId) {
+          socket.emit('error', { message: 'Order ID is required for chat' });
+          return;
+        }
+
+        // Broadcast to order room
+        const roomName = `order:${orderId}`;
+        io.to(roomName).emit('chat:message', {
+          orderId,
+          id: data.id,
+          message,
+          sender: user.name,
+          senderRole: senderRole || user.role,
+          type: type || 'text',
+          timestamp: new Date().toISOString(),
+          metadata
+        });
+
+        console.log(`[SOCKET] Chat message sent in order ${orderId} by ${user.name}`);
+      } catch (error) {
+        console.error('[SOCKET] Error handling chat message:', error);
+        socket.emit('error', { message: 'Failed to send chat message' });
+      }
+    });
+
+    // Handle driver location updates
+    socket.on('driver:location', (data) => {
+      try {
+        const { orderId, location, driverName } = data;
+        
+        if (!orderId || !location) {
+          socket.emit('error', { message: 'Order ID and location are required' });
+          return;
+        }
+
+        // Broadcast to order room
+        const roomName = `order:${orderId}`;
+        io.to(roomName).emit('driver:location', {
+          orderId,
+          driverId: user._id.toString(),
+          driverName: driverName || user.name,
+          location,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log(`[SOCKET] Driver location updated for order ${orderId}`);
+      } catch (error) {
+        console.error('[SOCKET] Error handling driver location:', error);
+        socket.emit('error', { message: 'Failed to update location' });
+      }
+    });
+
     // Handle ping/pong for connection health
     socket.on('ping', () => {
       socket.emit('pong', { timestamp: new Date().toISOString() });

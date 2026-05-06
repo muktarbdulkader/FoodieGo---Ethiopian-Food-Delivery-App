@@ -135,8 +135,10 @@ const orderSchema = new mongoose.Schema({
   // Chat messages between user and driver
   chatMessages: [{
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    senderRole: { type: String, enum: ['user', 'driver'] },
+    senderRole: { type: String, enum: ['user', 'driver', 'restaurant'] },
     message: { type: String },
+    type: { type: String, enum: ['text', 'location', 'image'], default: 'text' },
+    metadata: { type: mongoose.Schema.Types.Mixed },
     timestamp: { type: Date, default: Date.now },
     isRead: { type: Boolean, default: false }
   }],
@@ -158,5 +160,14 @@ orderSchema.pre('save', async function(next) {
   }
   next();
 });
+
+// Indexes for efficient queries
+orderSchema.index({ user: 1, createdAt: -1 }); // User's orders sorted by date
+orderSchema.index({ tableId: 1, status: 1 }); // Dine-in orders by table
+orderSchema.index({ type: 1, status: 1 }); // Orders by type and status
+orderSchema.index({ restaurantId: 1, createdAt: -1 }); // Restaurant's orders
+orderSchema.index({ 'delivery.driverId': 1 }); // Driver's orders
+orderSchema.index({ 'items.hotelId': 1 }); // Orders by hotel
+orderSchema.index({ status: 1, createdAt: -1 }); // Orders by status
 
 module.exports = mongoose.model('Order', orderSchema);

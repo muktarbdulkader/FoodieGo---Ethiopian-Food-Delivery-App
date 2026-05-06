@@ -8,9 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/kitchen_localizations.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/auth/auth_provider.dart';
-import '../../widgets/connection_status_indicator.dart';
 import '../../widgets/order_timer.dart';
-import '../../widgets/connection_banner.dart';
 
 class KitchenOrdersPage extends StatefulWidget {
   const KitchenOrdersPage({super.key});
@@ -25,12 +23,14 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   List<Order> _orders = [];
   List<Map<String, dynamic>> _waiterCalls = []; // Pending waiter calls
   bool _isLoading = true;
+  bool _isRefreshing = false; // Track manual refresh state
   bool _showWaiterCalls = false; // Toggle to show waiter calls panel
   String _selectedFilter = 'pending'; // pending, confirmed, preparing, ready
   String _currentLanguage = 'en'; // Language for notifications (en, am, om)
   WebSocketProvider? _webSocketProvider;
   String? _restaurantId;
   Timer? _refreshTimer;
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
@@ -200,7 +200,10 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     super.dispose();
   }
 
-  Future<void> _loadOrders() async {
+  Future<void> _loadOrders({int retryCount = 0}) async {
+    const maxRetries = 3;
+    const retryDelay = Duration(seconds: 5);
+    
     try {
       final orders = await _orderRepository.getAllOrders();
       
@@ -220,13 +223,79 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         setState(() {
           _orders = dineInOrders;
           _isLoading = false;
+          _isRefreshing = false;
+          _lastUpdated = DateTime.now();
         });
       }
     } catch (e) {
       debugPrint('Error loading kitchen orders: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
+      
+      // Retry logic for timeout errors (backend sleeping on Render free tier)
+      if (e.toString().contains('timed out') && retryCount < maxRetries) {
+        debugPrint('Retrying... Attempt ${retryCount + 1}/$maxRetries');
+        
+        if (mounted) {
+          // Show retry message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Server is waking up... Retry ${retryCount + 1}/$maxRetries'),
+              backgroundColor: Colors.orange,
+              duration: retryDelay,
+            ),
+          );
+        }
+        
+        // Wait before retrying
+        await Future.delayed(retryDelay);
+        
+        // Retry
+        return _loadOrders(retryCount: retryCount + 1);
       }
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+        });
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString().contains('timed out') ? 'Server is sleeping. Please wait and try again.' : e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _loadOrders(),
+            ),
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _manualRefresh() async {
+    setState(() => _isRefreshing = true);
+    await Future.wait([
+      _loadOrders(),
+      _loadWaiterCalls(),
+    ]);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 12),
+              Text('Orders refreshed'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -235,6 +304,19 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   KitchenLocalizations get _loc => KitchenLocalizations(_currentLanguage);
+  
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return '${time.hour}:${time.minute.toString().padLeft(2, '0')}';
+    }
+  }
 
   void _showLanguageSelector() {
     showModalBottomSheet(
@@ -275,21 +357,66 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   Future<void> _acceptOrder(Order order) async {
+    // Show immediate feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_loc.get('order_accepted')} - #${order.orderNumber}'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    // Update UI optimistically
+    setState(() {
+      final index = _orders.indexWhere((o) => o.id == order.id);
+      if (index != -1) {
+        _orders[index] = Order(
+          id: order.id,
+          orderNumber: order.orderNumber,
+          userId: order.userId,
+          userName: order.userName,
+          userEmail: order.userEmail,
+          userPhone: order.userPhone,
+          items: order.items,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          tax: order.tax,
+          tip: order.tip,
+          discount: order.discount,
+          totalPrice: order.totalPrice,
+          status: 'confirmed', // Optimistic update
+          payment: order.payment,
+          deliveryAddress: order.deliveryAddress,
+          delivery: order.delivery,
+          notes: order.notes,
+          promoCode: order.promoCode,
+          createdAt: order.createdAt,
+          type: order.type,
+          tableId: order.tableId,
+          tableNumber: order.tableNumber,
+          restaurantId: order.restaurantId,
+          chatMessages: order.chatMessages,
+        );
+      }
+    });
+
+    // Then update on server in background
     try {
-      // Update order status
       await _orderRepository.updateOrderStatus(
         order.id,
         'confirmed',
       );
 
       // Send notification to customer
-      await _orderRepository.sendOrderNotification(
+      _orderRepository.sendOrderNotification(
         orderId: order.id,
         tableId: order.tableId ?? '',
         status: 'confirmed',
         message: _loc.get('order_accepted'),
         languageCode: _currentLanguage,
-      );
+      ).catchError((e) => debugPrint('Notification error: $e'));
 
       // Emit WebSocket event for real-time update
       _webSocketProvider?.emit('order:updated', {
@@ -301,21 +428,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'languageCode': _currentLanguage,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_loc.get('order_accepted')} - #${order.orderNumber}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
+      // Reload to get fresh data
       _loadOrders();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_loc.get('failed_accept')}: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Revert optimistic update on error
+      _loadOrders();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_loc.get('failed_accept')}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -359,12 +486,10 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     if (confirmed != true) return;
 
     try {
-      // Use cancel endpoint instead of reject
-      await _orderRepository.cancelOrder(
+      // Use updateOrderStatus to set status to cancelled (restaurant can do this)
+      await _orderRepository.updateOrderStatus(
         order.id,
-        reason: reasonController.text.isNotEmpty 
-            ? reasonController.text 
-            : 'Kitchen rejected',
+        'cancelled',
       );
 
       // Send notification to customer
@@ -372,7 +497,9 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         orderId: order.id,
         tableId: order.tableId ?? '',
         status: 'cancelled',
-        message: '${_loc.get('order_rejected')}: ${reasonController.text}',
+        message: reasonController.text.isNotEmpty
+            ? '${_loc.get('order_rejected')}: ${reasonController.text}'
+            : _loc.get('order_rejected'),
         languageCode: _currentLanguage,
       );
 
@@ -387,21 +514,27 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'languageCode': _currentLanguage,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_loc.get('order_rejected')} - #${order.orderNumber}'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_loc.get('order_rejected')} - #${order.orderNumber}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
 
       _loadOrders();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_loc.get('failed_reject')}: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_loc.get('failed_reject')}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -467,94 +600,100 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ConnectionBanner(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Kitchen Orders'),
-          actions: [
-            // Language selector
-            InkWell(
-              onTap: _showLanguageSelector,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.language, size: 16, color: AppTheme.primaryColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      _currentLanguage.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kitchen Orders'),
+        actions: [
+          // Language selector
+          InkWell(
+            onTap: _showLanguageSelector,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
               ),
-            ),
-            const SizedBox(width: 8),
-            const ConnectionStatusIndicator(),
-            const SizedBox(width: 8),
-            // Waiter calls button with badge
-            Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_active),
-                  onPressed: () {
-                    setState(() {
-                      _showWaiterCalls = !_showWaiterCalls;
-                    });
-                    if (_showWaiterCalls) {
-                      _loadWaiterCalls();
-                    }
-                  },
-                  tooltip: 'Waiter Calls',
-                ),
-                if (_waiterCalls.isNotEmpty)
-                  Positioned(
-                    right: 4,
-                    top: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        '${_waiterCalls.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.language, size: 16, color: AppTheme.primaryColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    _currentLanguage.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                _loadOrders();
-                _loadWaiterCalls();
-              },
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
+          ),
+          const SizedBox(width: 8),
+          // Waiter calls button with badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_active),
+                onPressed: () {
+                  setState(() {
+                    _showWaiterCalls = !_showWaiterCalls;
+                  });
+                  if (_showWaiterCalls) {
+                    _loadWaiterCalls();
+                  }
+                },
+                tooltip: 'Waiter Calls',
+              ),
+              if (_waiterCalls.isNotEmpty)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      '${_waiterCalls.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          IconButton(
+            icon: _isRefreshing 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isRefreshing ? null : _manualRefresh,
+            tooltip: _lastUpdated != null
+                ? 'Last updated: ${_formatTime(_lastUpdated!)}'
+                : 'Refresh orders',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
           // Filter Tabs
           Container(
             color: Colors.grey[100],
@@ -616,7 +755,6 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                       ),
           ),
         ],
-      ),
       ),
     );
   }

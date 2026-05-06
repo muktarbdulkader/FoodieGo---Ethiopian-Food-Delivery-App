@@ -192,4 +192,31 @@ class Hotel {
       distanceText: json['distanceText'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      '_id': id,
+      'hotelName': name,
+      'name': name,
+      'hotelAddress': address,
+      'address': address,
+      'hotelPhone': phone,
+      'phone': phone,
+      'hotelDescription': description,
+      'description': description,
+      'hotelImage': image,
+      'image': image,
+      'hotelCategory': category,
+      'category': category,
+      'hotelRating': rating,
+      'rating': rating,
+      'isOpen': isOpen,
+      'deliveryFee': deliveryFee,
+      'minOrderAmount': minOrderAmount,
+      'foodCount': foodCount,
+      'distance': distance,
+      'distanceText': distanceText,
+    };
+  }
 }

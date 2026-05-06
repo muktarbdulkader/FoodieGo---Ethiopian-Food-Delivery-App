@@ -26,9 +26,15 @@ class DineInMenuPage extends StatefulWidget {
   State<DineInMenuPage> createState() => _DineInMenuPageState();
 }
 
-class _DineInMenuPageState extends State<DineInMenuPage> {
+class _DineInMenuPageState extends State<DineInMenuPage>
+    with TickerProviderStateMixin {
   String? _selectedCategory;
   String _currentLanguage = 'en';
+  late AnimationController _headerAnimationController;
+  late AnimationController _badgeAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
 
   final Map<String, IconData> _categoryIcons = {
     'Beverages': Icons.local_drink,
@@ -70,6 +76,52 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
     super.initState();
     _loadLanguage();
     
+    // Initialize animation controllers
+    _headerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
+    _badgeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    // Fade animation for text
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    ));
+    
+    // Slide animation for title
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
+    ));
+    
+    // Scale animation for badges
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _badgeAnimationController,
+      curve: Curves.elasticOut,
+    ));
+    
+    // Start animations
+    _headerAnimationController.forward();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _badgeAnimationController.forward();
+      }
+    });
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StorageUtils.setSessionType(SessionType.user);
       
@@ -81,6 +133,13 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
         menuType: 'dine_in',
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _headerAnimationController.dispose();
+    _badgeAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLanguage() async {
@@ -684,18 +743,68 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Background gradient
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.7),
-                    AppTheme.primaryColor.withValues(alpha: 0.9),
-                  ],
-                ),
-              ),
+            // Animated background gradient
+            AnimatedBuilder(
+              animation: _headerAnimationController,
+              builder: (context, child) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.black.withValues(
+                          alpha: 0.7 + (_fadeAnimation.value * 0.1),
+                        ),
+                        AppTheme.primaryColor.withValues(
+                          alpha: 0.8 + (_fadeAnimation.value * 0.1),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Decorative circles (animated)
+            AnimatedBuilder(
+              animation: _headerAnimationController,
+              builder: (context, child) {
+                return Positioned(
+                  top: -50 + (_fadeAnimation.value * 20),
+                  right: -30,
+                  child: Opacity(
+                    opacity: 0.1 * _fadeAnimation.value,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            AnimatedBuilder(
+              animation: _headerAnimationController,
+              builder: (context, child) {
+                return Positioned(
+                  bottom: -80 + (_fadeAnimation.value * 30),
+                  left: -50,
+                  child: Opacity(
+                    opacity: 0.08 * _fadeAnimation.value,
+                    child: Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             // Hero content
             Consumer2<DineInProvider, FoodProvider>(
@@ -794,6 +903,153 @@ class _DineInMenuPageState extends State<DineInMenuPage> {
                               ),
                             ),
                           ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Hero content with animations
+            Consumer2<DineInProvider, FoodProvider>(
+              builder: (context, dineIn, foodProvider, _) {
+                final restaurantName = foodProvider.foods.isNotEmpty 
+                    ? foodProvider.foods.first.hotelName 
+                    : localizations.get('restaurant_menu');
+                
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Animated Hero title
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: const Text(
+                              'Your Table,',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                height: 1.2,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: const Text(
+                              'Your Taste',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                height: 1.2,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Animated Restaurant and table info badges
+                        ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.restaurant,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      restaurantName,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.table_restaurant,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${localizations.get('table')} ${dineIn.getTableNumber() ?? widget.tableId}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

@@ -4,6 +4,7 @@
  */
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const routes = require('./routes');
 const { errorHandler, notFound } = require('./middlewares/error.middleware');
 
@@ -104,6 +105,9 @@ const sanitizeInput = (req, res, next) => {
 app.use(rateLimiter);
 app.use(securityHeaders);
 app.use(auditLogger);
+
+// Compression middleware for better performance
+app.use(compression());
 
 // CORS configuration
 app.use(cors({

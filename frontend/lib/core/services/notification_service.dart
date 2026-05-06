@@ -300,22 +300,24 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    final title = '🚗 New Delivery Assignment!';
-    final body =
-        'Order #$orderNumber from $restaurantName - ETB ${totalPrice.toStringAsFixed(0)}';
-
     final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     
     // Payload format: "driver_assignment:orderId"
     final payload = orderId != null ? 'driver_assignment:$orderId' : null;
     
-    await _notifications.show(id, title, body, details, payload: payload);
+    await _notifications.show(
+      id,
+      '🚗 New Delivery Assignment!',
+      'Order #$orderNumber from $restaurantName - ETB ${totalPrice.toStringAsFixed(0)}',
+      details,
+      payload: payload,
+    );
 
     // Save to history
     await _saveNotification(AppNotification(
       id: id.toString(),
-      title: title,
-      body: body,
+      title: '🚗 New Delivery Assignment!',
+      body: 'Order #$orderNumber from $restaurantName - ETB ${totalPrice.toStringAsFixed(0)}',
       type: 'delivery',
       timestamp: DateTime.now(),
       payload: payload,

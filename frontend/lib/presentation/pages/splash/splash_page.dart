@@ -98,8 +98,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     await Future.delayed(const Duration(milliseconds: 1000));
     _textController.forward();
     
-    // Navigate to next screen after all animations
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Navigate to next screen after all animations (reduced from 2500ms to 1500ms)
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) {
       // Navigate to the appropriate route based on login status
       _navigateToNextScreen();

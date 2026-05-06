@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/api_constants.dart';
 
 /// WebSocket Service for real-time communication
@@ -10,7 +10,7 @@ class WebSocketService {
   factory WebSocketService() => _instance;
   WebSocketService._internal();
 
-  IO.Socket? _socket;
+  io.Socket? _socket;
   String? _token;
   
   // Connection state
@@ -56,9 +56,9 @@ class WebSocketService {
       
       debugPrint('[WEBSOCKET] Connecting to $backendUrl');
       
-      _socket = IO.io(
+      _socket = io.io(
         backendUrl,
-        IO.OptionBuilder()
+        io.OptionBuilder()
             .setTransports(['websocket', 'polling'])
             .enableAutoConnect()
             .enableReconnection()

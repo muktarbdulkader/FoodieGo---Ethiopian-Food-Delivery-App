@@ -198,46 +198,62 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         ChangeNotifierProvider(create: (_) => DineInProvider()),
         ChangeNotifierProvider(create: (_) => WebSocketProvider()),
       ],
-      child: Consumer<LanguageProvider>(
-        builder: (context, langProvider, _) => MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'FoodieGo',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          scrollBehavior: const MaterialScrollBehavior().copyWith(
-            physics: const BouncingScrollPhysics(),
-          ),
-          initialRoute: _getInitialRoute(),
-          onGenerateRoute: (settings) {
-            debugPrint('Generating route for: ${settings.name}');
-            
-            // SPLASH SCREEN - Show first
-            if (settings.name == '/splash') {
-              return PageRouteBuilder(
-                settings: settings,
-                pageBuilder: (_, __, ___) => const SplashPage(),
-                transitionsBuilder: (_, animation, __, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
-              );
+      child: Builder(
+        builder: (context) {
+          // Connect WebSocket if user is logged in
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final token = StorageUtils.getToken();
+            if (token != null) {
+              final webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
+              if (!webSocketProvider.isConnected) {
+                webSocketProvider.connect(token);
+                debugPrint('[MAIN] WebSocket connected with token');
+              }
             }
-            
-            // ADMIN/RESTAURANT PORTAL - /admin routes
-            if (settings.name?.startsWith('/admin') == true) {
-              return _buildAdminRoute(settings);
-            }
-            // DELIVERY PORTAL - /delivery routes
-            if (settings.name?.startsWith('/delivery') == true) {
-              return _buildDeliveryRoute(settings);
-            }
-            // USER PORTAL - default routes
-            return _buildUserRoute(settings);
-          },
-          onUnknownRoute: (settings) {
-            debugPrint('Unknown route: ${settings.name}');
-            return _buildUserRoute(settings);
-          },
-        ),
+          });
+
+          return Consumer<LanguageProvider>(
+            builder: (context, langProvider, _) => MaterialApp(
+              navigatorKey: navigatorKey,
+              title: 'FoodieGo',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              scrollBehavior: const MaterialScrollBehavior().copyWith(
+                physics: const BouncingScrollPhysics(),
+              ),
+              initialRoute: _getInitialRoute(),
+              onGenerateRoute: (settings) {
+                debugPrint('Generating route for: ${settings.name}');
+                
+                // SPLASH SCREEN - Show first
+                if (settings.name == '/splash') {
+                  return PageRouteBuilder(
+                    settings: settings,
+                    pageBuilder: (_, __, ___) => const SplashPage(),
+                    transitionsBuilder: (_, animation, __, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                  );
+                }
+                
+                // ADMIN/RESTAURANT PORTAL - /admin routes
+                if (settings.name?.startsWith('/admin') == true) {
+                  return _buildAdminRoute(settings);
+                }
+                // DELIVERY PORTAL - /delivery routes
+                if (settings.name?.startsWith('/delivery') == true) {
+                  return _buildDeliveryRoute(settings);
+                }
+                // USER PORTAL - default routes
+                return _buildUserRoute(settings);
+              },
+              onUnknownRoute: (settings) {
+                debugPrint('Unknown route: ${settings.name}');
+                return _buildUserRoute(settings);
+              },
+            ),
+          );
+        },
       ),
     );
   }

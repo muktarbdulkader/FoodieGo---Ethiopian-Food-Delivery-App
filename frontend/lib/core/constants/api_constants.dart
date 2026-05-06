@@ -21,6 +21,6 @@ class ApiConstants {
   // Order endpoints
   static const String orders = '/orders';
 
-  // Request timeout
-  static const Duration timeout = Duration(seconds: 30);
+  // Request timeout - increased for Render free tier cold starts
+  static const Duration timeout = Duration(seconds: 60);
 }

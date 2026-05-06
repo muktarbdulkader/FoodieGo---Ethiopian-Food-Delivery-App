@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/order.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../core/utils/offline_storage.dart';
+import 'dart:convert';
 
 class AdminProvider extends ChangeNotifier {
   final AdminRepository _adminRepo = AdminRepository();
@@ -57,14 +59,57 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<void> fetchAllOrders() async {
-    _isLoading = true;
-    notifyListeners();
+    // Try to load from cache first for instant display
     try {
-      _allOrders = await _orderRepo.getAllOrders();
+      final cachedData = await OfflineStorage.get('admin_orders');
+      if (cachedData != null) {
+        final List<dynamic> ordersJson = jsonDecode(cachedData);
+        _allOrders = ordersJson.map((json) => Order.fromJson(json)).toList();
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+        debugPrint('[ADMIN PROVIDER] Loaded ${_allOrders.length} orders from cache');
+      } else {
+        _isLoading = true;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[ADMIN PROVIDER] Error loading cached orders: $e');
+      _isLoading = true;
+      notifyListeners();
+    }
+    
+    // Then fetch fresh data in background
+    try {
+      final freshOrders = await _orderRepo.getAllOrders();
+      
+      // Only update if we got new data
+      if (freshOrders.isNotEmpty) {
+        _allOrders = freshOrders;
+        
+        // Save to cache
+        final ordersJson = _allOrders.map((o) => o.toJson()).toList();
+        await OfflineStorage.save('admin_orders', jsonEncode(ordersJson));
+        
+        debugPrint('[ADMIN PROVIDER] Loaded ${_allOrders.length} fresh orders from API');
+      }
+      
       _isLoading = false;
+      _error = null;
       notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      debugPrint('[ADMIN PROVIDER] Error fetching orders: $e');
+      
+      // If we have cached data, don't show error
+      if (_allOrders.isNotEmpty) {
+        _error = null;
+        debugPrint('[ADMIN PROVIDER] Using cached orders due to error');
+      } else {
+        _error = e.toString().contains('timed out')
+            ? 'Server is waking up. Please wait and try again.'
+            : e.toString();
+      }
+      
       _isLoading = false;
       notifyListeners();
     }

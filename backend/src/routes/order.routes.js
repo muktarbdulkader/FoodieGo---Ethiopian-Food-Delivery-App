@@ -28,6 +28,7 @@ const {
   acknowledgeWaiterCall,
   getOrderStatusByTable, // NEW
   markNotificationRead, // NEW
+  sendNotification, // NEW
   assignDriverToOrder,
 } = require('../controllers/order.controller');
 const { protect, authorize } = require('../middlewares/auth.middleware');
@@ -40,12 +41,16 @@ router.post('/', createOrder); // Move this BEFORE protect middleware
 // Public route to check order status by table (no auth required for customers)
 router.get('/table/:tableId/status', getOrderStatusByTable);
 router.put('/:orderId/notification/read', markNotificationRead);
+router.post('/:orderId/notify', sendNotification); // NEW: Send notification to customer
+
+// Public route for calling waiter (no auth required for guests)
+router.post('/dine-in/call-waiter', callWaiter);
 
 router.use(protect);
 
 // Dine-in routes (NEW)
 router.get('/dine-in', getDineInOrders);
-router.post('/dine-in/call-waiter', callWaiter);
+// router.post('/dine-in/call-waiter', callWaiter); // Moved to public section above
 router.get('/dine-in/waiter-calls', authorize('restaurant'), getPendingWaiterCalls);
 router.put('/dine-in/waiter-calls/:callId/acknowledge', authorize('restaurant'), acknowledgeWaiterCall);
 

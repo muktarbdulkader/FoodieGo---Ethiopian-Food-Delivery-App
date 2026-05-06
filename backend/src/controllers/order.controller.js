@@ -769,7 +769,7 @@ const getDriverLocation = async (req, res, next) => {
 // Send chat message
 const sendChatMessage = async (req, res, next) => {
   try {
-    const { message } = req.body;
+    const { message, type, metadata } = req.body;
     const orderId = req.params.orderId;
 
     const order = await Order.findById(orderId);
@@ -799,6 +799,8 @@ const sendChatMessage = async (req, res, next) => {
       senderId: req.user._id,
       senderRole,
       message,
+      type: type || 'text',
+      metadata: metadata || null,
       timestamp: new Date(),
       isRead: false,
     };
@@ -806,7 +808,14 @@ const sendChatMessage = async (req, res, next) => {
     order.chatMessages.push(chatMessage);
     await order.save();
 
-    res.json({ success: true, data: chatMessage });
+    // Return message with sender info
+    const responseMessage = {
+      ...chatMessage.toObject ? chatMessage.toObject() : chatMessage,
+      id: chatMessage._id,
+      senderName: req.user.name,
+    };
+
+    res.json({ success: true, data: responseMessage });
   } catch (error) {
     next(error);
   }
@@ -815,9 +824,9 @@ const sendChatMessage = async (req, res, next) => {
 // Get chat messages for an order
 const getChatMessages = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.orderId).select(
-      "chatMessages user delivery"
-    );
+    const order = await Order.findById(req.params.orderId)
+      .select("chatMessages user delivery")
+      .populate('chatMessages.senderId', 'name');
 
     if (!order) {
       return res
@@ -847,7 +856,19 @@ const getChatMessages = async (req, res, next) => {
     });
     await order.save();
 
-    res.json({ success: true, data: order.chatMessages });
+    // Format messages with sender names
+    const formattedMessages = order.chatMessages.map(msg => ({
+      id: msg._id,
+      message: msg.message,
+      type: msg.type || 'text',
+      metadata: msg.metadata,
+      senderRole: msg.senderRole,
+      senderName: msg.senderId?.name || 'Unknown',
+      timestamp: msg.timestamp,
+      isRead: msg.isRead
+    }));
+
+    res.json({ success: true, data: formattedMessages });
   } catch (error) {
     next(error);
   }
@@ -1340,6 +1361,68 @@ const markNotificationRead = async (req, res, next) => {
   }
 };
 
+// Send notification to customer (for dine-in orders)
+const sendNotification = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { message, type = 'info' } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Notification message is required' 
+      });
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Order not found' 
+      });
+    }
+
+    // Add notification to order
+    order.customerNotification = {
+      message,
+      type,
+      timestamp: new Date(),
+      isRead: false
+    };
+    await order.save();
+
+    // Emit WebSocket event if it's a dine-in order
+    if (order.type === 'dine_in' && order.tableId) {
+      try {
+        socketManager.broadcastToTable(order.tableId.toString(), 'notification:new', {
+          eventType: 'notification:new',
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          notification: {
+            message,
+            type,
+            timestamp: new Date().toISOString()
+          }
+        });
+
+        console.log(`[ORDER] Notification sent for order ${order.orderNumber}`);
+      } catch (socketError) {
+        console.error('[ORDER] Failed to emit notification event:', socketError);
+        // Don't fail the request if socket emission fails
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Notification sent successfully',
+      data: order.customerNotification
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -1365,5 +1448,6 @@ module.exports = {
   acknowledgeWaiterCall,
   getOrderStatusByTable, // NEW
   markNotificationRead, // NEW
+  sendNotification, // NEW
   assignDriverToOrder,
 };

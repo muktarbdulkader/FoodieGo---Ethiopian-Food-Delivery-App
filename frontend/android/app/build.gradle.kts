@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.foodiego.app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"  // Required by plugins (flutter_local_notifications, geolocator, etc.)
+    ndkVersion = "28.2.13676358"  // Updated to latest NDK version for compatibility
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true

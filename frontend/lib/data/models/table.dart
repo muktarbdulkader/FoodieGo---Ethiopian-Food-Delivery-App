@@ -21,9 +21,17 @@ class TableModel {
   });
 
   factory TableModel.fromJson(Map<String, dynamic> json) {
+    // Handle restaurantId - can be String or populated Object
+    String restaurantIdValue = '';
+    if (json['restaurantId'] is String) {
+      restaurantIdValue = json['restaurantId'];
+    } else if (json['restaurantId'] is Map) {
+      restaurantIdValue = json['restaurantId']['_id'] ?? json['restaurantId']['id'] ?? '';
+    }
+    
     return TableModel(
       id: json['_id'] ?? '',
-      restaurantId: json['restaurantId'] ?? '',
+      restaurantId: restaurantIdValue,
       tableNumber: json['tableNumber'] ?? '',
       qrCodeData: json['qrCodeData'] ?? '',
       capacity: json['capacity'] ?? 4,
