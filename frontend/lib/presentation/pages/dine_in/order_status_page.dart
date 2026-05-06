@@ -34,42 +34,43 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   void initState() {
     super.initState();
     _loadOrderStatus();
-    
+
     // Setup WebSocket listener (for authenticated users)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupWebSocket();
     });
-    
-    // Auto-refresh every 10 seconds for public users (WebSocket fallback)
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+
+    // Auto-refresh every 5 seconds for faster updates (WebSocket fallback)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
         _loadOrderStatus();
       }
     });
   }
-  
+
   void _setupWebSocket() {
     _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
-    
+
     // Join table room
     final roomName = 'table:${widget.tableId}';
     _webSocketProvider!.joinRoom(roomName);
-    
+
     // Listen for order updates
     _webSocketProvider!.on('order:updated', _handleOrderUpdate);
     _webSocketProvider!.on('order:created', _handleOrderUpdate);
   }
-  
+
   void _handleOrderUpdate(dynamic data) {
     debugPrint('[ORDER STATUS] Received update: $data');
-    
+
     final status = data['status'];
     final orderNumber = data['orderNumber'] ?? 'N/A';
-    
+
     // Use message from kitchen if available, otherwise generate locally
-    final message = data['message'] ?? _getStatusUpdateMessage(status, orderNumber);
+    final message =
+        data['message'] ?? _getStatusUpdateMessage(status, orderNumber);
     final backgroundColor = _getStatusColor(status);
-    
+
     // Show snackbar for status updates
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +93,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         ),
       );
     }
-    
+
     // Trigger vibration for important status changes
     if (status == 'ready') {
       _vibratePattern(); // Order ready - pattern vibration
@@ -103,11 +104,11 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         _showCancellationDialog(orderNumber, reason: data['reason']);
       }
     }
-    
+
     // Reload order status to get latest data
     _loadOrderStatus();
   }
-  
+
   String _getStatusUpdateMessage(String status, String orderNumber) {
     switch (status) {
       case 'confirmed':
@@ -124,7 +125,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         return 'Order #$orderNumber status updated to $status';
     }
   }
-  
+
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'confirmed':
@@ -141,7 +142,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         return Icons.info;
     }
   }
-  
+
   void _showCancellationDialog(String orderNumber, {String? reason}) {
     showDialog(
       context: context,
@@ -201,23 +202,31 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           ],
         ),
         actions: [
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _goToMenu();
+            },
+            icon: const Icon(Icons.restaurant_menu),
+            label: const Text('Place New Order'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('OK'),
           ),
         ],
       ),
     );
   }
-  
+
   Future<void> _vibratePattern() async {
     // Pattern: 200ms on, 100ms off, 200ms on
     final hasVibrator = await Vibration.hasVibrator();
@@ -225,7 +234,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       Vibration.vibrate(pattern: [0, 200, 100, 200]);
     }
   }
-  
+
   Future<void> _vibrateLong() async {
     // Long vibration: 500ms
     final hasVibrator = await Vibration.hasVibrator();
@@ -234,11 +243,23 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     }
   }
 
+  /// Navigate back to menu page to place a new order
+  void _goToMenu() {
+    Navigator.pushReplacementNamed(
+      context,
+      '/dine-in-menu',
+      arguments: {
+        'restaurantId': widget.restaurantId,
+        'tableId': widget.tableId,
+      },
+    );
+  }
+
   @override
   void dispose() {
     // Cancel refresh timer
     _refreshTimer?.cancel();
-    
+
     // Leave room and remove listeners
     if (_webSocketProvider != null) {
       final roomName = 'table:${widget.tableId}';
@@ -246,7 +267,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       _webSocketProvider!.off('order:updated');
       _webSocketProvider!.off('order:created');
     }
-    
+
     super.dispose();
   }
 
@@ -257,7 +278,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       if (widget.guestSessionId != null) {
         url += '?guestSessionId=${widget.guestSessionId}';
       }
-      
+
       final response = await ApiService.getPublic(url);
 
       if (mounted) {
@@ -268,8 +289,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         });
 
         // Show notification if there's a new unread one
-        if (_orderData != null && 
-            _orderData!['notification'] != null && 
+        if (_orderData != null &&
+            _orderData!['notification'] != null &&
             _orderData!['notification']['isRead'] == false) {
           _showNotificationDialog(_orderData!['notification']);
         }
@@ -287,10 +308,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   void _showNotificationDialog(Map<String, dynamic> notification) {
     final type = notification['type'] ?? 'info';
     final message = notification['message'] ?? '';
-    
+
     Color backgroundColor;
     IconData icon;
-    
+
     switch (type) {
       case 'success':
         backgroundColor = Colors.green;
@@ -353,18 +374,35 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   Future<void> _markNotificationRead() async {
     if (_orderData == null) return;
-    
+
     try {
       await ApiService.putPublic(
         '${ApiConstants.orders}/${_orderData!['orderId']}/notification/read',
         {},
       );
-      
+
       // Reload to get updated data
       _loadOrderStatus();
     } catch (e) {
       // Error marking notification as read - silently fail
       debugPrint('Error marking notification as read: $e');
+    }
+  }
+
+  bool _isRefreshing = false;
+
+  Future<void> _onRefreshPressed() async {
+    setState(() => _isRefreshing = true);
+    await _loadOrderStatus();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Status updated'),
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -375,8 +413,14 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         title: const Text('Order Status'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadOrderStatus,
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isRefreshing ? null : _onRefreshPressed,
           ),
         ],
       ),
@@ -387,7 +431,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text('Error: $_error'),
                       const SizedBox(height: 16),
@@ -537,7 +582,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                  color: AppTheme.primaryColor
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Center(
@@ -658,12 +704,34 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Please contact the waiter for assistance',
+                    'Your order was rejected by the kitchen',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _goToMenu,
+                    icon: const Icon(Icons.restaurant_menu),
+                    label: const Text('Place New Order'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _callWaiter,
+                    child: const Text('Call Waiter for Help'),
                   ),
                 ],
               )
@@ -712,7 +780,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                color: AppTheme.primaryColor
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
@@ -728,7 +797,8 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       ),
                       if (index < statuses.length - 1)
                         Container(
-                          margin: const EdgeInsets.only(left: 23, top: 4, bottom: 4),
+                          margin: const EdgeInsets.only(
+                              left: 23, top: 4, bottom: 4),
                           width: 2,
                           height: 32,
                           color: isActive
@@ -788,7 +858,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         ),
       );
     }
-    
+
     try {
       await ApiService.postPublic(
         '${ApiConstants.orders}/dine-in/call-waiter',

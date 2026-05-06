@@ -109,12 +109,33 @@ app.use(auditLogger);
 // Compression middleware for better performance
 app.use(compression());
 
-// CORS configuration
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+  'https://foodiego-99b1e.web.app',     // Production frontend
+  'https://foodiego-99b1e.firebaseapp.com', // Firebase alt domain
+  'http://localhost:3000',               // Local development
+  'http://localhost:8080',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin) || process.env.CORS_ORIGIN === '*') {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked request from: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Body parsing with size limits (prevent DoS)

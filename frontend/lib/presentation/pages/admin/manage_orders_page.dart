@@ -62,8 +62,10 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
   }
 
   List<Order> _getFilteredOrders(List<Order> orders) {
-    if (_filterStatus == 'all') return orders;
-    return orders.where((o) => o.status == _filterStatus).toList();
+    // Filter to only show delivery orders (exclude dine_in orders)
+    var deliveryOrders = orders.where((o) => o.type != 'dine_in').toList();
+    if (_filterStatus == 'all') return deliveryOrders;
+    return deliveryOrders.where((o) => o.status == _filterStatus).toList();
   }
 
   // Group orders by hotel name
@@ -185,18 +187,25 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
           ),
           const SizedBox(width: 8),
           Consumer<AdminProvider>(
-            builder: (context, admin, _) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${admin.allOrders.length}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-              ),
-            ),
+            builder: (context, admin, _) {
+              // Count only delivery orders (exclude dine_in)
+              final deliveryCount =
+                  admin.allOrders.where((o) => o.type != 'dine_in').length;
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$deliveryCount',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -402,7 +411,7 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
                         Row(
                           children: [
                             Text(
-                              '#${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(order.id.length - 6).toUpperCase()}',
+                              '#${order.orderNumber.isNotEmpty ? order.orderNumber : (order.id.length >= 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id.toUpperCase())}',
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14),
                             ),
@@ -1395,7 +1404,7 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Printing order #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(order.id.length - 6)}...'),
+            'Printing order #${order.orderNumber.isNotEmpty ? order.orderNumber : (order.id.length >= 6 ? order.id.substring(order.id.length - 6) : order.id)}...'),
         backgroundColor: AppTheme.primaryColor,
       ),
     );
@@ -1447,7 +1456,9 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
                           'Order #',
                           order.orderNumber.isNotEmpty
                               ? order.orderNumber
-                              : order.id.substring(order.id.length - 8)),
+                              : (order.id.length >= 8
+                                  ? order.id.substring(order.id.length - 8)
+                                  : order.id)),
                       _buildDetailRow('Status',
                           order.status.toUpperCase().replaceAll('_', ' ')),
                       _buildDetailRow('Date', _formatDate(order.createdAt)),
@@ -1577,7 +1588,7 @@ class _ManageOrdersPageState extends State<ManageOrdersPage>
           ],
         ),
         content: Text(
-          'Are you sure you want to delete order #${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(order.id.length - 6)}?\n\nThis action cannot be undone.',
+          'Are you sure you want to delete order #${order.orderNumber.isNotEmpty ? order.orderNumber : (order.id.length >= 6 ? order.id.substring(order.id.length - 6) : order.id)}?\n\nThis action cannot be undone.',
         ),
         actions: [
           TextButton(

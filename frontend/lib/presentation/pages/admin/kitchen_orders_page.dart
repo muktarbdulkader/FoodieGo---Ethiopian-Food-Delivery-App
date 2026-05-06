@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../data/repositories/order_repository.dart';
+import 'dart:html' as html;
+import 'dart:js' as js;
 import '../../../data/models/order.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/kitchen_localizations.dart';
+import '../../../core/utils/storage_utils.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../widgets/order_timer.dart';
@@ -30,28 +34,63 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   WebSocketProvider? _webSocketProvider;
   String? _restaurantId;
   Timer? _refreshTimer;
+  Timer? _wsReconnectTimer; // Timer for retrying WebSocket room join
   DateTime? _lastUpdated;
+  Set<String> _knownOrderIds = {}; // Track known orders to detect new ones
+  bool _hasJoinedRoom = false; // Track if we've successfully joined the room
 
   @override
   void initState() {
     super.initState();
     _loadOrders();
     _loadWaiterCalls();
-    
-    // Setup WebSocket listener
+
+    // Setup WebSocket listener after frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupWebSocket();
     });
-    
-    // Auto-refresh every 10 seconds as backup
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+
+    // Auto-refresh every 3 seconds for near-instant order detection
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) {
         _loadOrders();
         _loadWaiterCalls();
       }
     });
   }
-  
+
+  /// Attempt to join the kitchen room with retry logic
+  void _joinKitchenRoom() {
+    if (_restaurantId == null || _webSocketProvider == null) return;
+
+    if (!_webSocketProvider!.isConnected) {
+      debugPrint('[KITCHEN] WebSocket not connected yet, will retry...');
+      _scheduleRoomJoinRetry();
+      return;
+    }
+
+    // Join kitchen room
+    final roomName = 'kitchen:$_restaurantId';
+    _webSocketProvider!.joinRoom(roomName);
+    _hasJoinedRoom = true;
+    debugPrint('[KITCHEN] Joined room: $roomName');
+
+    // Cancel any pending retry timer
+    _wsReconnectTimer?.cancel();
+    _wsReconnectTimer = null;
+  }
+
+  /// Schedule a retry to join the room
+  void _scheduleRoomJoinRetry() {
+    _wsReconnectTimer?.cancel();
+    _wsReconnectTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && !_hasJoinedRoom) {
+        debugPrint('[KITCHEN] Retrying room join...');
+        _joinKitchenRoom();
+      }
+    });
+  }
+
   Future<void> _loadWaiterCalls() async {
     try {
       final calls = await _orderRepository.getPendingWaiterCalls();
@@ -64,7 +103,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       debugPrint('Error loading waiter calls: $e');
     }
   }
-  
+
   Future<void> _acknowledgeWaiterCall(String callId) async {
     try {
       await _orderRepository.acknowledgeWaiterCall(callId);
@@ -87,60 +126,87 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       );
     }
   }
-  
+
   void _setupWebSocket() async {
     _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     // Get restaurant ID from auth provider
     _restaurantId = authProvider.user?.id;
-    
+
     if (_restaurantId != null) {
-      // Join kitchen room
-      final roomName = 'kitchen:$_restaurantId';
-      _webSocketProvider!.joinRoom(roomName);
-      
-      // Listen for order events
+      // Ensure WebSocket is connected - use admin token if needed
+      if (!_webSocketProvider!.isConnected) {
+        final adminToken = StorageUtils.getToken(SessionType.admin);
+        if (adminToken != null) {
+          debugPrint('[KITCHEN] Connecting WebSocket with admin token...');
+          await _webSocketProvider!.connect(adminToken);
+        } else {
+          debugPrint('[KITCHEN] No admin token found, WebSocket not connected');
+        }
+      }
+
+      // Listen for order events first (before connection)
       _webSocketProvider!.on('order:created', _handleNewOrder);
       _webSocketProvider!.on('order:updated', _handleOrderUpdate);
       _webSocketProvider!.on('waiter:called', _handleWaiterCall);
+
+      // Listen to connection state changes to rejoin room on reconnection
+      _webSocketProvider!.addListener(_onWebSocketStateChanged);
+
+      // Try to join room immediately if already connected, or retry when connected
+      _joinKitchenRoom();
     }
   }
-  
+
+  /// Handle WebSocket connection state changes
+  void _onWebSocketStateChanged() {
+    if (_webSocketProvider == null) return;
+
+    if (_webSocketProvider!.isConnected && !_hasJoinedRoom) {
+      debugPrint('[KITCHEN] WebSocket connected, joining room...');
+      _joinKitchenRoom();
+    } else if (!_webSocketProvider!.isConnected) {
+      // Mark as not joined so we'll rejoin when reconnected
+      _hasJoinedRoom = false;
+    }
+  }
+
   void _handleNewOrder(dynamic data) {
     debugPrint('[KITCHEN] New order received: $data');
-    
+
     // Play sound alert
     _playNewOrderSound();
-    
+
     // Reload orders
     _loadOrders();
-    
+
     // Show snackbar
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('New order #${data['orderNumber']} - Table ${data['tableNumber']}'),
+          content: Text(
+              'New order #${data['orderNumber']} - Table ${data['tableNumber']}'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
       );
     }
   }
-  
+
   void _handleOrderUpdate(dynamic data) {
     debugPrint('[KITCHEN] Order updated: $data');
-    
+
     // Reload orders
     _loadOrders();
   }
-  
+
   void _handleWaiterCall(dynamic data) {
     debugPrint('[KITCHEN] Waiter called: $data');
-    
+
     // Play bell sound
     _playWaiterCallSound();
-    
+
     // Show dialog
     if (mounted) {
       showDialog(
@@ -148,7 +214,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.notifications_active, color: Colors.orange, size: 32),
+              const Icon(Icons.notifications_active,
+                  color: Colors.orange, size: 32),
               const SizedBox(width: 12),
               Text('Table ${data['tableNumber']}'),
             ],
@@ -164,31 +231,114 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       );
     }
   }
-  
+
   Future<void> _playNewOrderSound() async {
     try {
-      // Play a notification sound (you can add custom sound files to assets)
-      await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
+      if (kIsWeb) {
+        // Use browser native audio for web with beep fallback
+        _playWebNotificationSound();
+      } else {
+        // Use audioplayers for mobile
+        await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
+      }
     } catch (e) {
       debugPrint('[KITCHEN] Error playing sound: $e');
+      // Fallback to beep
+      if (kIsWeb) _playWebBeep(frequency: 800, duration: 0.3);
     }
   }
-  
+
   Future<void> _playWaiterCallSound() async {
     try {
-      // Play a bell sound
-      await _audioPlayer.play(AssetSource('sounds/bell.mp3'));
+      if (kIsWeb) {
+        // Use browser native audio for web with beep fallback
+        _playWebBellSound();
+      } else {
+        // Use audioplayers for mobile
+        await _audioPlayer.play(AssetSource('sounds/bell.mp3'));
+      }
     } catch (e) {
       debugPrint('[KITCHEN] Error playing sound: $e');
+      // Fallback to double beep
+      if (kIsWeb) {
+        _playWebBeep(frequency: 600, duration: 0.2);
+        await Future.delayed(const Duration(milliseconds: 150));
+        _playWebBeep(frequency: 600, duration: 0.2);
+      }
     }
   }
-  
+
+  // Web Audio API sound generation (no MP3 files needed)
+  void _playWebNotificationSound() {
+    try {
+      final audio = html.AudioElement('assets/sounds/notification.mp3');
+      audio.volume = 0.7;
+      audio.onError.listen((_) {
+        // If MP3 fails, use generated beep
+        _playWebBeep(frequency: 800, duration: 0.3);
+      });
+      audio.play();
+    } catch (_) {
+      _playWebBeep(frequency: 800, duration: 0.3);
+    }
+  }
+
+  void _playWebBellSound() {
+    try {
+      final audio = html.AudioElement('assets/sounds/bell.mp3');
+      audio.volume = 0.7;
+      audio.onError.listen((_) {
+        // If MP3 fails, use double beep
+        _playWebDoubleBeep();
+      });
+      audio.play();
+    } catch (_) {
+      _playWebDoubleBeep();
+    }
+  }
+
+  void _playWebDoubleBeep() {
+    _playWebBeep(frequency: 600, duration: 0.2);
+    Future.delayed(const Duration(milliseconds: 150), () {
+      _playWebBeep(frequency: 600, duration: 0.2);
+    });
+  }
+
+  void _playWebBeep({required double frequency, required double duration}) {
+    try {
+      // Use dynamic to access Web Audio API
+      final audioContext = js.context.callMethod(
+          'eval', ['new (window.AudioContext || window.webkitAudioContext)()']);
+      final oscillator = audioContext.callMethod('createOscillator');
+      final gainNode = audioContext.callMethod('createGain');
+
+      oscillator.callMethod('connect', [gainNode]);
+      gainNode.callMethod('connect', [audioContext['destination']]);
+
+      oscillator['frequency']['value'] = frequency;
+      oscillator['type'] = 'sine';
+
+      gainNode['gain']['value'] = 0.3;
+      gainNode['gain'].callMethod('exponentialRampToValueAtTime',
+          [0.01, audioContext['currentTime'] + duration]);
+
+      oscillator.callMethod('start');
+      oscillator.callMethod('stop', [audioContext['currentTime'] + duration]);
+    } catch (e) {
+      debugPrint('[KITCHEN] Web Audio API error: $e');
+    }
+  }
+
   @override
   void dispose() {
     _audioPlayer.dispose();
     _refreshTimer?.cancel();
-    
-    // Leave room and remove listeners
+    _wsReconnectTimer?.cancel();
+
+    // Remove WebSocket state listener
+    _webSocketProvider?.removeListener(_onWebSocketStateChanged);
+
+    // Leave room and remove event listeners
     if (_webSocketProvider != null && _restaurantId != null) {
       final roomName = 'kitchen:$_restaurantId';
       _webSocketProvider!.leaveRoom(roomName);
@@ -196,22 +346,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       _webSocketProvider!.off('order:updated');
       _webSocketProvider!.off('waiter:called');
     }
-    
+
     super.dispose();
   }
 
   Future<void> _loadOrders({int retryCount = 0}) async {
     const maxRetries = 3;
     const retryDelay = Duration(seconds: 5);
-    
+
     try {
       final orders = await _orderRepository.getAllOrders();
-      
+
       // Filter only dine-in orders
-      final dineInOrders = orders.where((order) => 
-        order.type == 'dine_in'
-      ).toList();
-      
+      final dineInOrders =
+          orders.where((order) => order.type == 'dine_in').toList();
+
       // Sort by creation time (newest first)
       dineInOrders.sort((a, b) {
         final aTime = a.createdAt ?? DateTime.now();
@@ -220,48 +369,65 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       });
 
       if (mounted) {
+        // Detect brand-new orders (not seen before) that are pending
+        final newOrders = dineInOrders
+            .where((order) =>
+                order.status == 'pending' && !_knownOrderIds.contains(order.id))
+            .toList();
+
+        // Update known IDs
+        final allIds = dineInOrders.map((o) => o.id).toSet();
+
+        // On first load, just seed the known IDs without alerting
+        final isFirstLoad = _knownOrderIds.isEmpty;
+
         setState(() {
           _orders = dineInOrders;
           _isLoading = false;
           _isRefreshing = false;
           _lastUpdated = DateTime.now();
+          _knownOrderIds = allIds;
         });
+
+        // Alert for each new order (only after initial load)
+        if (!isFirstLoad && newOrders.isNotEmpty) {
+          for (final newOrder in newOrders) {
+            _alertNewOrder(newOrder);
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error loading kitchen orders: $e');
-      
+
       // Retry logic for timeout errors (backend sleeping on Render free tier)
       if (e.toString().contains('timed out') && retryCount < maxRetries) {
         debugPrint('Retrying... Attempt ${retryCount + 1}/$maxRetries');
-        
+
         if (mounted) {
-          // Show retry message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Server is waking up... Retry ${retryCount + 1}/$maxRetries'),
+              content: Text(
+                  'Server is waking up... Retry ${retryCount + 1}/$maxRetries'),
               backgroundColor: Colors.orange,
               duration: retryDelay,
             ),
           );
         }
-        
-        // Wait before retrying
+
         await Future.delayed(retryDelay);
-        
-        // Retry
         return _loadOrders(retryCount: retryCount + 1);
       }
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
           _isRefreshing = false;
         });
-        
-        // Show error message
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().contains('timed out') ? 'Server is sleeping. Please wait and try again.' : e.toString()}'),
+            content: Text(
+                'Error: ${e.toString().contains('timed out') ? 'Server is sleeping. Please wait and try again.' : e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
@@ -274,14 +440,60 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       }
     }
   }
-  
+
+  /// Called when a new pending order is detected via polling
+  void _alertNewOrder(Order order) {
+    // Play sound
+    _playNewOrderSound();
+
+    // Switch to pending tab so the order is visible
+    if (mounted && _selectedFilter != 'pending') {
+      setState(() => _selectedFilter = 'pending');
+    }
+
+    // Show prominent banner
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.notifications_active,
+                  color: Colors.white, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '🆕 New Order!',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text(
+                      '#${order.orderNumber} · Table ${order.tableNumber ?? order.tableId ?? 'N/A'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Future<void> _manualRefresh() async {
     setState(() => _isRefreshing = true);
     await Future.wait([
       _loadOrders(),
       _loadWaiterCalls(),
     ]);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -304,11 +516,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   KitchenLocalizations get _loc => KitchenLocalizations(_currentLanguage);
-  
+
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
-    
+
     if (difference.inSeconds < 60) {
       return 'Just now';
     } else if (difference.inMinutes < 60) {
@@ -332,24 +544,24 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             ),
             const SizedBox(height: 16),
             ...KitchenLocalizations.supportedLanguages.map((code) => ListTile(
-              leading: Radio<String>(
-                value: code,
-                groupValue: _currentLanguage,
-                onChanged: (value) {
-                  setState(() {
-                    _currentLanguage = value!;
-                  });
-                  Navigator.pop(ctx);
-                },
-              ),
-              title: Text(KitchenLocalizations.getLanguageName(code)),
-              onTap: () {
-                setState(() {
-                  _currentLanguage = code;
-                });
-                Navigator.pop(ctx);
-              },
-            )),
+                  leading: Radio<String>(
+                    value: code,
+                    groupValue: _currentLanguage,
+                    onChanged: (value) {
+                      setState(() {
+                        _currentLanguage = value!;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                  title: Text(KitchenLocalizations.getLanguageName(code)),
+                  onTap: () {
+                    setState(() {
+                      _currentLanguage = code;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                )),
           ],
         ),
       ),
@@ -361,7 +573,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${_loc.get('order_accepted')} - #${order.orderNumber}'),
+          content:
+              Text('${_loc.get('order_accepted')} - #${order.orderNumber}'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -410,13 +623,15 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       );
 
       // Send notification to customer
-      _orderRepository.sendOrderNotification(
-        orderId: order.id,
-        tableId: order.tableId ?? '',
-        status: 'confirmed',
-        message: _loc.get('order_accepted'),
-        languageCode: _currentLanguage,
-      ).catchError((e) => debugPrint('Notification error: $e'));
+      _orderRepository
+          .sendOrderNotification(
+            orderId: order.id,
+            tableId: order.tableId ?? '',
+            status: 'confirmed',
+            message: _loc.get('order_accepted'),
+            languageCode: _currentLanguage,
+          )
+          .catchError((e) => debugPrint('Notification error: $e'));
 
       // Emit WebSocket event for real-time update
       _webSocketProvider?.emit('order:updated', {
@@ -433,7 +648,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     } catch (e) {
       // Revert optimistic update on error
       _loadOrders();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -517,7 +732,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${_loc.get('order_rejected')} - #${order.orderNumber}'),
+            content:
+                Text('${_loc.get('order_rejected')} - #${order.orderNumber}'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
           ),
@@ -612,12 +828,14 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.language, size: 16, color: AppTheme.primaryColor),
+                  const Icon(Icons.language,
+                      size: 16, color: AppTheme.primaryColor),
                   const SizedBox(width: 4),
                   Text(
                     _currentLanguage.toUpperCase(),
@@ -675,7 +893,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             ],
           ),
           IconButton(
-            icon: _isRefreshing 
+            icon: _isRefreshing
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -808,9 +1026,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     if (order.tableNumber != null && order.tableNumber!.isNotEmpty) {
       return order.tableNumber!;
     }
-    // Fall back to tableId
-    if (order.tableId != null) {
-      return 'T-${order.tableId!.substring(0, 6)}';
+    // Fall back to tableId (safely handle short IDs)
+    if (order.tableId != null && order.tableId!.isNotEmpty) {
+      final id = order.tableId!;
+      final displayLength = id.length < 6 ? id.length : 6;
+      return 'T-${id.substring(0, displayLength)}';
     }
     return 'N/A';
   }
@@ -860,42 +1080,46 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             )
           else
             ..._waiterCalls.map((call) => Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              color: Colors.white,
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.orange,
-                  child: const Icon(Icons.table_restaurant, color: Colors.white),
-                ),
-                title: Text(
-                  'Table ${call['tableNumber'] ?? 'N/A'}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(call['message'] ?? 'Customer needs assistance'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _getTimeAgo(DateTime.parse(call['createdAt'] ?? DateTime.now().toIso8601String())),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: Colors.white,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.orange,
+                      child: const Icon(Icons.table_restaurant,
+                          color: Colors.white),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _acknowledgeWaiterCall(call['_id'] ?? call['id'] ?? ''),
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Attend'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
+                    title: Text(
+                      'Table ${call['tableNumber'] ?? 'N/A'}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ],
-                ),
-              ),
-            )),
+                    subtitle:
+                        Text(call['message'] ?? 'Customer needs assistance'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _getTimeAgo(DateTime.parse(call['createdAt'] ??
+                              DateTime.now().toIso8601String())),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _acknowledgeWaiterCall(
+                              call['_id'] ?? call['id'] ?? ''),
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Attend'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
         ],
       ),
     );
@@ -929,7 +1153,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               children: [
                 // Table Number - Large and prominent
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: statusColor,
                     borderRadius: BorderRadius.circular(8),
@@ -968,14 +1193,16 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                       if (order.createdAt != null)
                         OrderTimer(
                           orderTime: order.createdAt!,
-                          showFlashing: order.status != 'completed' && order.status != 'cancelled',
+                          showFlashing: order.status != 'completed' &&
+                              order.status != 'cancelled',
                         ),
                     ],
                   ),
                 ),
                 // Status Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor,
                     borderRadius: BorderRadius.circular(20),
@@ -1016,7 +1243,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                             width: 30,
                             height: 30,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                              color:
+                                  AppTheme.primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
@@ -1101,50 +1329,92 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     );
   }
 
+  ButtonStyle _getButtonStyle(Color bgColor) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: bgColor,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+      elevation: 4,
+      shadowColor: bgColor.withOpacity(0.4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      minimumSize: const Size(0, 56), // Minimum 56dp height for accessibility
+    );
+  }
+
   Widget _buildActionButtons(Order order) {
     if (order.status == 'pending') {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: Colors.orange[50],
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(10),
             bottomRight: Radius.circular(10),
           ),
+          border: Border(
+            top: BorderSide(color: Colors.orange[200]!, width: 1),
+          ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _rejectOrder(order),
-                icon: const Icon(Icons.close),
-                label: Text(_loc.get('reject_order')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+            // Quick action chips for common rejection reasons
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildQuickRejectChip(order, 'Out of stock', Icons.inventory_2),
+                _buildQuickRejectChip(order, 'Kitchen busy', Icons.schedule),
+                _buildQuickRejectChip(order, 'Closing soon', Icons.access_time),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: ElevatedButton.icon(
-                onPressed: () => _acceptOrder(order),
-                icon: const Icon(Icons.check),
-                label: Text(_loc.get('accept_order')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Reject button - large red
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _rejectOrder(order),
+                    icon: const Icon(Icons.close, size: 28),
+                    label: const Text(
+                      'REJECT',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    style: _getButtonStyle(Colors.red).copyWith(
+                      backgroundColor: WidgetStateProperty.all(Colors.red),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                // Accept button - larger green (2x width)
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _acceptOrder(order),
+                    icon: const Icon(Icons.check_circle, size: 32),
+                    label: const Text(
+                      'ACCEPT ORDER',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    style: _getButtonStyle(Colors.green).copyWith(
+                      backgroundColor: WidgetStateProperty.all(Colors.green),
+                      padding: WidgetStateProperty.all(
+                        const EdgeInsets.symmetric(
+                            vertical: 20, horizontal: 24),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1153,24 +1423,32 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: Colors.blue[50],
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(10),
             bottomRight: Radius.circular(10),
+          ),
+          border: Border(
+            top: BorderSide(color: Colors.blue[200]!, width: 1),
           ),
         ),
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () => _updateOrderStatus(order, 'preparing'),
-            icon: const Icon(Icons.restaurant),
-            label: Text(_loc.get('start_preparing')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+            icon: const Icon(Icons.restaurant, size: 28),
+            label: const Text(
+              'START PREPARING',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+            style: _getButtonStyle(Colors.purple).copyWith(
+              backgroundColor: WidgetStateProperty.all(Colors.purple),
+              padding: WidgetStateProperty.all(
+                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
               ),
             ),
           ),
@@ -1180,24 +1458,32 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: Colors.purple[50],
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(10),
             bottomRight: Radius.circular(10),
+          ),
+          border: Border(
+            top: BorderSide(color: Colors.purple[200]!, width: 1),
           ),
         ),
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () => _updateOrderStatus(order, 'ready'),
-            icon: const Icon(Icons.done_all),
-            label: Text(_loc.get('mark_ready')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+            icon: const Icon(Icons.done_all, size: 28),
+            label: const Text(
+              'MARK AS READY',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+            style: _getButtonStyle(Colors.green).copyWith(
+              backgroundColor: WidgetStateProperty.all(Colors.green),
+              padding: WidgetStateProperty.all(
+                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
               ),
             ),
           ),
@@ -1212,34 +1498,133 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             bottomLeft: Radius.circular(10),
             bottomRight: Radius.circular(10),
           ),
+          border: Border(
+            top: BorderSide(color: Colors.green[200]!, width: 1),
+          ),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _loc.get('order_ready'),
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _updateOrderStatus(order, 'completed'),
+            icon: const Icon(Icons.celebration, size: 28),
+            label: const Text(
+              'COMPLETE ORDER',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
               ),
             ),
-            ElevatedButton(
-              onPressed: () => _updateOrderStatus(order, 'completed'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
+            style: _getButtonStyle(Colors.teal).copyWith(
+              backgroundColor: WidgetStateProperty.all(Colors.teal),
+              padding: WidgetStateProperty.all(
+                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
               ),
-              child: Text(_loc.get('complete')),
             ),
-          ],
+          ),
         ),
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  /// Quick rejection reason chip for faster workflow
+  Widget _buildQuickRejectChip(Order order, String reason, IconData icon) {
+    return ActionChip(
+      avatar: Icon(icon, size: 18, color: Colors.red[700]),
+      label: Text(
+        reason,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.red[700],
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      backgroundColor: Colors.red[50],
+      side: BorderSide(color: Colors.red[200]!),
+      onPressed: () => _quickRejectOrder(order, reason),
+    );
+  }
+
+  /// Quick reject with predefined reason
+  Future<void> _quickRejectOrder(Order order, String reason) async {
+    // Show confirmation dialog with reason pre-filled
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cancel, color: Colors.red[400], size: 28),
+            const SizedBox(width: 12),
+            const Text('Reject Order'),
+          ],
+        ),
+        content:
+            Text('Reject order #${order.orderNumber} with reason: "$reason"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _orderRepository.updateOrderStatus(
+        order.id,
+        'cancelled',
+      );
+
+      await _orderRepository.sendOrderNotification(
+        orderId: order.id,
+        tableId: order.tableId ?? '',
+        status: 'cancelled',
+        message: 'Order rejected: $reason',
+        languageCode: _currentLanguage,
+      );
+
+      _webSocketProvider?.emit('order:updated', {
+        'orderId': order.id,
+        'orderNumber': order.orderNumber,
+        'tableId': order.tableId,
+        'status': 'cancelled',
+        'message': 'Order rejected: $reason',
+        'reason': reason,
+        'languageCode': _currentLanguage,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order #${order.orderNumber} rejected: $reason'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+
+      _loadOrders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reject: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -1273,10 +1658,25 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       return '${difference.inHours}h ago';
     } else {
       // Format: "Jan 5, 3:45 PM"
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
       final month = months[dateTime.month - 1];
       final day = dateTime.day;
-      final hour = dateTime.hour > 12 ? dateTime.hour - 12 : (dateTime.hour == 0 ? 12 : dateTime.hour);
+      final hour = dateTime.hour > 12
+          ? dateTime.hour - 12
+          : (dateTime.hour == 0 ? 12 : dateTime.hour);
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
       return '$month $day, $hour:$minute $period';

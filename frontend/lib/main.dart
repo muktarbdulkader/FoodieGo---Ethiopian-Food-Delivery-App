@@ -131,13 +131,13 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
 
   void _handleDeepLink(Uri uri) {
     debugPrint('Deep link received: $uri');
-    
+
     // Handle dine-in menu deep link
     // Example: https://your-app.web.app/dine-in-menu?restaurantId=xxx&tableId=T05
     if (uri.path == '/dine-in-menu') {
       final restaurantId = uri.queryParameters['restaurantId'];
       final tableId = uri.queryParameters['tableId'];
-      
+
       if (restaurantId != null && tableId != null) {
         // Navigate to dine-in menu page
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -160,7 +160,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     if (payload.startsWith('driver_assignment:')) {
       // Navigate to delivery dashboard
       // Check if user is logged in as delivery
-      if (_deliveryAuthProvider.isLoggedIn && 
+      if (_deliveryAuthProvider.isLoggedIn &&
           _deliveryAuthProvider.user?.role == 'delivery') {
         // Navigate to delivery dashboard
         navigatorKey.currentState?.pushNamedAndRemoveUntil(
@@ -200,14 +200,30 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
       ],
       child: Builder(
         builder: (context) {
-          // Connect WebSocket if user is logged in
+          // Connect WebSocket if any session is logged in (user, admin, or delivery)
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final token = StorageUtils.getToken();
-            if (token != null) {
-              final webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
-              if (!webSocketProvider.isConnected) {
+            final webSocketProvider =
+                Provider.of<WebSocketProvider>(context, listen: false);
+            if (!webSocketProvider.isConnected) {
+              // Try to get token from any session type
+              String? token;
+              SessionType? sessionType;
+
+              for (final type in SessionType.values) {
+                token = StorageUtils.getToken(type);
+                if (token != null) {
+                  sessionType = type;
+                  break;
+                }
+              }
+
+              if (token != null && sessionType != null) {
                 webSocketProvider.connect(token);
-                debugPrint('[MAIN] WebSocket connected with token');
+                debugPrint(
+                    '[MAIN] WebSocket connected with $sessionType token');
+              } else {
+                debugPrint(
+                    '[MAIN] No auth token found, WebSocket not connected');
               }
             }
           });
@@ -224,7 +240,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
               initialRoute: _getInitialRoute(),
               onGenerateRoute: (settings) {
                 debugPrint('Generating route for: ${settings.name}');
-                
+
                 // SPLASH SCREEN - Show first
                 if (settings.name == '/splash') {
                   return PageRouteBuilder(
@@ -235,7 +251,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
                     },
                   );
                 }
-                
+
                 // ADMIN/RESTAURANT PORTAL - /admin routes
                 if (settings.name?.startsWith('/admin') == true) {
                   return _buildAdminRoute(settings);
@@ -264,15 +280,15 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
     if (kIsWeb) {
       final uri = Uri.base;
       debugPrint('Initial URL path: ${uri.path}, query: ${uri.query}');
-      
+
       // If URL has /dine-in-menu path, return it
-      if (uri.path == '/dine-in-menu' && 
-          uri.queryParameters.containsKey('restaurantId') && 
+      if (uri.path == '/dine-in-menu' &&
+          uri.queryParameters.containsKey('restaurantId') &&
           uri.queryParameters.containsKey('tableId')) {
         return '/dine-in-menu';
       }
     }
-    
+
     // Default: show splash screen first
     return '/splash';
   }
@@ -281,7 +297,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   PageRouteBuilder _buildAdminRoute(RouteSettings settings) {
     // Set admin session type IMMEDIATELY before building route
     StorageUtils.setSessionType(SessionType.admin);
-    
+
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
@@ -314,7 +330,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   PageRouteBuilder _buildDeliveryRoute(RouteSettings settings) {
     // Set delivery session type IMMEDIATELY before building route
     StorageUtils.setSessionType(SessionType.delivery);
-    
+
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
@@ -357,18 +373,18 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         },
       );
     }
-    
+
     if (settings.name == '/dine-in-menu') {
       // Set user session type for dine-in menu (guests can view without login)
       StorageUtils.setSessionType(SessionType.user);
-      
+
       // Get arguments from route settings or from URL query parameters (for web)
       Map<String, dynamic>? args = settings.arguments as Map<String, dynamic>?;
-      
+
       // For web, if no arguments provided, try to get from URL
       if (kIsWeb && args == null) {
         final uri = Uri.base;
-        if (uri.queryParameters.containsKey('restaurantId') && 
+        if (uri.queryParameters.containsKey('restaurantId') &&
             uri.queryParameters.containsKey('tableId')) {
           args = {
             'restaurantId': uri.queryParameters['restaurantId']!,
@@ -376,7 +392,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
           };
         }
       }
-      
+
       return PageRouteBuilder(
         settings: settings,
         pageBuilder: (_, __, ___) => DineInMenuPage(
@@ -388,10 +404,10 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         },
       );
     }
-    
+
     // Set user session type for default routes
     StorageUtils.setSessionType(SessionType.user);
-    
+
     return PageRouteBuilder(
       settings: settings,
       pageBuilder: (_, __, ___) => FutureBuilder<bool>(

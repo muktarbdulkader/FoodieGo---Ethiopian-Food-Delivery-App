@@ -81,19 +81,54 @@ class FoodProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch all foods from API
+  /// Fetch all foods from API with offline caching for instant load
   Future<void> fetchFoods() async {
-    _isLoading = true;
     _error = null;
-    notifyListeners();
 
-    try {
-      _foods = await _foodRepository.getAllFoods();
+    // Try to load from cache first for instant display
+    final cachedFoods = await OfflineStorage.getMenu();
+    if (cachedFoods != null && cachedFoods.isNotEmpty) {
+      _foods = cachedFoods.map((json) => Food.fromJson(json)).toList();
       _applyFilters();
       _isLoading = false;
       notifyListeners();
+      debugPrint('[FOOD PROVIDER] Loaded ${_foods.length} foods from cache');
+    } else {
+      _isLoading = true;
+      notifyListeners();
+    }
+
+    // Then fetch fresh data in background
+    try {
+      final freshFoods = await _foodRepository.getAllFoods();
+
+      // Only update if we got new data
+      if (freshFoods.isNotEmpty) {
+        _foods = freshFoods;
+        _applyFilters();
+
+        // Save to offline storage
+        await OfflineStorage.saveMenu(_foods.map((f) => f.toJson()).toList());
+        debugPrint(
+            '[FOOD PROVIDER] Loaded ${_foods.length} fresh foods from API');
+      }
+
+      _isLoading = false;
+      _error = null;
+      notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      debugPrint('[FOOD PROVIDER] Error fetching foods: $e');
+
+      // If we have cached data, don't show error
+      if (cachedFoods != null && cachedFoods.isNotEmpty) {
+        _error = null;
+        debugPrint('[FOOD PROVIDER] Using cached foods due to error');
+      } else {
+        _error = e.toString().contains('timed out')
+            ? 'Server is waking up. Please wait...'
+            : e.toString();
+      }
+
       _isLoading = false;
       notifyListeners();
     }
@@ -114,28 +149,31 @@ class FoodProvider extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
     }
-    
+
     // Then fetch fresh data in background
     try {
-      final freshHotels = await _foodRepository.getAllHotels(lat: lat, lng: lng);
-      
+      final freshHotels =
+          await _foodRepository.getAllHotels(lat: lat, lng: lng);
+
       // Only update if we got new data
       if (freshHotels.isNotEmpty) {
         _hotels = freshHotels;
-        
+
         // Save to offline storage
-        await OfflineStorage.saveHotels(_hotels.map((h) => h.toJson()).toList());
-        
-        debugPrint('[FOOD PROVIDER] Loaded ${_hotels.length} fresh hotels from API');
+        await OfflineStorage.saveHotels(
+            _hotels.map((h) => h.toJson()).toList());
+
+        debugPrint(
+            '[FOOD PROVIDER] Loaded ${_hotels.length} fresh hotels from API');
       }
-      
+
       _isLoading = false;
       _error = null;
       notifyListeners();
       return _hotels;
     } catch (e) {
       debugPrint('[FOOD PROVIDER] Error fetching hotels: $e');
-      
+
       // If we have cached data, don't show error
       if (cachedHotels != null && cachedHotels.isNotEmpty) {
         _error = null;
@@ -173,7 +211,8 @@ class FoodProvider extends ChangeNotifier {
   }
 
   /// Fetch foods by hotel ID with optional menu type filter
-  Future<List<Food>> fetchFoodsByHotel(String hotelId, {String? menuType}) async {
+  Future<List<Food>> fetchFoodsByHotel(String hotelId,
+      {String? menuType}) async {
     // Try to load from cache first for instant display
     final cachedFoods = await OfflineStorage.getMenu();
     if (cachedFoods != null && cachedFoods.isNotEmpty) {
@@ -182,7 +221,7 @@ class FoodProvider extends ChangeNotifier {
       _isLoading = false;
       _error = null;
       notifyListeners();
-      
+
       // Show that we're using cached data
       debugPrint('[FOOD PROVIDER] Loaded ${_foods.length} foods from cache');
     } else {
@@ -192,36 +231,38 @@ class FoodProvider extends ChangeNotifier {
 
     // Then fetch fresh data in background
     try {
-      final freshFoods = await _foodRepository.getFoodsByHotel(hotelId, menuType: menuType);
-      
+      final freshFoods =
+          await _foodRepository.getFoodsByHotel(hotelId, menuType: menuType);
+
       // Only update if we got new data
       if (freshFoods.isNotEmpty) {
         _foods = freshFoods;
-        
+
         // Save to offline storage
         await OfflineStorage.saveMenu(_foods.map((f) => f.toJson()).toList());
-        
+
         _applyFilters();
         _error = null;
-        debugPrint('[FOOD PROVIDER] Loaded ${_foods.length} fresh foods from API');
+        debugPrint(
+            '[FOOD PROVIDER] Loaded ${_foods.length} fresh foods from API');
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return _foods;
     } catch (e) {
       debugPrint('[FOOD PROVIDER] Error fetching foods: $e');
-      
+
       // If we have cached data, just show a subtle message
       if (cachedFoods != null && cachedFoods.isNotEmpty) {
         _error = null; // Don't show error if we have cached data
         debugPrint('[FOOD PROVIDER] Using cached data due to error');
       } else {
-        _error = e.toString().contains('timed out') 
+        _error = e.toString().contains('timed out')
             ? 'Server is waking up. Please wait...'
             : e.toString();
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return _foods;

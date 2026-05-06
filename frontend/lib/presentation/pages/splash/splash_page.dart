@@ -14,7 +14,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late AnimationController _logoController;
   late AnimationController _foodController;
   late AnimationController _textController;
-  
+
   late Animation<double> _logoScale;
   late Animation<double> _logoOpacity;
   late Animation<double> _food1Slide;
@@ -24,25 +24,25 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
-    // Logo animation controller
+
+    // Logo animation controller - faster
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    
-    // Food images animation controller
+
+    // Food images animation controller - faster
     _foodController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
-    // Text animation controller
+
+    // Text animation controller - faster
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-    
+
     // Logo animations
     _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -50,14 +50,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         curve: Curves.elasticOut,
       ),
     );
-    
+
     _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
         curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
       ),
     );
-    
+
     // Food images slide animations
     _food1Slide = Tween<double>(begin: -200.0, end: 0.0).animate(
       CurvedAnimation(
@@ -65,14 +65,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         curve: Curves.easeOutBack,
       ),
     );
-    
+
     _food2Slide = Tween<double>(begin: 200.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _foodController,
         curve: Curves.easeOutBack,
       ),
     );
-    
+
     // Text fade in
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -80,38 +80,36 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         curve: Curves.easeIn,
       ),
     );
-    
+
     // Start animations sequence
     _startAnimations();
   }
-  
+
   void _startAnimations() async {
-    // Start logo animation
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Start logo animation immediately
     _logoController.forward();
-    
-    // Start food images animation
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    // Start food images animation quickly after
+    await Future.delayed(const Duration(milliseconds: 200));
     _foodController.forward();
-    
+
     // Start text animation
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 400));
     _textController.forward();
-    
-    // Navigate to next screen after all animations (reduced from 2500ms to 1500ms)
-    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Navigate to next screen fast - total ~1 second
+    await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) {
-      // Navigate to the appropriate route based on login status
       _navigateToNextScreen();
     }
   }
-  
+
   void _navigateToNextScreen() {
     // For web, check if we're on a dine-in menu URL - if so, don't navigate away
     if (kIsWeb) {
       final uri = Uri.base;
-      if (uri.path == '/dine-in-menu' && 
-          uri.queryParameters.containsKey('restaurantId') && 
+      if (uri.path == '/dine-in-menu' &&
+          uri.queryParameters.containsKey('restaurantId') &&
           uri.queryParameters.containsKey('tableId')) {
         // Navigate to dine-in menu with parameters
         Navigator.of(context).pushReplacementNamed(
@@ -124,14 +122,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         return;
       }
     }
-    
+
     final lastSession = StorageUtils.currentSessionType;
     final isUserLoggedIn = StorageUtils.isLoggedIn(SessionType.user);
     final isAdminLoggedIn = StorageUtils.isLoggedIn(SessionType.admin);
     final isDeliveryLoggedIn = StorageUtils.isLoggedIn(SessionType.delivery);
 
     String route = '/';
-    
+
     // Determine which route to navigate to
     switch (lastSession) {
       case SessionType.admin:
@@ -144,7 +142,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         if (isUserLoggedIn) route = '/';
         break;
     }
-    
+
     // If no one is logged in, check if any session exists
     if (!isUserLoggedIn && !isAdminLoggedIn && !isDeliveryLoggedIn) {
       if (isAdminLoggedIn) {
@@ -153,10 +151,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         route = '/delivery';
       }
     }
-    
+
     Navigator.of(context).pushReplacementNamed(route);
   }
-  
+
   @override
   void dispose() {
     _logoController.dispose();
@@ -184,7 +182,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           children: [
             // Animated food images in background
             _buildFoodImages(),
-            
+
             // Main content
             Center(
               child: Column(
@@ -224,9 +222,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 30),
-                  
+
                   // Animated app name
                   AnimatedBuilder(
                     animation: _textController,
@@ -269,7 +267,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                 ],
               ),
             ),
-            
+
             // Loading indicator at bottom
             Positioned(
               bottom: 60,
@@ -293,7 +291,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       ),
     );
   }
-  
+
   Widget _buildFoodImages() {
     return Stack(
       children: [
@@ -317,7 +315,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         // Food emoji 2 - sliding from right
         AnimatedBuilder(
           animation: _foodController,
@@ -338,7 +336,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         // Food emoji 3 - sliding from left (lower)
         AnimatedBuilder(
           animation: _foodController,
@@ -359,7 +357,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         // Food emoji 4 - sliding from right (lower)
         AnimatedBuilder(
           animation: _foodController,
@@ -380,7 +378,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         // Additional decorative food emojis
         AnimatedBuilder(
           animation: _foodController,
@@ -398,7 +396,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         AnimatedBuilder(
           animation: _foodController,
           builder: (context, child) {
@@ -415,7 +413,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         AnimatedBuilder(
           animation: _foodController,
           builder: (context, child) {
@@ -432,7 +430,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
           },
         ),
-        
+
         AnimatedBuilder(
           animation: _foodController,
           builder: (context, child) {

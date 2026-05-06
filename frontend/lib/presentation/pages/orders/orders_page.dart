@@ -415,7 +415,7 @@ class _OrdersPageState extends State<OrdersPage>
                             Text(
                               order.orderNumber.isNotEmpty
                                   ? 'ID-${order.orderNumber}'
-                                  : 'ID-${order.id.substring(order.id.length - 4).toUpperCase()}',
+                                  : 'ID-${order.id.length >= 4 ? order.id.substring(order.id.length - 4).toUpperCase() : order.id.toUpperCase()}',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
