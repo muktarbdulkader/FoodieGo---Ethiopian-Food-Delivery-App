@@ -61,6 +61,7 @@ class _OrdersPageState extends State<OrdersPage>
         return OrderStatusPage(
           tableId: dineInProvider.currentTable!.id,
           restaurantId: dineInProvider.currentRestaurantId!,
+          guestSessionId: dineInProvider.guestSessionId, // Pass guest session ID
         );
       }
       

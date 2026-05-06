@@ -183,7 +183,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  _getTrackingStatusText(delivery.trackingStatus!),
+                  _getTrackingStatusText(delivery.trackingStatus),
                   style: const TextStyle(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.w500,
@@ -261,7 +261,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage> {
     );
   }
 
-  String _getTrackingStatusText(String status) {
+  String _getTrackingStatusText(String? status) {
     switch (status) {
       case 'assigned':
         return 'Driver on the way to restaurant';

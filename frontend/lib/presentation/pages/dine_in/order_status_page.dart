@@ -10,11 +10,13 @@ import '../../../state/websocket/websocket_provider.dart';
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
   final String restaurantId;
+  final String? guestSessionId; // NEW: Guest session ID
 
   const OrderStatusPage({
     super.key,
     required this.tableId,
     required this.restaurantId,
+    this.guestSessionId, // NEW
   });
 
   @override
@@ -250,9 +252,13 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   Future<void> _loadOrderStatus() async {
     try {
-      final response = await ApiService.getPublic(
-        '${ApiConstants.orders}/table/${widget.tableId}/status',
-      );
+      // Build URL with guestSessionId query parameter if available
+      String url = '${ApiConstants.orders}/table/${widget.tableId}/status';
+      if (widget.guestSessionId != null) {
+        url += '?guestSessionId=${widget.guestSessionId}';
+      }
+      
+      final response = await ApiService.getPublic(url);
 
       if (mounted) {
         setState(() {

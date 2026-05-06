@@ -469,6 +469,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               builder: (_) => OrderStatusPage(
                 tableId: widget.tableId,
                 restaurantId: widget.restaurantId,
+                guestSessionId: context.read<DineInProvider>().guestSessionId, // Pass guest session ID
               ),
             ),
           );
@@ -564,6 +565,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     builder: (_) => OrderStatusPage(
                       tableId: widget.tableId,
                       restaurantId: widget.restaurantId,
+                      guestSessionId: context.read<DineInProvider>().guestSessionId, // Pass guest session ID
                     ),
                   ),
                 );

@@ -106,6 +106,9 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
   },
+  guestSessionId: {
+    type: String // Unique session ID for each guest at a table
+  },
   
   // Pricing
   subtotal: { type: Number, required: true },
@@ -164,6 +167,7 @@ orderSchema.pre('save', async function(next) {
 // Indexes for efficient queries
 orderSchema.index({ user: 1, createdAt: -1 }); // User's orders sorted by date
 orderSchema.index({ tableId: 1, status: 1 }); // Dine-in orders by table
+orderSchema.index({ tableId: 1, guestSessionId: 1, status: 1 }); // Dine-in orders by table and guest session
 orderSchema.index({ type: 1, status: 1 }); // Orders by type and status
 orderSchema.index({ restaurantId: 1, createdAt: -1 }); // Restaurant's orders
 orderSchema.index({ 'delivery.driverId': 1 }); // Driver's orders

@@ -209,9 +209,10 @@ class OrderRepository {
     double tax = 0,
     required double totalPrice,
     String? notes,
+    String? guestSessionId, // NEW: unique session ID for each guest
   }) async {
     // Use the regular order endpoint with type='dine_in'
-    final response = await ApiService.post(ApiConstants.orders, {
+    final requestBody = {
       'type': 'dine_in',
       'restaurantId': restaurantId,
       'tableId': tableId,
@@ -221,7 +222,14 @@ class OrderRepository {
       'totalPrice': totalPrice,
       'deliveryFee': 0,
       'notes': notes,
-    });
+    };
+    
+    // Add guestSessionId if provided
+    if (guestSessionId != null) {
+      requestBody['guestSessionId'] = guestSessionId;
+    }
+    
+    final response = await ApiService.post(ApiConstants.orders, requestBody);
 
     return Order.fromJson(response['data']);
   }

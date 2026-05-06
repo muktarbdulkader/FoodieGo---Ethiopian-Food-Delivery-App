@@ -382,6 +382,7 @@ class _CartPageState extends State<CartPage>
           subtotal: cart.totalPrice,
           tax: 0,
           totalPrice: cart.totalPrice,
+          guestSessionId: dineInProvider.guestSessionId, // Pass guest session ID
         );
 
         if (context.mounted) {
@@ -424,6 +425,7 @@ class _CartPageState extends State<CartPage>
                           builder: (_) => OrderStatusPage(
                             tableId: tableId,
                             restaurantId: restaurantId,
+                            guestSessionId: dineInProvider.guestSessionId, // Pass guest session ID
                           ),
                         ),
                       );

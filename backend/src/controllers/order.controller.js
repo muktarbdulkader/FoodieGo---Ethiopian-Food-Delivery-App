@@ -233,6 +233,7 @@ const createOrder = async (req, res, next) => {
       type = 'delivery', // NEW: order type
       tableId, // NEW: for dine-in orders
       restaurantId, // NEW: for dine-in orders
+      guestSessionId, // NEW: unique session ID for each guest at a table
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -309,6 +310,9 @@ const createOrder = async (req, res, next) => {
       orderData.tableId = tableId;
       orderData.tableNumber = req.tableNumber; // Add table number for display
       orderData.restaurantId = restaurantId;
+      if (guestSessionId) {
+        orderData.guestSessionId = guestSessionId; // Add guest session ID
+      }
     }
 
     const order = await Order.create(orderData);
@@ -1291,6 +1295,7 @@ const acknowledgeWaiterCall = async (req, res, next) => {
 const getOrderStatusByTable = async (req, res, next) => {
   try {
     const { tableId } = req.params;
+    const { guestSessionId } = req.query; // NEW: Get guestSessionId from query params
 
     if (!tableId) {
       return res.status(400).json({ 
@@ -1299,12 +1304,20 @@ const getOrderStatusByTable = async (req, res, next) => {
       });
     }
 
-    // Find the most recent order for this table
-    const order = await Order.findOne({ 
+    // Build filter
+    const filter = { 
       tableId,
       type: 'dine_in',
       status: { $nin: ['completed', 'cancelled'] } // Exclude completed/cancelled orders
-    })
+    };
+    
+    // Filter by guestSessionId if provided (so each guest only sees their own orders)
+    if (guestSessionId) {
+      filter.guestSessionId = guestSessionId;
+    }
+
+    // Find the most recent order for this table (and guest session if provided)
+    const order = await Order.findOne(filter)
     .sort({ createdAt: -1 })
     .populate('tableId', 'tableNumber');
 
