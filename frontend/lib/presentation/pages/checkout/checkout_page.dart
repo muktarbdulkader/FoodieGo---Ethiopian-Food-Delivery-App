@@ -12,6 +12,7 @@ import '../../../state/auth/auth_provider.dart';
 import '../../../state/language/language_provider.dart';
 import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/order.dart';
+import '../../../data/repositories/order_repository.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/api_service.dart';
 import '../orders/orders_page.dart';
@@ -377,6 +378,10 @@ class _CheckoutPageState extends State<CheckoutPage>
       distance: isDineIn ? 0 : _distanceKm,
     );
 
+    // Check if mobile payment (cart handling differs)
+    final isMobilePayment =
+        ['telebirr', 'mpesa', 'cbe_birr'].contains(_selectedPayment);
+
     final order = await cart.placeOrderWithDetails(
       subtotal: subtotal,
       deliveryFee: deliveryFee,
@@ -386,6 +391,7 @@ class _CheckoutPageState extends State<CheckoutPage>
       deliveryAddress: deliveryAddress,
       payment: payment,
       delivery: delivery,
+      clearCartAfter: !isMobilePayment, // Don't clear for mobile payments
     );
 
     if (order == null) {
@@ -406,11 +412,8 @@ class _CheckoutPageState extends State<CheckoutPage>
     }
 
     // Handle payment based on method
-    final isMobilePayment =
-        ['telebirr', 'mpesa', 'cbe_birr'].contains(_selectedPayment);
-
     if (isMobilePayment) {
-      // For mobile payments, don't clear cart yet - wait for payment success
+      // For mobile payments, cart still has items - clear after success
       await _initiateMobilePayment(order, total, cart);
     } else {
       // Cash or Card - show success immediately
@@ -470,18 +473,96 @@ class _CheckoutPageState extends State<CheckoutPage>
       setState(() => _isLoading = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment error: ${e.toString()}'),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        // Show retry dialog instead of just snackbar
+        _showPaymentErrorDialog(order, total, cart, e.toString());
       }
     }
+  }
+
+  /// Show payment error dialog with retry option
+  void _showPaymentErrorDialog(
+      Order order, double total, CartProvider cart, String error) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: AppTheme.errorColor, size: 28),
+            SizedBox(width: 12),
+            Text('Payment Failed'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Could not connect to $_selectedPayment.'),
+            const SizedBox(height: 8),
+            Text(
+              'Error: $error',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Your order is saved. You can:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text('• Retry payment with $_selectedPayment'),
+            Text('• Pay with cash at delivery/counter'),
+            Text('• Try a different payment method'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                // Update order payment to cash
+                final orderRepo = OrderRepository();
+                await orderRepo.updateOrderPayment(order.id, 'cash', 'pending');
+
+                // Clear cart and show success
+                cart.clearCart();
+                if (mounted) {
+                  context.read<OrderProvider>().fetchOrders();
+                  NotificationService.showOrderNotification(
+                    title: 'Order Placed! 🎉',
+                    body:
+                        'Your order #${order.orderNumber} is confirmed. Pay cash on delivery.',
+                    payload: order.id,
+                  );
+                  _showSuccessDialog(order);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to update payment: $e'),
+                      backgroundColor: AppTheme.errorColor,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Pay Cash'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Retry the same payment
+              _initiateMobilePayment(order, total, cart);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            child: const Text('Retry Payment'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPaymentDialog(Order order, String paymentUrl, CartProvider cart) {
@@ -534,10 +615,10 @@ class _CheckoutPageState extends State<CheckoutPage>
                               child: Container(
                                 padding: const EdgeInsets.all(28),
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
+                                  gradient: const LinearGradient(
                                     colors: [
-                                      const Color(0xFF00A651),
-                                      const Color(0xFF00D563),
+                                      Color(0xFF00A651),
+                                      Color(0xFF00D563),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -592,9 +673,9 @@ class _CheckoutPageState extends State<CheckoutPage>
                           },
                           child: Column(
                             children: [
-                              Text(
+                              const Text(
                                 'Complete Payment',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.textPrimary,
@@ -712,10 +793,10 @@ class _CheckoutPageState extends State<CheckoutPage>
                           child: Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
+                              gradient: const LinearGradient(
                                 colors: [
-                                  const Color(0xFFF0F9FF),
-                                  const Color(0xFFE0F2FE),
+                                  Color(0xFFF0F9FF),
+                                  Color(0xFFE0F2FE),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -930,8 +1011,8 @@ class _CheckoutPageState extends State<CheckoutPage>
         Container(
           width: 28,
           height: 28,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
               colors: [Color(0xFF00A651), Color(0xFF00D563)],
             ),
             shape: BoxShape.circle,
@@ -1111,7 +1192,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           children: [
                             Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 gradient: AppTheme.primaryGradient,
                                 shape: BoxShape.circle,
                               ),
@@ -1139,10 +1220,10 @@ class _CheckoutPageState extends State<CheckoutPage>
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
+                          gradient: const LinearGradient(
                             colors: [
-                              const Color(0xFFFFF7ED),
-                              const Color(0xFFFFEDD5),
+                              Color(0xFFFFF7ED),
+                              Color(0xFFFFEDD5),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -2299,11 +2380,11 @@ class _CheckoutPageState extends State<CheckoutPage>
               const Row(
                 children: [
                   Icon(Icons.receipt_long,
-                      color: AppTheme.primaryColor, size: 22),
-                  SizedBox(width: 8),
+                      color: AppTheme.errorColor, size: 28),
+                  SizedBox(width: 12),
                   Text('Order Summary',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 16),

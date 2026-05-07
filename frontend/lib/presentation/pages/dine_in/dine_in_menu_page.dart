@@ -11,6 +11,7 @@ import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/food.dart';
 import '../cart/cart_page.dart';
 import 'order_status_page.dart';
+import 'qr_scanner_page.dart';
 
 class DineInMenuPage extends StatefulWidget {
   final String restaurantId;
@@ -75,18 +76,18 @@ class _DineInMenuPageState extends State<DineInMenuPage>
   void initState() {
     super.initState();
     _loadLanguage();
-    
+
     // Initialize animation controllers
     _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _badgeAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    
+
     // Fade animation for text
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -95,7 +96,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       parent: _headerAnimationController,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     ));
-    
+
     // Slide animation for title
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
@@ -104,7 +105,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       parent: _headerAnimationController,
       curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
     ));
-    
+
     // Scale animation for badges
     _scaleAnimation = Tween<double>(
       begin: 0.8,
@@ -113,7 +114,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       parent: _badgeAnimationController,
       curve: Curves.elasticOut,
     ));
-    
+
     // Start animations
     _headerAnimationController.forward();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -121,17 +122,17 @@ class _DineInMenuPageState extends State<DineInMenuPage>
         _badgeAnimationController.forward();
       }
     });
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StorageUtils.setSessionType(SessionType.user);
-      
+
       final dineInProvider = context.read<DineInProvider>();
       dineInProvider.loadTableData(widget.restaurantId, widget.tableId);
-      
+
       context.read<FoodProvider>().fetchFoodsByHotel(
-        widget.restaurantId,
-        menuType: 'dine_in',
-      );
+            widget.restaurantId,
+            menuType: 'dine_in',
+          );
     });
   }
 
@@ -173,7 +174,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.language, color: AppTheme.primaryColor),
+                  child:
+                      const Icon(Icons.language, color: AppTheme.primaryColor),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -195,7 +197,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     );
   }
 
-  Widget _buildLanguageOption(BuildContext ctx, String code, String name, String flag) {
+  Widget _buildLanguageOption(
+      BuildContext ctx, String code, String name, String flag) {
     final isSelected = _currentLanguage == code;
     return InkWell(
       onTap: () async {
@@ -218,7 +221,9 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.grey.shade50,
+          color: isSelected
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
+              : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
@@ -235,12 +240,14 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                  color:
+                      isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
                 ),
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: AppTheme.primaryColor, size: 24),
+              const Icon(Icons.check_circle,
+                  color: AppTheme.primaryColor, size: 24),
           ],
         ),
       ),
@@ -326,7 +333,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.restaurant_menu, size: 80, color: Colors.grey[400]),
+                  Icon(Icons.restaurant_menu,
+                      size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'No menu items available',
@@ -340,7 +348,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
             );
           }
 
-          final categories = foods.map((f) => f.category).toSet().toList()..sort();
+          final categories = foods.map((f) => f.category).toSet().toList()
+            ..sort();
           final filteredFoods = _selectedCategory == null
               ? foods
               : foods.where((f) => f.category == _selectedCategory).toList();
@@ -381,7 +390,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
           if (cart.itemCount == 0) {
             return const SizedBox.shrink();
           }
-          
+
           return FloatingActionButton.extended(
             onPressed: () {
               Navigator.push(
@@ -469,7 +478,9 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               builder: (_) => OrderStatusPage(
                 tableId: widget.tableId,
                 restaurantId: widget.restaurantId,
-                guestSessionId: context.read<DineInProvider>().guestSessionId, // Pass guest session ID
+                guestSessionId: context
+                    .read<DineInProvider>()
+                    .guestSessionId, // Pass guest session ID
               ),
             ),
           );
@@ -565,10 +576,32 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     builder: (_) => OrderStatusPage(
                       tableId: widget.tableId,
                       restaurantId: widget.restaurantId,
-                      guestSessionId: context.read<DineInProvider>().guestSessionId, // Pass guest session ID
+                      guestSessionId: context
+                          .read<DineInProvider>()
+                          .guestSessionId, // Pass guest session ID
                     ),
                   ),
                 );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildProfileOption(
+              ctx,
+              Icons.payment,
+              'Select Payment Method',
+              () {
+                Navigator.pop(ctx);
+                _showPaymentMethodSelector();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildProfileOption(
+              ctx,
+              Icons.qr_code_scanner,
+              'Scan QR / Camera',
+              () {
+                Navigator.pop(ctx);
+                _openQRScanner();
               },
             ),
             const SizedBox(height: 12),
@@ -588,7 +621,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     );
   }
 
-  Widget _buildProfileOption(BuildContext ctx, IconData icon, String title, VoidCallback onTap) {
+  Widget _buildProfileOption(
+      BuildContext ctx, IconData icon, String title, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -619,6 +653,165 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     );
   }
 
+  /// Show payment method selector for dine-in guests
+  void _showPaymentMethodSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00A651).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.payment, color: Color(0xFF00A651)),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Select Payment Method',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildPaymentOption(
+              ctx,
+              Icons.money,
+              'Cash',
+              'Pay at counter',
+              Colors.green,
+              () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Cash payment selected. Pay at the counter.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentOption(
+              ctx,
+              Icons.phone_android,
+              'Telebirr',
+              'Pay with Telebirr mobile money',
+              const Color(0xFF00A651),
+              () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('Telebirr selected. Scan QR code at counter.'),
+                    backgroundColor: Color(0xFF00A651),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentOption(
+              ctx,
+              Icons.credit_card,
+              'Card',
+              'Pay with credit/debit card',
+              Colors.blue,
+              () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Card payment selected. Pay at the counter.'),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(
+    BuildContext ctx,
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Open QR Scanner for scanning payment QR or table QR
+  void _openQRScanner() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const QRScannerPage(),
+      ),
+    );
+  }
+
   Future<void> _callWaiter() async {
     // Show loading
     ScaffoldMessenger.of(context).showSnackBar(
@@ -641,7 +834,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
         duration: Duration(seconds: 2),
       ),
     );
-    
+
     try {
       await ApiService.postPublic(
         '${ApiConstants.orders}/dine-in/call-waiter',
@@ -650,7 +843,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
           'message': 'Customer needs assistance',
         },
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -687,7 +880,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
 
   Widget _buildSliverAppBar(BuildContext context) {
     final localizations = AppLocalizations(_currentLanguage);
-    
+
     return SliverAppBar(
       expandedHeight: 200,
       floating: false,
@@ -704,9 +897,9 @@ class _DineInMenuPageState extends State<DineInMenuPage>
             onPressed: () {
               // Refresh menu
               context.read<FoodProvider>().fetchFoodsByHotel(
-                widget.restaurantId,
-                menuType: 'dine_in',
-              );
+                    widget.restaurantId,
+                    menuType: 'dine_in',
+                  );
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Refreshing menu...'),
@@ -811,10 +1004,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
             // Hero content
             Consumer2<DineInProvider, FoodProvider>(
               builder: (context, dineIn, foodProvider, _) {
-                final restaurantName = foodProvider.foods.isNotEmpty 
-                    ? foodProvider.foods.first.hotelName 
+                final restaurantName = foodProvider.foods.isNotEmpty
+                    ? foodProvider.foods.first.hotelName
                     : localizations.get('restaurant_menu');
-                
+
                 return SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
@@ -915,10 +1108,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
             // Hero content with animations
             Consumer2<DineInProvider, FoodProvider>(
               builder: (context, dineIn, foodProvider, _) {
-                final restaurantName = foodProvider.foods.isNotEmpty 
-                    ? foodProvider.foods.first.hotelName 
+                final restaurantName = foodProvider.foods.isNotEmpty
+                    ? foodProvider.foods.first.hotelName
                     : localizations.get('restaurant_menu');
-                
+
                 return SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
@@ -987,7 +1180,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1024,7 +1218,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1206,7 +1401,8 @@ class _FoodCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
                     food.image,
                     height: 140,
@@ -1219,7 +1415,8 @@ class _FoodCard extends StatelessWidget {
                           colors: [Colors.grey[300]!, Colors.grey[200]!],
                         ),
                       ),
-                      child: Icon(Icons.restaurant, size: 60, color: Colors.grey[400]),
+                      child: Icon(Icons.restaurant,
+                          size: 60, color: Colors.grey[400]),
                     ),
                   ),
                 ),
@@ -1290,13 +1487,14 @@ class _FoodCard extends StatelessWidget {
                           onTap: () {
                             // Add to cart immediately
                             context.read<CartProvider>().addToCart(food);
-                            
+
                             // Show simple, fast feedback
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Row(
                                   children: [
-                                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                    const Icon(Icons.check_circle,
+                                        color: Colors.white, size: 20),
                                     const SizedBox(width: 12),
                                     Text('${food.name} added to cart'),
                                   ],
@@ -1319,7 +1517,8 @@ class _FoodCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                                  color: AppTheme.primaryColor
+                                      .withValues(alpha: 0.4),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1398,7 +1597,8 @@ class _FoodCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -1453,7 +1653,8 @@ class _FoodCard extends StatelessWidget {
                         SnackBar(
                           content: Row(
                             children: [
-                              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                              const Icon(Icons.check_circle,
+                                  color: Colors.white, size: 20),
                               const SizedBox(width: 12),
                               Text('${food.name} added to cart'),
                             ],

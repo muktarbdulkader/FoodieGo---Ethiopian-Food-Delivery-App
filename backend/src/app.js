@@ -111,8 +111,10 @@ app.use(compression());
 
 // CORS configuration - explicitly allow frontend origins
 const allowedOrigins = [
-  'https://foodiego-99b1e.web.app',     // Production frontend
-  'https://foodiego-99b1e.firebaseapp.com', // Firebase alternate domain
+  'https://foodiego-99b1e.web.app',         // Production frontend (1e)
+  'https://foodiego-99b1e.firebaseapp.com', // Firebase alternate (1e)
+  'https://foodiego-99ble.web.app',         // Production frontend (ble)
+  'https://foodiego-99ble.firebaseapp.com', // Firebase alternate (ble)
   'http://localhost:3000',               // Local development
   'http://localhost:8080',
   'http://localhost:5000',
@@ -127,7 +129,12 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or server-side requests)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.includes('foodiego') // Allow all foodiego subdomains (web.app, firebaseapp.com)
+    ) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked request from: ${origin}`);

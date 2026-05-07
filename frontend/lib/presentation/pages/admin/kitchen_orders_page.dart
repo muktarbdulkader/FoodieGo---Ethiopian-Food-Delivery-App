@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/repositories/order_repository.dart';
@@ -278,8 +277,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   Future<void> _loadOrders({int retryCount = 0}) async {
-    const maxRetries = 3;
-    const retryDelay = Duration(seconds: 5);
+    const maxRetries = 2;
+    const retryDelay = Duration(seconds: 3);
 
     try {
       final orders = await _orderRepository.getAllOrders();
@@ -879,7 +878,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No ${_selectedFilter} orders',
+                              'No $_selectedFilter orders',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: Colors.grey[600],
@@ -1012,9 +1011,9 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                   margin: const EdgeInsets.only(bottom: 8),
                   color: Colors.white,
                   child: ListTile(
-                    leading: CircleAvatar(
+                    leading: const CircleAvatar(
                       backgroundColor: Colors.orange,
-                      child: const Icon(Icons.table_restaurant,
+                      child: Icon(Icons.table_restaurant,
                           color: Colors.white),
                     ),
                     title: Text(

@@ -97,6 +97,17 @@ class OrderRepository {
     return Order.fromJson(response['data']);
   }
 
+  /// Update order payment method and status
+  Future<Order> updateOrderPayment(
+      String id, String method, String status) async {
+    final response =
+        await ApiService.put('${ApiConstants.orders}/$id/payment', {
+      'method': method,
+      'status': status,
+    });
+    return Order.fromJson(response['data']);
+  }
+
   /// Assign driver to order (restaurant)
   Future<Order> assignDriver(
       String id, String driverName, String driverPhone) async {
@@ -223,12 +234,12 @@ class OrderRepository {
       'deliveryFee': 0,
       'notes': notes,
     };
-    
+
     // Add guestSessionId if provided
     if (guestSessionId != null) {
       requestBody['guestSessionId'] = guestSessionId;
     }
-    
+
     final response = await ApiService.post(ApiConstants.orders, requestBody);
 
     return Order.fromJson(response['data']);
@@ -237,7 +248,8 @@ class OrderRepository {
   /// Get pending waiter calls (for kitchen display)
   Future<List<Map<String, dynamic>>> getPendingWaiterCalls() async {
     try {
-      final response = await ApiService.get('${ApiConstants.orders}/dine-in/waiter-calls');
+      final response =
+          await ApiService.get('${ApiConstants.orders}/dine-in/waiter-calls');
       final List<dynamic> calls = response['data'] ?? [];
       return calls.map((call) => call as Map<String, dynamic>).toList();
     } catch (e) {
@@ -248,7 +260,8 @@ class OrderRepository {
 
   /// Acknowledge waiter call (mark as attended)
   Future<void> acknowledgeWaiterCall(String callId) async {
-    await ApiService.put('${ApiConstants.orders}/dine-in/waiter-calls/$callId/acknowledge', {});
+    await ApiService.put(
+        '${ApiConstants.orders}/dine-in/waiter-calls/$callId/acknowledge', {});
   }
 
   /// Send notification to customer about order status
