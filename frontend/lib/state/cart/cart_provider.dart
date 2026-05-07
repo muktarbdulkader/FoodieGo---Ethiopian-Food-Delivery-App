@@ -94,6 +94,7 @@ class CartProvider extends ChangeNotifier {
     DeliveryAddress? deliveryAddress,
     Payment? payment,
     Delivery? delivery,
+    bool clearCartAfter = true, // NEW: Control whether to clear cart
   }) async {
     if (_items.isEmpty) return null;
 
@@ -113,7 +114,10 @@ class CartProvider extends ChangeNotifier {
         payment: payment,
         delivery: delivery,
       );
-      _items.clear();
+      // Only clear cart if requested (false for mobile payments that may fail)
+      if (clearCartAfter) {
+        _items.clear();
+      }
       _isLoading = false;
       notifyListeners();
       return order;
@@ -132,7 +136,8 @@ class CartProvider extends ChangeNotifier {
     required double subtotal,
     required double tax,
     required double totalPrice,
-    String? guestSessionId, // NEW: Guest session ID to identify individual guests
+    String?
+        guestSessionId, // NEW: Guest session ID to identify individual guests
   }) async {
     if (_items.isEmpty) return null;
 

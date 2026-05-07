@@ -406,11 +406,12 @@ class _CheckoutPageState extends State<CheckoutPage>
     }
 
     // Handle payment based on method
-    if (_selectedPayment == 'telebirr' ||
-        _selectedPayment == 'mpesa' ||
-        _selectedPayment == 'cbe_birr') {
-      // Initiate mobile payment
-      await _initiateMobilePayment(order, total);
+    final isMobilePayment =
+        ['telebirr', 'mpesa', 'cbe_birr'].contains(_selectedPayment);
+
+    if (isMobilePayment) {
+      // For mobile payments, don't clear cart yet - wait for payment success
+      await _initiateMobilePayment(order, total, cart);
     } else {
       // Cash or Card - show success immediately
       setState(() => _isLoading = false);
@@ -432,7 +433,8 @@ class _CheckoutPageState extends State<CheckoutPage>
     }
   }
 
-  Future<void> _initiateMobilePayment(Order order, double total) async {
+  Future<void> _initiateMobilePayment(
+      Order order, double total, CartProvider cart) async {
     try {
       final response = await ApiService.post('/payments/telebirr/initiate', {
         'orderId': order.id,
@@ -447,10 +449,11 @@ class _CheckoutPageState extends State<CheckoutPage>
         final paymentUrl = response['data']?['toPayUrl'];
 
         if (paymentUrl != null) {
-          // Show payment dialog with instructions
-          _showPaymentDialog(order, paymentUrl);
+          // Show payment dialog with instructions - cart will be cleared after success
+          _showPaymentDialog(order, paymentUrl, cart);
         } else {
-          // Mock mode or no URL - show success
+          // Mock mode or no URL - clear cart and show success
+          cart.clearCart();
           context.read<OrderProvider>().fetchOrders();
           NotificationService.showOrderNotification(
             title: 'Order Placed! 🎉',
@@ -481,7 +484,7 @@ class _CheckoutPageState extends State<CheckoutPage>
     }
   }
 
-  void _showPaymentDialog(Order order, String paymentUrl) {
+  void _showPaymentDialog(Order order, String paymentUrl, CartProvider cart) {
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
@@ -869,6 +872,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                                   ),
                                   child: ElevatedButton(
                                     onPressed: () {
+                                      // Clear cart after successful payment confirmation
+                                      cart.clearCart();
                                       Navigator.pop(context);
                                       context
                                           .read<OrderProvider>()
