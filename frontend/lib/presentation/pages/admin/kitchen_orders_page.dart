@@ -217,10 +217,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               const Icon(Icons.notifications_active,
                   color: Colors.orange, size: 32),
               const SizedBox(width: 12),
-              Text('Table ${data['tableNumber']}'),
+              Text('Table ${data['tableNumber']?.toString() ?? 'Unknown'}'),
             ],
           ),
-          content: Text(data['message'] ?? 'Customer needs assistance'),
+          content:
+              Text(data['message']?.toString() ?? 'Customer needs assistance'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -309,21 +310,44 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       // Use dynamic to access Web Audio API
       final audioContext = js.context.callMethod(
           'eval', ['new (window.AudioContext || window.webkitAudioContext)()']);
+      if (audioContext == null) {
+        debugPrint('[KITCHEN] AudioContext not available');
+        return;
+      }
+
       final oscillator = audioContext.callMethod('createOscillator');
       final gainNode = audioContext.callMethod('createGain');
+      if (oscillator == null || gainNode == null) {
+        debugPrint('[KITCHEN] Could not create audio nodes');
+        return;
+      }
+
+      final destination = audioContext['destination'];
+      final currentTime = audioContext['currentTime'];
+      if (destination == null || currentTime == null) {
+        debugPrint('[KITCHEN] AudioContext properties not available');
+        return;
+      }
 
       oscillator.callMethod('connect', [gainNode]);
-      gainNode.callMethod('connect', [audioContext['destination']]);
+      gainNode.callMethod('connect', [destination]);
 
-      oscillator['frequency']['value'] = frequency;
+      final freqProp = oscillator['frequency'];
+      final gainProp = gainNode['gain'];
+      if (freqProp == null || gainProp == null) {
+        debugPrint('[KITCHEN] Audio node properties not available');
+        return;
+      }
+
+      freqProp['value'] = frequency;
       oscillator['type'] = 'sine';
 
-      gainNode['gain']['value'] = 0.3;
-      gainNode['gain'].callMethod('exponentialRampToValueAtTime',
-          [0.01, audioContext['currentTime'] + duration]);
+      gainProp['value'] = 0.3;
+      gainProp.callMethod(
+          'exponentialRampToValueAtTime', [0.01, currentTime + duration]);
 
       oscillator.callMethod('start');
-      oscillator.callMethod('stop', [audioContext['currentTime'] + duration]);
+      oscillator.callMethod('stop', [currentTime + duration]);
     } catch (e) {
       debugPrint('[KITCHEN] Web Audio API error: $e');
     }
@@ -1092,14 +1116,13 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                       'Table ${call['tableNumber'] ?? 'N/A'}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle:
-                        Text(call['message'] ?? 'Customer needs assistance'),
+                    subtitle: Text(call['message']?.toString() ??
+                        'Customer needs assistance'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _getTimeAgo(DateTime.parse(call['createdAt'] ??
-                              DateTime.now().toIso8601String())),
+                          _getTimeAgo(_safeParseDateTime(call['createdAt'])),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -1107,8 +1130,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
-                          onPressed: () => _acknowledgeWaiterCall(
-                              call['_id'] ?? call['id'] ?? ''),
+                          onPressed: () {
+                            final callId = call['_id']?.toString() ??
+                                call['id']?.toString() ??
+                                '';
+                            if (callId.isNotEmpty) {
+                              _acknowledgeWaiterCall(callId);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Invalid call ID'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
                           icon: const Icon(Icons.check, size: 18),
                           label: const Text('Attend'),
                           style: ElevatedButton.styleFrom(
@@ -1644,6 +1680,20 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       default:
         return Colors.grey;
     }
+  }
+
+  /// Safely parse datetime from various formats
+  DateTime _safeParseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
   }
 
   String _getTimeAgo(DateTime dateTime) {

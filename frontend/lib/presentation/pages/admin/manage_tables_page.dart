@@ -242,21 +242,24 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
   Future<void> _downloadQRCode(TableModel table) async {
     try {
       // Validate QR code data
-      if (table.qrCodeData.isEmpty) {
+      if (table.qrCodeData.isEmpty ||
+          table.qrCodeData == 'null' ||
+          table.qrCodeData == 'undefined') {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('QR code data is missing. Please refresh the table list.'),
+              content: Text(
+                  'QR code data is missing. Please refresh the table list.'),
               backgroundColor: AppTheme.errorColor,
             ),
           );
         }
         return;
       }
-      
+
       // Create a GlobalKey for the QR code widget
       final qrKey = GlobalKey();
-      
+
       // Show loading
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -278,7 +281,7 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Create QR code widget
       final qrWidget = RepaintBoundary(
         key: qrKey,
@@ -323,16 +326,16 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
           ),
         ),
       );
-      
+
       // Render the widget offscreen using a custom pipeline
       final renderObject = RenderRepaintBoundary();
       final pipelineOwner = PipelineOwner();
       final buildOwner = BuildOwner(focusManager: FocusManager());
-      
+
       // Attach render object to pipeline first
       renderObject.attach(pipelineOwner);
       pipelineOwner.rootNode = renderObject;
-      
+
       // Attach widget to render tree
       final rootElement = RenderObjectToWidgetAdapter<RenderBox>(
         container: renderObject,
@@ -341,11 +344,11 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
           child: qrWidget,
         ),
       ).attachToRenderTree(buildOwner);
-      
+
       // Build and layout
       buildOwner.buildScope(rootElement);
       buildOwner.finalizeTree();
-      
+
       // Set size and layout
       renderObject.layout(const BoxConstraints(
         minWidth: 500,
@@ -353,28 +356,29 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         minHeight: 600,
         maxHeight: 600,
       ));
-      
+
       // Paint to create layer (required before toImage)
       pipelineOwner.flushPaint();
-      
+
       // Convert to image
       final image = await renderObject.toImage(pixelRatio: 2.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
+
       if (byteData == null) {
         throw Exception('Failed to generate QR code image');
       }
-      
+
       final bytes = byteData.buffer.asUint8List();
-      
+
       // Download file (works on web, throws on mobile)
       try {
         downloadFile(bytes, 'table-${table.tableNumber}-qr.png');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('QR code for Table ${table.tableNumber} downloaded!'),
+              content:
+                  Text('QR code for Table ${table.tableNumber} downloaded!'),
               backgroundColor: AppTheme.successColor,
             ),
           );
@@ -383,7 +387,8 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Download is only available on web. Use screenshot instead.'),
+              content: Text(
+                  'Download is only available on web. Use screenshot instead.'),
               backgroundColor: Colors.orange,
             ),
           );

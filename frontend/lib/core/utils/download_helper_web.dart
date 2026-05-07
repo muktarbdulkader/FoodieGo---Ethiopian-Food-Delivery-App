@@ -16,9 +16,15 @@ void downloadFile(Uint8List bytes, String filename) {
   anchor.download = filename;
 
   // Append to body (required for some browsers)
-  web.document.body!.appendChild(anchor);
-  anchor.click();
-  web.document.body!.removeChild(anchor);
+  final body = web.document.body;
+  if (body != null) {
+    body.appendChild(anchor);
+    anchor.click();
+    body.removeChild(anchor);
+  } else {
+    // Fallback: try to click without appending
+    anchor.click();
+  }
 
   // Clean up the URL
   web.URL.revokeObjectURL(url);
