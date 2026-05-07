@@ -92,24 +92,35 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
   }
 
   Widget _buildContactCards() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildContactCard(
-            Icons.phone,
-            'Call Us',
-            '+251 911 123 456',
-            AppTheme.accentGreen,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildContactCard(
+                Icons.phone,
+                'Call Us',
+                '+251 916 662 982',
+                AppTheme.accentGreen,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildContactCard(
+                Icons.email,
+                'Email Us',
+                'muktarabdulkader957@gmail.com',
+                AppTheme.accentBlue,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildContactCard(
-            Icons.email,
-            'Email Us',
-            'support@foodiego.com',
-            AppTheme.accentBlue,
-          ),
+        const SizedBox(height: 12),
+        _buildContactCard(
+          Icons.chat,
+          'Telegram',
+          '@MuktiAbdu',
+          const Color(0xFF0088CC),
         ),
       ],
     );

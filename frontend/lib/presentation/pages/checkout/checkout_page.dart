@@ -40,7 +40,7 @@ class _CheckoutPageState extends State<CheckoutPage>
   String? _appliedPromoCode;
   double _promoDiscount = 0;
   String? _promoDescription;
-  
+
   // Restaurant promotions
   bool _hasPromotions = false;
   bool _isLoadingPromotions = true;
@@ -145,7 +145,7 @@ class _CheckoutPageState extends State<CheckoutPage>
       });
       return;
     }
-    
+
     // First check if user already has location saved
     final user = context.read<AuthProvider>().user;
     if (user?.location?.address != null) {
@@ -155,7 +155,7 @@ class _CheckoutPageState extends State<CheckoutPage>
         _latitude = user.location!.latitude;
         _longitude = user.location!.longitude;
       });
-      
+
       // Calculate distance after loading user location
       await _fetchRestaurantDataAndCalculateDistance();
       return;
@@ -172,18 +172,17 @@ class _CheckoutPageState extends State<CheckoutPage>
       if (cart.items.isEmpty) return;
 
       final restaurantId = cart.items.first.hotelId;
-      
+
       // Fetch restaurant user data to get location
       final response = await ApiService.get('/admin/users/$restaurantId');
       final restaurantData = User.fromJson(response['data']);
-      
+
       if (mounted) {
         // Calculate distance if both locations are available
-        if (_latitude != null && 
-            _longitude != null && 
-            restaurantData.location?.latitude != null && 
+        if (_latitude != null &&
+            _longitude != null &&
+            restaurantData.location?.latitude != null &&
             restaurantData.location?.longitude != null) {
-          
           final distance = LocationUtils.calculateDistance(
             lat1: _latitude!,
             lon1: _longitude!,
@@ -192,7 +191,8 @@ class _CheckoutPageState extends State<CheckoutPage>
           );
 
           final deliveryFee = LocationUtils.calculateDeliveryFee(distance);
-          final estimatedTime = LocationUtils.estimateDeliveryTimeMinutes(distance);
+          final estimatedTime =
+              LocationUtils.estimateDeliveryTimeMinutes(distance);
 
           if (mounted) {
             setState(() {
@@ -214,7 +214,7 @@ class _CheckoutPageState extends State<CheckoutPage>
 
     try {
       final cart = context.read<CartProvider>();
-      
+
       // Get restaurant ID from first cart item
       if (cart.items.isEmpty) {
         setState(() {
@@ -227,14 +227,13 @@ class _CheckoutPageState extends State<CheckoutPage>
       _restaurantId = cart.items.first.hotelId;
 
       // Fetch active promotions for this restaurant
-      final response = await ApiService.get(
-        '/promotions/restaurant/$_restaurantId/active'
-      );
+      final response =
+          await ApiService.get('/promotions/restaurant/$_restaurantId/active');
 
       if (mounted) {
         setState(() {
-          _hasPromotions = response['success'] == true && 
-                          (response['data'] as List?)?.isNotEmpty == true;
+          _hasPromotions = response['success'] == true &&
+              (response['data'] as List?)?.isNotEmpty == true;
           _isLoadingPromotions = false;
         });
       }
@@ -288,7 +287,7 @@ class _CheckoutPageState extends State<CheckoutPage>
     // Check if this is a dine-in order
     final dineInProvider = context.read<DineInProvider>();
     final isDineIn = dineInProvider.isDineInMode;
-    
+
     // Skip location check for dine-in orders
     if (!isDineIn && _deliveryType == 'delivery' && _currentAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -334,19 +333,22 @@ class _CheckoutPageState extends State<CheckoutPage>
 
     final cart = context.read<CartProvider>();
     final subtotal = cart.totalPrice;
-    final deliveryFee = isDineIn ? 0.0 : (_deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0);
+    final deliveryFee = isDineIn
+        ? 0.0
+        : (_deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0);
     final tax = subtotal * 0.15;
     final total = subtotal + deliveryFee + tax + _tip - _promoDiscount;
 
     // For dine-in, use table information instead of delivery address
-    final deliveryAddress = isDineIn 
+    final deliveryAddress = isDineIn
         ? DeliveryAddress(
             label: 'Dine-In',
-            fullAddress: 'Table ${dineInProvider.getTableNumber() ?? 'Unknown'}${dineInProvider.getTableLocation() != null ? ' - ${dineInProvider.getTableLocation()}' : ''}',
+            fullAddress:
+                'Table ${dineInProvider.getTableNumber() ?? 'Unknown'}${dineInProvider.getTableLocation() != null ? ' - ${dineInProvider.getTableLocation()}' : ''}',
             street: 'Dine-In Order',
             city: 'Restaurant',
             zipCode: '',
-            instructions: _instructionsController.text.isNotEmpty 
+            instructions: _instructionsController.text.isNotEmpty
                 ? 'Table ${dineInProvider.getTableNumber()}: ${_instructionsController.text}'
                 : 'Table ${dineInProvider.getTableNumber()}',
             latitude: null,
@@ -369,7 +371,9 @@ class _CheckoutPageState extends State<CheckoutPage>
     final delivery = Delivery(
       type: isDineIn ? 'dine_in' : _deliveryType,
       fee: deliveryFee,
-      estimatedTime: isDineIn ? 15 : (_estimatedDeliveryTime ?? (_deliveryType == 'delivery' ? 30 : 15)),
+      estimatedTime: isDineIn
+          ? 15
+          : (_estimatedDeliveryTime ?? (_deliveryType == 'delivery' ? 30 : 15)),
       distance: isDineIn ? 0 : _distanceKm,
     );
 
@@ -402,20 +406,22 @@ class _CheckoutPageState extends State<CheckoutPage>
     }
 
     // Handle payment based on method
-    if (_selectedPayment == 'telebirr' || _selectedPayment == 'mpesa' || _selectedPayment == 'cbe_birr') {
+    if (_selectedPayment == 'telebirr' ||
+        _selectedPayment == 'mpesa' ||
+        _selectedPayment == 'cbe_birr') {
       // Initiate mobile payment
       await _initiateMobilePayment(order, total);
     } else {
       // Cash or Card - show success immediately
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         context.read<OrderProvider>().fetchOrders();
 
         // Show notification
         NotificationService.showOrderNotification(
           title: isDineIn ? 'Order Sent to Kitchen! 🍽️' : 'Order Placed! 🎉',
-          body: isDineIn 
+          body: isDineIn
               ? 'Your order for Table ${dineInProvider.getTableNumber()} has been sent to the kitchen.'
               : 'Your order #${order.orderNumber} has been placed successfully.',
           payload: order.id,
@@ -439,7 +445,7 @@ class _CheckoutPageState extends State<CheckoutPage>
 
       if (response['success'] == true && mounted) {
         final paymentUrl = response['data']?['toPayUrl'];
-        
+
         if (paymentUrl != null) {
           // Show payment dialog with instructions
           _showPaymentDialog(order, paymentUrl);
@@ -448,7 +454,8 @@ class _CheckoutPageState extends State<CheckoutPage>
           context.read<OrderProvider>().fetchOrders();
           NotificationService.showOrderNotification(
             title: 'Order Placed! 🎉',
-            body: 'Your order #${order.orderNumber} has been placed successfully.',
+            body:
+                'Your order #${order.orderNumber} has been placed successfully.',
             payload: order.id,
           );
           _showSuccessDialog(order);
@@ -458,14 +465,15 @@ class _CheckoutPageState extends State<CheckoutPage>
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment error: ${e.toString()}'),
             backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -564,7 +572,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           },
                         ),
                         const SizedBox(height: 28),
-                        
+
                         // Animated title
                         TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
@@ -643,7 +651,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Order number badge
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -683,7 +691,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           ),
                         ),
                         const SizedBox(height: 28),
-                        
+
                         // Animated info card
                         TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
@@ -795,7 +803,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           ),
                         ),
                         const SizedBox(height: 28),
-                        
+
                         // Action buttons with animation
                         TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0, end: 1),
@@ -1003,7 +1011,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                                   gradient: LinearGradient(
                                     colors: [
                                       AppTheme.accentGreen,
-                                      AppTheme.accentGreen.withValues(alpha: 0.7),
+                                      AppTheme.accentGreen
+                                          .withValues(alpha: 0.7),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -1029,7 +1038,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                         },
                       ),
                       const SizedBox(height: 28),
-                      
+
                       // Animated title with emoji
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0, end: 1),
@@ -1072,7 +1081,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Order number badge with gradient
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -1120,7 +1129,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Delivery info card
                       Container(
                         padding: const EdgeInsets.all(20),
@@ -1212,7 +1221,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                         ),
                       ),
                       const SizedBox(height: 28),
-                      
+
                       // Track order button with gradient
                       GestureDetector(
                         onTap: () {
@@ -1275,7 +1284,7 @@ class _CheckoutPageState extends State<CheckoutPage>
   @override
   Widget build(BuildContext context) {
     final loc = context.watch<LanguageProvider>().loc;
-    
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
@@ -1402,8 +1411,8 @@ class _CheckoutPageState extends State<CheckoutPage>
         Row(
           children: [
             Expanded(
-              child: _buildDeliveryOption(
-                  'delivery', 'Delivery', Icons.delivery_dining, deliveryFeeText),
+              child: _buildDeliveryOption('delivery', 'Delivery',
+                  Icons.delivery_dining, deliveryFeeText),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -2219,7 +2228,8 @@ class _CheckoutPageState extends State<CheckoutPage>
     return Consumer<CartProvider>(
       builder: (context, cart, _) {
         final subtotal = cart.totalPrice;
-        final deliveryFee = _deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0;
+        final deliveryFee =
+            _deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0;
         final tax = subtotal * 0.15;
         final total = subtotal + deliveryFee + tax + _tip;
 
@@ -2296,7 +2306,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                              color: const Color(0xFF0EA5E9)
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -2311,7 +2322,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                         ],
                       ],
                     ),
-                    Text('${AppConstants.currency}${deliveryFee.toStringAsFixed(0)}',
+                    Text(
+                        '${AppConstants.currency}${deliveryFee.toStringAsFixed(0)}',
                         style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -2322,7 +2334,8 @@ class _CheckoutPageState extends State<CheckoutPage>
                 // Show estimated delivery time
                 if (_estimatedDeliveryTime != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -2404,7 +2417,8 @@ class _CheckoutPageState extends State<CheckoutPage>
     return Consumer<CartProvider>(
       builder: (context, cart, _) {
         final subtotal = cart.totalPrice;
-        final deliveryFee = _deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0;
+        final deliveryFee =
+            _deliveryType == 'delivery' ? _calculatedDeliveryFee : 0.0;
         final tax = subtotal * 0.15;
         final total = subtotal + deliveryFee + tax + _tip;
 

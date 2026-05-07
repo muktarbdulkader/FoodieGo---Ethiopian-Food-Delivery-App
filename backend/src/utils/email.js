@@ -5,8 +5,19 @@
  */
 const nodemailer = require('nodemailer');
 
+// Check if email is enabled
+const isEmailEnabled = () => {
+  return process.env.EMAIL_ENABLED === 'true' &&
+    process.env.EMAIL_USER &&
+    process.env.EMAIL_PASS;
+};
+
 // Create transporter with optional custom email credentials
 const createTransporter = (customEmail = null, customPass = null) => {
+  if (!isEmailEnabled()) {
+    return null;
+  }
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
@@ -20,6 +31,10 @@ const createTransporter = (customEmail = null, customPass = null) => {
 
 // Create transporter using hotel's email (if available)
 const createHotelTransporter = (hotelEmail) => {
+  if (!isEmailEnabled()) {
+    return null;
+  }
+
   // For now, use system email but set "from" as hotel
   // In production, each hotel would have their own app password
   return nodemailer.createTransport({
@@ -41,7 +56,12 @@ const generateOTP = () => {
 // Send OTP email for password reset
 const sendOTPEmail = async (email, otp, userName) => {
   const transporter = createTransporter();
-  
+
+  if (!transporter) {
+    console.log('Email service disabled - OTP not sent');
+    return { success: true, skipped: true };
+  }
+
   const mailOptions = {
     from: process.env.EMAIL_FROM || 'FoodieGo <noreply@foodiego.com>',
     to: email,
@@ -100,7 +120,12 @@ const sendOTPEmail = async (email, otp, userName) => {
 // Send order confirmation email (uses hotel email if provided)
 const sendOrderConfirmationEmail = async (email, orderData, hotelEmail = null) => {
   const transporter = createHotelTransporter(hotelEmail);
-  
+
+  if (!transporter) {
+    console.log('Email service disabled - Order confirmation not sent');
+    return { success: true, skipped: true };
+  }
+
   const itemsHtml = orderData.items.map(item => `
     <tr>
       <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.name}</td>
@@ -110,7 +135,7 @@ const sendOrderConfirmationEmail = async (email, orderData, hotelEmail = null) =
   `).join('');
 
   // Use hotel email as sender if available
-  const fromEmail = hotelEmail 
+  const fromEmail = hotelEmail
     ? `${orderData.hotelName || 'Restaurant'} <${hotelEmail}>`
     : process.env.EMAIL_FROM || 'FoodieGo <noreply@foodiego.com>';
 
@@ -187,7 +212,12 @@ const sendOrderConfirmationEmail = async (email, orderData, hotelEmail = null) =
 // Send order status update email (uses hotel email if provided)
 const sendOrderStatusEmail = async (email, orderData, newStatus, hotelEmail = null) => {
   const transporter = createHotelTransporter(hotelEmail);
-  
+
+  if (!transporter) {
+    console.log('Email service disabled - Order status email not sent');
+    return { success: true, skipped: true };
+  }
+
   const statusMessages = {
     confirmed: { emoji: '✅', title: 'Order Confirmed', message: 'Your order has been confirmed and is being prepared.' },
     preparing: { emoji: '👨‍🍳', title: 'Preparing Your Order', message: 'The restaurant is now preparing your delicious food!' },
@@ -200,7 +230,7 @@ const sendOrderStatusEmail = async (email, orderData, newStatus, hotelEmail = nu
   const status = statusMessages[newStatus] || { emoji: '📋', title: 'Order Update', message: `Your order status is now: ${newStatus}` };
 
   // Use hotel email as sender if available
-  const fromEmail = hotelEmail 
+  const fromEmail = hotelEmail
     ? `${orderData.hotelName || 'Restaurant'} <${hotelEmail}>`
     : process.env.EMAIL_FROM || 'FoodieGo <noreply@foodiego.com>';
 
@@ -260,8 +290,13 @@ const sendOrderStatusEmail = async (email, orderData, newStatus, hotelEmail = nu
 const sendDriverAssignmentEmail = async (email, orderData, hotelEmail = null) => {
   const transporter = createHotelTransporter(hotelEmail);
 
+  if (!transporter) {
+    console.log('Email service disabled - Driver assignment email not sent');
+    return { success: true, skipped: true };
+  }
+
   // Use hotel email as sender if available
-  const fromEmail = hotelEmail 
+  const fromEmail = hotelEmail
     ? `${orderData.hotelName || 'Restaurant'} <${hotelEmail}>`
     : process.env.EMAIL_FROM || 'FoodieGo <noreply@foodiego.com>';
 

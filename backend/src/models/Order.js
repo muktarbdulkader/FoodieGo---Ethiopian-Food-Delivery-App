@@ -4,14 +4,18 @@
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
-  food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
+  food: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Food',
+    set: (v) => (v === '' || v === null || v === undefined) ? undefined : v
+  },
   name: { type: String, required: true },
   price: { type: Number, required: true },
   quantity: { type: Number, required: true, min: 1 },
   hotelId: { type: String },
   hotelName: { type: String },
   image: { type: String }
-});
+}, { _id: false });
 
 const deliveryAddressSchema = new mongoose.Schema({
   label: { type: String, default: 'Home' }, // Home, Work, Other
