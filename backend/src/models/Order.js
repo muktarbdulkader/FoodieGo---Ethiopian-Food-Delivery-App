@@ -27,8 +27,8 @@ const deliveryAddressSchema = new mongoose.Schema({
 }, { _id: false });
 
 const paymentSchema = new mongoose.Schema({
-  method: { 
-    type: String, 
+  method: {
+    type: String,
     enum: ['cash', 'card', 'telebirr', 'mpesa', 'cbe_birr'],
     default: 'cash'
   },
@@ -86,30 +86,30 @@ const orderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Optional for guest dine-in orders
   restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
   items: [orderItemSchema],
-  
+
   // Order Type - NEW for dine-in support
   type: {
     type: String,
     enum: ['delivery', 'dine_in', 'pickup'],
     default: 'delivery'
   },
-  
+
   // Dine-in specific fields
-  tableId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Table' 
+  tableId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Table'
   },
-  tableNumber: { 
+  tableNumber: {
     type: String // Store table number for easy display (e.g., "T05")
   },
-  restaurantId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
+  restaurantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   guestSessionId: {
     type: String // Unique session ID for each guest at a table
   },
-  
+
   // Pricing
   subtotal: { type: Number, required: true },
   deliveryFee: { type: Number, default: 2.99 },
@@ -117,24 +117,24 @@ const orderSchema = new mongoose.Schema({
   discount: { type: Number, default: 0 },
   tip: { type: Number, default: 0 },
   totalPrice: { type: Number, required: true },
-  
+
   // Status
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed', 'cancelled'],
     default: 'pending'
   },
-  
+
   // Payment & Delivery
   payment: paymentSchema,
   delivery: deliverySchema,
   deliveryAddress: deliveryAddressSchema,
-  
+
   // Additional
   notes: { type: String, default: '' },
   promoCode: { type: String },
   cancelReason: { type: String },
-  
+
   // Chat messages between user and driver
   chatMessages: [{
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -145,18 +145,22 @@ const orderSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now },
     isRead: { type: Boolean, default: false }
   }],
-  
+
   // Customer notifications for dine-in orders
   customerNotification: {
     message: { type: String },
     type: { type: String, enum: ['success', 'error', 'info', 'warning'] },
     timestamp: { type: Date },
     isRead: { type: Boolean, default: false }
-  }
+  },
+
+  // Loyalty points tracking
+  loyaltyPointsAwarded: { type: Boolean, default: false },
+  loyaltyPointsEarned: { type: Number, default: 0 }
 }, { timestamps: true });
 
 // Generate order number before saving
-orderSchema.pre('save', async function(next) {
+orderSchema.pre('save', async function (next) {
   if (!this.orderNumber) {
     const count = await mongoose.model('Order').countDocuments();
     this.orderNumber = `ORD${String(count + 1).padStart(6, '0')}`;

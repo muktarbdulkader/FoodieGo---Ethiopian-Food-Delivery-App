@@ -2,14 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../../data/repositories/order_repository.dart';
-import 'dart:html' as html;
-import 'dart:js' as js;
 import '../../../data/models/order.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/kitchen_localizations.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../core/services/audio_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../widgets/order_timer.dart';
@@ -23,14 +21,14 @@ class KitchenOrdersPage extends StatefulWidget {
 
 class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   final OrderRepository _orderRepository = OrderRepository();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioService _audioService = AudioService();
   List<Order> _orders = [];
   List<Map<String, dynamic>> _waiterCalls = []; // Pending waiter calls
   bool _isLoading = true;
   bool _isRefreshing = false; // Track manual refresh state
   bool _showWaiterCalls = false; // Toggle to show waiter calls panel
   String _selectedFilter = 'pending'; // pending, confirmed, preparing, ready
-  String _currentLanguage = 'en'; // Language for notifications (en, am, om)
+  NotificationLanguage _notificationLanguage = NotificationLanguage.english;
   WebSocketProvider? _webSocketProvider;
   String? _restaurantId;
   Timer? _refreshTimer;
@@ -204,8 +202,9 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   void _handleWaiterCall(dynamic data) {
     debugPrint('[KITCHEN] Waiter called: $data');
 
-    // Play bell sound
-    _playWaiterCallSound();
+    // Play waiter call sound with table number in selected language
+    final tableNumber = data['tableNumber']?.toString();
+    _playWaiterCallSound(tableNumber: tableNumber);
 
     // Show dialog
     if (mounted) {
@@ -233,129 +232,33 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     }
   }
 
+  /// Play new order sound in the selected notification language
   Future<void> _playNewOrderSound() async {
     try {
-      if (kIsWeb) {
-        // Use browser native audio for web with beep fallback
-        _playWebNotificationSound();
-      } else {
-        // Use audioplayers for mobile
-        await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
-      }
+      await _audioService.playNewOrderNotification(
+        _notificationLanguage,
+        orderNumber: '', // Will be set by the caller
+      );
     } catch (e) {
-      debugPrint('[KITCHEN] Error playing sound: $e');
-      // Fallback to beep
-      if (kIsWeb) _playWebBeep(frequency: 800, duration: 0.3);
+      debugPrint('[KITCHEN] Error playing new order sound: $e');
     }
   }
 
-  Future<void> _playWaiterCallSound() async {
+  /// Play waiter call sound in the selected notification language
+  Future<void> _playWaiterCallSound({String? tableNumber}) async {
     try {
-      if (kIsWeb) {
-        // Use browser native audio for web with beep fallback
-        _playWebBellSound();
-      } else {
-        // Use audioplayers for mobile
-        await _audioPlayer.play(AssetSource('sounds/bell.mp3'));
-      }
+      await _audioService.playWaiterCall(
+        _notificationLanguage,
+        tableNumber: tableNumber,
+      );
     } catch (e) {
-      debugPrint('[KITCHEN] Error playing sound: $e');
-      // Fallback to double beep
-      if (kIsWeb) {
-        _playWebBeep(frequency: 600, duration: 0.2);
-        await Future.delayed(const Duration(milliseconds: 150));
-        _playWebBeep(frequency: 600, duration: 0.2);
-      }
-    }
-  }
-
-  // Web Audio API sound generation (no MP3 files needed)
-  void _playWebNotificationSound() {
-    try {
-      final audio = html.AudioElement('assets/sounds/notification.mp3');
-      audio.volume = 0.7;
-      audio.onError.listen((_) {
-        // If MP3 fails, use generated beep
-        _playWebBeep(frequency: 800, duration: 0.3);
-      });
-      audio.play();
-    } catch (_) {
-      _playWebBeep(frequency: 800, duration: 0.3);
-    }
-  }
-
-  void _playWebBellSound() {
-    try {
-      final audio = html.AudioElement('assets/sounds/bell.mp3');
-      audio.volume = 0.7;
-      audio.onError.listen((_) {
-        // If MP3 fails, use double beep
-        _playWebDoubleBeep();
-      });
-      audio.play();
-    } catch (_) {
-      _playWebDoubleBeep();
-    }
-  }
-
-  void _playWebDoubleBeep() {
-    _playWebBeep(frequency: 600, duration: 0.2);
-    Future.delayed(const Duration(milliseconds: 150), () {
-      _playWebBeep(frequency: 600, duration: 0.2);
-    });
-  }
-
-  void _playWebBeep({required double frequency, required double duration}) {
-    try {
-      // Use dynamic to access Web Audio API
-      final audioContext = js.context.callMethod(
-          'eval', ['new (window.AudioContext || window.webkitAudioContext)()']);
-      if (audioContext == null) {
-        debugPrint('[KITCHEN] AudioContext not available');
-        return;
-      }
-
-      final oscillator = audioContext.callMethod('createOscillator');
-      final gainNode = audioContext.callMethod('createGain');
-      if (oscillator == null || gainNode == null) {
-        debugPrint('[KITCHEN] Could not create audio nodes');
-        return;
-      }
-
-      final destination = audioContext['destination'];
-      final currentTime = audioContext['currentTime'];
-      if (destination == null || currentTime == null) {
-        debugPrint('[KITCHEN] AudioContext properties not available');
-        return;
-      }
-
-      oscillator.callMethod('connect', [gainNode]);
-      gainNode.callMethod('connect', [destination]);
-
-      final freqProp = oscillator['frequency'];
-      final gainProp = gainNode['gain'];
-      if (freqProp == null || gainProp == null) {
-        debugPrint('[KITCHEN] Audio node properties not available');
-        return;
-      }
-
-      freqProp['value'] = frequency;
-      oscillator['type'] = 'sine';
-
-      gainProp['value'] = 0.3;
-      gainProp.callMethod(
-          'exponentialRampToValueAtTime', [0.01, currentTime + duration]);
-
-      oscillator.callMethod('start');
-      oscillator.callMethod('stop', [currentTime + duration]);
-    } catch (e) {
-      debugPrint('[KITCHEN] Web Audio API error: $e');
+      debugPrint('[KITCHEN] Error playing waiter call sound: $e');
     }
   }
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    _audioService.dispose();
     _refreshTimer?.cancel();
     _wsReconnectTimer?.cancel();
 
@@ -539,7 +442,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     return _orders.where((order) => order.status == _selectedFilter).toList();
   }
 
-  KitchenLocalizations get _loc => KitchenLocalizations(_currentLanguage);
+  KitchenLocalizations get _loc =>
+      KitchenLocalizations(_notificationLanguage.code);
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
@@ -567,21 +471,21 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            ...KitchenLocalizations.supportedLanguages.map((code) => ListTile(
-                  leading: Radio<String>(
-                    value: code,
-                    groupValue: _currentLanguage,
+            ...NotificationLanguage.values.map((lang) => ListTile(
+                  leading: Radio<NotificationLanguage>(
+                    value: lang,
+                    groupValue: _notificationLanguage,
                     onChanged: (value) {
                       setState(() {
-                        _currentLanguage = value!;
+                        _notificationLanguage = value!;
                       });
                       Navigator.pop(ctx);
                     },
                   ),
-                  title: Text(KitchenLocalizations.getLanguageName(code)),
+                  title: Text(lang.displayName),
                   onTap: () {
                     setState(() {
-                      _currentLanguage = code;
+                      _notificationLanguage = lang;
                     });
                     Navigator.pop(ctx);
                   },
@@ -653,7 +557,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             tableId: order.tableId ?? '',
             status: 'confirmed',
             message: _loc.get('order_accepted'),
-            languageCode: _currentLanguage,
+            languageCode: _notificationLanguage.code,
           )
           .catchError((e) => debugPrint('Notification error: $e'));
 
@@ -664,7 +568,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'tableId': order.tableId,
         'status': 'confirmed',
         'message': _loc.get('order_accepted'),
-        'languageCode': _currentLanguage,
+        'languageCode': _notificationLanguage.code,
       });
 
       // Reload to get fresh data
@@ -739,7 +643,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         message: reasonController.text.isNotEmpty
             ? '${_loc.get('order_rejected')}: ${reasonController.text}'
             : _loc.get('order_rejected'),
-        languageCode: _currentLanguage,
+        languageCode: _notificationLanguage.code,
       );
 
       // Emit WebSocket event
@@ -750,7 +654,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'status': 'cancelled',
         'message': _loc.get('order_rejected'),
         'reason': reasonController.text,
-        'languageCode': _currentLanguage,
+        'languageCode': _notificationLanguage.code,
       });
 
       if (mounted) {
@@ -807,7 +711,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         tableId: order.tableId ?? '',
         status: newStatus,
         message: statusMessage,
-        languageCode: _currentLanguage,
+        languageCode: _notificationLanguage.code,
       );
 
       // Emit WebSocket event
@@ -817,7 +721,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'tableId': order.tableId,
         'status': newStatus,
         'message': statusMessage,
-        'languageCode': _currentLanguage,
+        'languageCode': _notificationLanguage.code,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -862,7 +766,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                       size: 16, color: AppTheme.primaryColor),
                   const SizedBox(width: 4),
                   Text(
-                    _currentLanguage.toUpperCase(),
+                    _notificationLanguage.code.toUpperCase(),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -1620,7 +1524,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         tableId: order.tableId ?? '',
         status: 'cancelled',
         message: 'Order rejected: $reason',
-        languageCode: _currentLanguage,
+        languageCode: _notificationLanguage.code,
       );
 
       _webSocketProvider?.emit('order:updated', {
@@ -1630,7 +1534,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'status': 'cancelled',
         'message': 'Order rejected: $reason',
         'reason': reason,
-        'languageCode': _currentLanguage,
+        'languageCode': _notificationLanguage.code,
       });
 
       if (mounted) {

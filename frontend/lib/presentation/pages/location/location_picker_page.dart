@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../core/theme/app_theme.dart';
@@ -19,11 +21,13 @@ class LocationPickerPage extends StatefulWidget {
 
 class _LocationPickerPageState extends State<LocationPickerPage> {
   final _searchController = TextEditingController();
+  final MapController _mapController = MapController();
   bool _isLoading = true;
   String? _errorMessage;
 
   double _latitude = 9.0192; // Default: Addis Ababa
   double _longitude = 38.7525;
+  double _zoom = 15.0;
   String _locationName = '';
   String _locationAddress = '';
 
@@ -39,10 +43,24 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     }
   }
 
+  void _moveMapToCurrentLocation() {
+    _mapController.move(LatLng(_latitude, _longitude), _zoom);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  void _onMapTap(TapPosition tapPosition, LatLng latLng) {
+    setState(() {
+      _latitude = latLng.latitude;
+      _longitude = latLng.longitude;
+      _isLoading = true;
+    });
+    _getAddressFromCoordinates();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -83,13 +101,18 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.best,
         ),
       );
 
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
+      });
+
+      // Move map to current location
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _moveMapToCurrentLocation();
       });
 
       await _getAddressFromCoordinates();
@@ -120,7 +143,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           ].where((e) => e != null && e.isNotEmpty).join(', ');
           if (_locationAddress.isEmpty) {
             _locationAddress =
-                '${_latitude.toStringAsFixed(4)}, ${_longitude.toStringAsFixed(4)}';
+                '${_latitude.toStringAsFixed(5)}, ${_longitude.toStringAsFixed(5)}';
           }
           _isLoading = false;
         });
@@ -128,7 +151,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         setState(() {
           _locationName = 'Selected Location';
           _locationAddress =
-              '${_latitude.toStringAsFixed(4)}, ${_longitude.toStringAsFixed(4)}';
+              '${_latitude.toStringAsFixed(5)}, ${_longitude.toStringAsFixed(5)}';
           _isLoading = false;
         });
       }
@@ -136,10 +159,24 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       setState(() {
         _locationName = 'Selected Location';
         _locationAddress =
-            '${_latitude.toStringAsFixed(4)}, ${_longitude.toStringAsFixed(4)}';
+            '${_latitude.toStringAsFixed(5)}, ${_longitude.toStringAsFixed(5)}';
         _isLoading = false;
       });
     }
+  }
+
+  void _zoomIn() {
+    setState(() {
+      _zoom = (_zoom + 1).clamp(3.0, 19.0);
+    });
+    _mapController.move(LatLng(_latitude, _longitude), _zoom);
+  }
+
+  void _zoomOut() {
+    setState(() {
+      _zoom = (_zoom - 1).clamp(3.0, 19.0);
+    });
+    _mapController.move(LatLng(_latitude, _longitude), _zoom);
   }
 
   Future<void> _searchLocation(String query) async {
@@ -166,8 +203,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
   void _confirmLocation() {
     Navigator.pop(context, {
-      'latitude': _latitude,
-      'longitude': _longitude,
+      'lat': _latitude,
+      'lng': _longitude,
       'name': _locationName,
       'address': _locationAddress,
     });
@@ -179,29 +216,46 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       backgroundColor: Colors.grey.shade200,
       body: Stack(
         children: [
-          // Map placeholder with grid pattern
-          _buildMapPlaceholder(),
-
-          // Pin marker in center
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  color: AppTheme.primaryColor,
-                  size: 50,
-                ),
-                Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
+          // Real OpenStreetMap
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(_latitude, _longitude),
+              initialZoom: _zoom,
+              onTap: _onMapTap,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all,
+              ),
             ),
+            children: [
+              // OpenStreetMap tile layer
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.foodiego.app',
+              ),
+              // Marker layer with current position
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(_latitude, _longitude),
+                    width: 50,
+                    height: 50,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: AppTheme.primaryColor,
+                      size: 45,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
 
           // Search bar at top
@@ -238,16 +292,36 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             ),
           ),
 
-          // Current location button
+          // Map controls
           Positioned(
             right: 16,
-            bottom: 220,
-            child: FloatingActionButton(
-              mini: true,
-              backgroundColor: Colors.white,
-              onPressed: _getCurrentLocation,
-              child:
-                  const Icon(Icons.my_location, color: AppTheme.primaryColor),
+            bottom: 240,
+            child: Column(
+              children: [
+                // Zoom in
+                FloatingActionButton.small(
+                  heroTag: 'zoomIn',
+                  backgroundColor: Colors.white,
+                  onPressed: _zoomIn,
+                  child: const Icon(Icons.add, color: Colors.black87),
+                ),
+                const SizedBox(height: 8),
+                // Zoom out
+                FloatingActionButton.small(
+                  heroTag: 'zoomOut',
+                  backgroundColor: Colors.white,
+                  onPressed: _zoomOut,
+                  child: const Icon(Icons.remove, color: Colors.black87),
+                ),
+                const SizedBox(height: 8),
+                // Current location
+                FloatingActionButton.small(
+                  heroTag: 'currentLoc',
+                  backgroundColor: AppTheme.primaryColor,
+                  onPressed: _getCurrentLocation,
+                  child: const Icon(Icons.my_location, color: Colors.white),
+                ),
+              ],
             ),
           ),
 
@@ -271,22 +345,31 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Yellow banner
+                  // Instruction banner
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFD54F),
+                      color: AppTheme.primaryColor,
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(24)),
                     ),
-                    child: const Text(
-                      'You are selecting your current location',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13,
-                      ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.touch_app, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Tap on map to move pin',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -313,24 +396,31 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: _isLoading
-                                  ? const Column(
+                                  ? Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          'Finding location...',
+                                        const Text(
+                                          'Detecting best location...',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                           ),
                                         ),
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                         Text(
-                                          'Please wait',
+                                          'Using GPS for accurate position',
                                           style: TextStyle(
-                                            color: Colors.grey,
+                                            color: Colors.grey.shade600,
                                             fontSize: 13,
                                           ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        LinearProgressIndicator(
+                                          backgroundColor: Colors.grey.shade200,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  AppTheme.primaryColor),
                                         ),
                                       ],
                                     )
@@ -362,12 +452,50 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                         ),
 
                         if (_errorMessage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(
-                                  color: Colors.red, fontSize: 13),
+                          Container(
+                            margin: const EdgeInsets.only(top: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.error_outline,
+                                        color: Colors.red.shade400, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _getCurrentLocation,
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const Text('Retry'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red.shade700,
+                                      side: BorderSide(
+                                          color: Colors.red.shade300),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
@@ -435,64 +563,4 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       ),
     );
   }
-
-  Widget _buildMapPlaceholder() {
-    // Simple map-like background with grid
-    return Container(
-      color: const Color(0xFFE8E8E8),
-      child: CustomPaint(
-        painter: _MapGridPainter(),
-        size: Size.infinite,
-      ),
-    );
-  }
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey.shade300
-      ..strokeWidth = 1;
-
-    // Draw grid lines
-    const spacing = 50.0;
-
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Draw some "road" lines
-    final roadPaint = Paint()
-      ..color = Colors.grey.shade400
-      ..strokeWidth = 8;
-
-    canvas.drawLine(
-      Offset(size.width * 0.3, 0),
-      Offset(size.width * 0.3, size.height),
-      roadPaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.7, 0),
-      Offset(size.width * 0.7, size.height),
-      roadPaint,
-    );
-    canvas.drawLine(
-      Offset(0, size.height * 0.4),
-      Offset(size.width, size.height * 0.4),
-      roadPaint,
-    );
-    canvas.drawLine(
-      Offset(0, size.height * 0.6),
-      Offset(size.width, size.height * 0.6),
-      roadPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -26,6 +26,9 @@ dependencies:
   socket_io_client: ^2.0.3+1  # NEW: WebSocket client for real-time updates
   audioplayers: ^6.1.0  # NEW: Sound alerts for kitchen dashboard
   vibration: ^2.0.0  # NEW: Vibration alerts for mobile devices
+  flutter_map: ^7.0.2  # NEW: Interactive OpenStreetMap for location picker
+  latlong2: ^0.9.1  # NEW: LatLng coordinates for flutter_map
+  share_plus: ^10.0.0  # NEW: Native sharing for referrals
 
 dev_dependencies:
   flutter_test:
@@ -37,5 +40,18 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/sounds/notification.mp3
-    - assets/sounds/bell.mp3
+    # Generic notification sounds (WAV format for better compatibility)
+    - assets/sounds/notification.wav
+    - assets/sounds/bell.wav
+    # English notification sounds
+    - assets/sounds/waiter_call_en.wav
+    - assets/sounds/new_order_en.wav
+    - assets/sounds/order_ready_en.wav
+    # Amharic notification sounds
+    - assets/sounds/waiter_call_am.wav
+    - assets/sounds/new_order_am.wav
+    - assets/sounds/order_ready_am.wav
+    # Oromo notification sounds
+    - assets/sounds/waiter_call_om.wav
+    - assets/sounds/new_order_om.wav
+    - assets/sounds/order_ready_om.wav

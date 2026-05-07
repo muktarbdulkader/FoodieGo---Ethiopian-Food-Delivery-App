@@ -18,6 +18,8 @@ import 'edit_profile_page.dart';
 import 'favorites_page.dart';
 import 'wallet_page.dart';
 import 'account_settings_page.dart';
+import 'referrals_page.dart';
+import 'loyalty_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -160,7 +162,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.camera_alt, color: AppTheme.primaryColor),
+                child:
+                    const Icon(Icons.camera_alt, color: AppTheme.primaryColor),
               ),
               title: const Text('Take Photo'),
               onTap: () {
@@ -296,7 +299,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               height: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
                           )
@@ -629,6 +633,24 @@ class _ProfilePageState extends State<ProfilePage> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FavoritesPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.card_giftcard,
+            title: 'Invite & Earn',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ReferralsPage()),
+            ),
+          ),
+          _buildMenuDivider(),
+          _buildMenuItem(
+            icon: Icons.stars,
+            title: 'Rewards Points',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LoyaltyPage()),
             ),
           ),
           _buildMenuDivider(),

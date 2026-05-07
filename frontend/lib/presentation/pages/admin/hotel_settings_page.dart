@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../../../state/auth/auth_provider.dart';
@@ -52,7 +54,7 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
     super.initState();
     // CRITICAL: Set admin session type FIRST before any API calls
     StorageUtils.setSessionType(SessionType.admin);
-    
+
     _loadCurrentSettings();
   }
 
@@ -73,6 +75,93 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
       _longitude = user.location?.longitude;
       _locationAddress = user.location?.address;
       _locationCity = user.location?.city;
+    }
+  }
+
+  Future<void> _detectCurrentLocation() async {
+    setState(() => _isLoading = true);
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enable location services')),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied')),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Location permissions permanently denied. Enable in settings.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+        ),
+      );
+
+      _latitude = position.latitude;
+      _longitude = position.longitude;
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        _latitude!,
+        _longitude!,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        _locationCity =
+            place.locality ?? place.subAdministrativeArea ?? 'Unknown';
+        _locationAddress = [
+          place.street,
+          place.subLocality,
+          place.locality,
+        ].where((e) => e != null && e.isNotEmpty).join(', ');
+        if (_locationAddress!.isEmpty) {
+          _locationAddress =
+              '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}';
+        }
+      } else {
+        _locationCity = 'Selected Location';
+        _locationAddress =
+            '${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}';
+      }
+
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location detected: $_locationCity'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to detect location: $e')),
+      );
     }
   }
 
@@ -323,6 +412,27 @@ class _HotelSettingsPageState extends State<HotelSettingsPage> {
               ),
               const SizedBox(height: 12),
               _buildLocationPicker(),
+
+              const SizedBox(height: 12),
+
+              // Quick detect location button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _detectCurrentLocation,
+                  icon: const Icon(Icons.my_location, size: 18),
+                  label: const Text('Auto-detect My Current Location'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    side: BorderSide(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 32),
 

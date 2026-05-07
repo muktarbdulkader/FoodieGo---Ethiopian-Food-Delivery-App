@@ -12,6 +12,7 @@ const reviewRoutes = require('./review.routes');
 const eventBookingRoutes = require('./eventBooking.routes');
 const tableRoutes = require('./table.routes');
 const paymentRoutes = require('./payment.routes'); // NEW - Telebirr payment
+const loyaltyRoutes = require('./loyalty.routes'); // NEW - Loyalty points
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use('/reviews', reviewRoutes);
 router.use('/events', eventBookingRoutes);
 router.use('/tables', tableRoutes);
 router.use('/payments', paymentRoutes); // NEW - Telebirr payment
+router.use('/loyalty', loyaltyRoutes); // NEW - Loyalty points
 
 module.exports = router;

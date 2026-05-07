@@ -11,6 +11,7 @@ const {
   sendOrderStatusEmail,
   sendDriverAssignmentEmail,
 } = require("../utils/email");
+const { earnPointsFromOrder } = require("./loyalty.controller");
 
 // Helper: Calculate delivery earnings (base + distance bonus)
 const calculateDeliveryEarnings = (order) => {
@@ -64,9 +65,9 @@ const getAllOrders = async (req, res, next) => {
       .populate("restaurant", "name")
       .populate("tableId", "tableNumber") // Populate table number for dine-in orders
       .sort({ createdAt: -1 });
-    
+
     console.log(`Found ${orders.length} orders for ${userRole} user ${req.user.name}`);
-    
+
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     next(error);
@@ -199,7 +200,7 @@ const createOrder = async (req, res, next) => {
     // Optional authentication - allow guest orders for dine-in
     const token = req.headers.authorization?.split(' ')[1];
     let user = null;
-    
+
     if (token) {
       try {
         const jwt = require('jsonwebtoken');
@@ -210,12 +211,12 @@ const createOrder = async (req, res, next) => {
         console.log('Invalid token, proceeding as guest');
       }
     }
-    
+
     // Attach user to request if found
     if (user) {
       req.user = user;
     }
-    
+
     const {
       items,
       subtotal,
@@ -245,27 +246,27 @@ const createOrder = async (req, res, next) => {
     // Validate dine-in specific fields
     if (type === 'dine_in') {
       if (!tableId || !restaurantId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Table ID and Restaurant ID are required for dine-in orders" 
+        return res.status(400).json({
+          success: false,
+          message: "Table ID and Restaurant ID are required for dine-in orders"
         });
       }
-      
+
       // Verify table exists and is active, and get table number
       const Table = require('../models/Table');
-      const table = await Table.findOne({ 
-        _id: tableId, 
+      const table = await Table.findOne({
+        _id: tableId,
         restaurantId,
-        isActive: true 
+        isActive: true
       });
-      
+
       if (!table) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Table not found or inactive" 
+        return res.status(404).json({
+          success: false,
+          message: "Table not found or inactive"
         });
       }
-      
+
       // Store table number for easy display
       req.tableNumber = table.tableNumber;
     }
@@ -273,10 +274,10 @@ const createOrder = async (req, res, next) => {
     const calculatedSubtotal =
       subtotal ||
       items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    
+
     // For dine-in orders, no delivery fee
     const finalDeliveryFee = type === 'dine_in' ? 0 : deliveryFee;
-    
+
     const calculatedTotal =
       totalPrice || calculatedSubtotal + finalDeliveryFee + tax + tip - discount;
 
@@ -322,17 +323,17 @@ const createOrder = async (req, res, next) => {
       const Table = require('../models/Table');
       const updateData = {
         $push: { 'currentSession.orderIds': order._id },
-        $set: { 
+        $set: {
           'currentSession.isOccupied': true,
           'currentSession.startTime': new Date()
         }
       };
-      
+
       // Only set customerId if user is logged in
       if (userId) {
         updateData.$set['currentSession.customerId'] = userId;
       }
-      
+
       await Table.findByIdAndUpdate(tableId, updateData);
     }
 
@@ -429,7 +430,7 @@ const updateOrderStatus = async (req, res, next) => {
     if (order.type === 'dine_in') {
       let notificationMessage = '';
       let notificationType = 'info';
-      
+
       if (status === 'confirmed') {
         notificationMessage = `Your order has been accepted! Table ${order.tableNumber || 'N/A'}. Your food will be ready soon.`;
         notificationType = 'success';
@@ -446,7 +447,7 @@ const updateOrderStatus = async (req, res, next) => {
         notificationMessage = `Thank you for dining with us! Table ${order.tableNumber || 'N/A'}. Enjoy your meal!`;
         notificationType = 'success';
       }
-      
+
       if (notificationMessage) {
         order.customerNotification = {
           message: notificationMessage,
@@ -606,6 +607,38 @@ const updateDeliveryStatus = async (req, res, next) => {
             },
           },
         });
+      }
+
+      // Award loyalty points to customer for completed order
+      if (order && !order.loyaltyPointsAwarded) {
+        try {
+          const pointsResult = await earnPointsFromOrder(
+            order.user,
+            order._id,
+            order.totalPrice
+          );
+
+          if (pointsResult.pointsEarned > 0) {
+            // Mark order as having awarded points
+            await Order.findByIdAndUpdate(req.params.id, {
+              loyaltyPointsAwarded: true,
+              loyaltyPointsEarned: pointsResult.pointsEarned
+            });
+
+            // Notify customer via WebSocket
+            socketManager.emitToUser(order.user.toString(), 'loyalty:points_earned', {
+              orderId: order._id,
+              orderNumber: order.orderNumber,
+              pointsEarned: pointsResult.pointsEarned,
+              newTier: pointsResult.newTier,
+              totalPoints: pointsResult.totalPoints,
+              message: `You earned ${pointsResult.pointsEarned} points!`
+            });
+          }
+        } catch (loyaltyError) {
+          console.error('[ORDER] Failed to award loyalty points:', loyaltyError);
+          // Don't fail the order update if points awarding fails
+        }
       }
     }
 
@@ -1119,17 +1152,17 @@ const assignDriverToOrder = async (req, res, next) => {
 const getDineInOrders = async (req, res, next) => {
   try {
     const { restaurantId, status } = req.query;
-    
+
     // Build filter
     const filter = { type: 'dine_in' };
-    
+
     // If restaurant user, only show their orders
     if (req.user.role === 'restaurant') {
       filter.restaurantId = req.user._id;
     } else if (restaurantId) {
       filter.restaurantId = restaurantId;
     }
-    
+
     // Filter by status if provided
     if (status) {
       filter.status = status;
@@ -1158,8 +1191,8 @@ const getDineInOrders = async (req, res, next) => {
       ordersByTable[tableId].itemCount += order.items.reduce((sum, item) => sum + item.quantity, 0);
     });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       count: orders.length,
       data: orders,
       groupedByTable: Object.values(ordersByTable)
@@ -1178,9 +1211,9 @@ const callWaiter = async (req, res, next) => {
     const { tableId, message } = req.body;
 
     if (!tableId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Table ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Table ID is required'
       });
     }
 
@@ -1188,14 +1221,14 @@ const callWaiter = async (req, res, next) => {
     const table = await Table.findById(tableId).populate('restaurantId', 'hotelName');
 
     if (!table) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Table not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Table not found'
       });
     }
 
     const restaurantId = table.restaurantId._id.toString();
-    
+
     // Store waiter call
     const callId = `${tableId}_${Date.now()}`;
     const waiterCall = {
@@ -1208,7 +1241,7 @@ const callWaiter = async (req, res, next) => {
       createdAt: new Date().toISOString(),
       status: 'pending'
     };
-    
+
     // Store in memory (grouped by restaurant)
     if (!waiterCalls.has(restaurantId)) {
       waiterCalls.set(restaurantId, []);
@@ -1228,8 +1261,8 @@ const callWaiter = async (req, res, next) => {
       // Don't fail the request if socket emission fails
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Waiter has been notified',
       data: {
         tableNumber: table.tableNumber,
@@ -1246,17 +1279,17 @@ const callWaiter = async (req, res, next) => {
 const getPendingWaiterCalls = async (req, res, next) => {
   try {
     const restaurantId = req.user._id.toString();
-    
+
     // Get calls for this restaurant
     const calls = waiterCalls.get(restaurantId) || [];
-    
+
     // Filter only pending calls
     const pendingCalls = calls.filter(call => call.status === 'pending');
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       count: pendingCalls.length,
-      data: pendingCalls 
+      data: pendingCalls
     });
   } catch (error) {
     next(error);
@@ -1268,23 +1301,23 @@ const acknowledgeWaiterCall = async (req, res, next) => {
   try {
     const { callId } = req.params;
     const restaurantId = req.user._id.toString();
-    
+
     const calls = waiterCalls.get(restaurantId) || [];
     const callIndex = calls.findIndex(call => call._id === callId || call.id === callId);
-    
+
     if (callIndex === -1) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Waiter call not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Waiter call not found'
       });
     }
-    
+
     // Remove the call from pending list
     calls.splice(callIndex, 1);
-    
-    res.json({ 
-      success: true, 
-      message: 'Waiter call acknowledged' 
+
+    res.json({
+      success: true,
+      message: 'Waiter call acknowledged'
     });
   } catch (error) {
     next(error);
@@ -1298,19 +1331,19 @@ const getOrderStatusByTable = async (req, res, next) => {
     const { guestSessionId } = req.query; // NEW: Get guestSessionId from query params
 
     if (!tableId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Table ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Table ID is required'
       });
     }
 
     // Build filter
-    const filter = { 
+    const filter = {
       tableId,
       type: 'dine_in',
       status: { $nin: ['completed', 'cancelled'] } // Exclude completed/cancelled orders
     };
-    
+
     // Filter by guestSessionId if provided (so each guest only sees their own orders)
     if (guestSessionId) {
       filter.guestSessionId = guestSessionId;
@@ -1318,19 +1351,19 @@ const getOrderStatusByTable = async (req, res, next) => {
 
     // Find the most recent order for this table (and guest session if provided)
     const order = await Order.findOne(filter)
-    .sort({ createdAt: -1 })
-    .populate('tableId', 'tableNumber');
+      .sort({ createdAt: -1 })
+      .populate('tableId', 'tableNumber');
 
     if (!order) {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         data: null,
         message: 'No active order found for this table'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         orderId: order._id,
         orderNumber: order.orderNumber,
@@ -1359,14 +1392,14 @@ const markNotificationRead = async (req, res, next) => {
     );
 
     if (!order) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Order not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Notification marked as read'
     });
   } catch (error) {
@@ -1381,18 +1414,18 @@ const sendNotification = async (req, res, next) => {
     const { message, type = 'info' } = req.body;
 
     if (!message) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Notification message is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Notification message is required'
       });
     }
 
     const order = await Order.findById(orderId);
 
     if (!order) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Order not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
       });
     }
 
@@ -1426,8 +1459,8 @@ const sendNotification = async (req, res, next) => {
       }
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Notification sent successfully',
       data: order.customerNotification
     });
