@@ -68,8 +68,9 @@ class WebSocketService {
             .enableAutoConnect()
             .enableReconnection()
             .setReconnectionAttempts(_maxReconnectAttempts)
-            .setReconnectionDelay(1000)
-            .setReconnectionDelayMax(30000)
+            .setReconnectionDelay(2000) // Start with 2 seconds
+            .setReconnectionDelayMax(60000) // Max 60 seconds between retries
+            .setTimeout(20000) // 20 second connection timeout
             .setAuth({'token': token})
             .setExtraHeaders({'Authorization': 'Bearer $token'})
             .build(),
@@ -272,6 +273,34 @@ class WebSocketService {
     }
 
     _updateConnectionState(ConnectionState.disconnected);
+  }
+
+  /// Manual reconnect - call when app resumes from background
+  Future<void> reconnect() async {
+    if (_token == null) {
+      debugPrint('[WEBSOCKET] Cannot reconnect - no token');
+      return;
+    }
+
+    // If already connected, disconnect first
+    if (_socket != null && _socket!.connected) {
+      debugPrint('[WEBSOCKET] Already connected, skipping reconnect');
+      return;
+    }
+
+    // Reset reconnect attempts for fresh start
+    _reconnectAttempts = 0;
+    _reconnectTimer?.cancel();
+
+    debugPrint('[WEBSOCKET] Manual reconnect triggered');
+    await connect(_token!);
+  }
+
+  /// Check if should attempt reconnect (for app lifecycle)
+  bool get shouldReconnect {
+    return _token != null &&
+        (_socket == null || !_socket!.connected) &&
+        _connectionState != ConnectionState.connecting;
   }
 
   /// Dispose

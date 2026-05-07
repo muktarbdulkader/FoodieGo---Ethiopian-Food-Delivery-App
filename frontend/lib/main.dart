@@ -57,7 +57,7 @@ class FoodieGoApp extends StatefulWidget {
   State<FoodieGoApp> createState() => _FoodieGoAppState();
 }
 
-class _FoodieGoAppState extends State<FoodieGoApp> {
+class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
   // Separate auth providers for each session type
   late AuthProvider _userAuthProvider;
   late AuthProvider _adminAuthProvider;
@@ -65,10 +65,13 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
   late LanguageProvider _languageProvider;
   bool _isInitialized = false;
   late AppLinks _appLinks;
+  WebSocketProvider? _webSocketProvider;
 
   @override
   void initState() {
     super.initState();
+    // Register for app lifecycle events
+    WidgetsBinding.instance.addObserver(this);
     // Get the last session type BEFORE initializing providers
     final lastSession = StorageUtils.currentSessionType;
 
@@ -202,9 +205,9 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         builder: (context) {
           // Connect WebSocket if any session is logged in (user, admin, or delivery)
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            final webSocketProvider =
+            _webSocketProvider =
                 Provider.of<WebSocketProvider>(context, listen: false);
-            if (!webSocketProvider.isConnected) {
+            if (!_webSocketProvider!.isConnected) {
               // Try to get token from any session type
               String? token;
               SessionType? sessionType;
@@ -218,7 +221,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
               }
 
               if (token != null && sessionType != null) {
-                webSocketProvider.connect(token);
+                _webSocketProvider!.connect(token);
                 debugPrint(
                     '[MAIN] WebSocket connected with $sessionType token');
               } else {
@@ -473,6 +476,46 @@ class _FoodieGoAppState extends State<FoodieGoApp> {
         return FadeTransition(opacity: animation, child: child);
       },
     );
+  }
+
+  /// Handle app lifecycle changes for WebSocket reconnection
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App came to foreground - reconnect WebSocket if needed
+        debugPrint('[MAIN] App resumed - checking WebSocket connection');
+        if (_webSocketProvider != null && _webSocketProvider!.shouldReconnect) {
+          _webSocketProvider!.onAppResumed();
+        }
+        break;
+      case AppLifecycleState.paused:
+        // App went to background
+        debugPrint('[MAIN] App paused');
+        _webSocketProvider?.onAppPaused();
+        break;
+      case AppLifecycleState.inactive:
+        // App is inactive (e.g., phone call, notification panel)
+        debugPrint('[MAIN] App inactive');
+        break;
+      case AppLifecycleState.detached:
+        // App is detached (Android only)
+        debugPrint('[MAIN] App detached');
+        break;
+      case AppLifecycleState.hidden:
+        // App is hidden (iOS only)
+        debugPrint('[MAIN] App hidden');
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    // Remove app lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 }
 

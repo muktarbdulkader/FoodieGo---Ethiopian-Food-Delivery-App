@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -34,6 +35,54 @@ class _HomePageState extends State<HomePage> {
   bool _isNetworkError = false;
   final PageController _bannerController = PageController();
   List<String> _categories = ['All'];
+
+  // Banner auto-rotation
+  int _currentBannerIndex = 0;
+  Timer? _bannerTimer;
+
+  // Banner slides data
+  final List<Map<String, dynamic>> _bannerSlides = [
+    {
+      'title': 'FREE',
+      'subtitle': 'DELIVERY',
+      'badge': 'ENJOY',
+      'color': const Color(0xFFFFD54F),
+      'secondaryColor': const Color(0xFFFFE082),
+      'textColor': AppTheme.primaryColor,
+      'emoji': '🦊',
+      'gradient': [const Color(0xFFFFD54F), const Color(0xFFFFE082)],
+    },
+    {
+      'title': '50%',
+      'subtitle': 'OFF FIRST ORDER',
+      'badge': 'NEW USER',
+      'color': const Color(0xFF81C784),
+      'secondaryColor': const Color(0xFFA5D6A7),
+      'textColor': const Color(0xFF2E7D32),
+      'emoji': '🎁',
+      'gradient': [const Color(0xFF81C784), const Color(0xFFA5D6A7)],
+    },
+    {
+      'title': 'REFER',
+      'subtitle': 'EARN 50 ETB',
+      'badge': 'SHARE',
+      'color': const Color(0xFF64B5F6),
+      'secondaryColor': const Color(0xFF90CAF9),
+      'textColor': const Color(0xFF1565C0),
+      'emoji': '💰',
+      'gradient': [const Color(0xFF64B5F6), const Color(0xFF90CAF9)],
+    },
+    {
+      'title': 'LOYALTY',
+      'subtitle': 'GET POINTS',
+      'badge': 'EARN',
+      'color': const Color(0xFFFFB74D),
+      'secondaryColor': const Color(0xFFFFCC80),
+      'textColor': const Color(0xFFEF6C00),
+      'emoji': '⭐',
+      'gradient': [const Color(0xFFFFB74D), const Color(0xFFFFCC80)],
+    },
+  ];
 
   final List<Map<String, dynamic>> _topServices = [
     {'emoji': '🍔', 'color': const Color(0xFFFFEBEE), 'label': 'Food'},
@@ -78,10 +127,26 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    _startBannerAutoPlay();
+  }
+
+  void _startBannerAutoPlay() {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted && _bannerSlides.length > 1) {
+        final nextIndex = (_currentBannerIndex + 1) % _bannerSlides.length;
+        _bannerController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    _bannerTimer?.cancel();
     _searchController.dispose();
     _bannerController.dispose();
     super.dispose();
@@ -324,7 +389,7 @@ class _HomePageState extends State<HomePage> {
           onTap: () async {
             final navigator = Navigator.of(context);
             final messenger = ScaffoldMessenger.of(context);
-            
+
             final result = await navigator.push<Map<String, dynamic>>(
               MaterialPageRoute(
                 builder: (_) => LocationPickerPage(
@@ -499,86 +564,21 @@ class _HomePageState extends State<HomePage> {
       height: 140,
       child: Stack(
         children: [
-          // Yellow background with pattern
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD54F), Color(0xFFFFE082)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CustomPaint(
-                painter: _KlikPatternPainter(),
-                size: Size(MediaQuery.of(context).size.width - 32, 140),
-              ),
-            ),
+          // PageView for sliding banners
+          PageView.builder(
+            controller: _bannerController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentBannerIndex = index;
+              });
+            },
+            itemCount: _bannerSlides.length,
+            itemBuilder: (context, index) {
+              final slide = _bannerSlides[index];
+              return _buildBannerSlide(slide);
+            },
           ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('ENJOY',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'FREE',
-                        style: TextStyle(
-                            fontSize: 42,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.primaryColor,
-                            height: 1),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('DELIVERY',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-                // Fox mascot
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                      child: Text('🦊', style: TextStyle(fontSize: 50))),
-                ),
-              ],
-            ),
-          ),
+
           // Dots indicator
           Positioned(
             bottom: 12,
@@ -586,23 +586,197 @@ class _HomePageState extends State<HomePage> {
             right: 0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_bannerSlides.length, (index) {
+                final isActive = index == _currentBannerIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 20 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? _bannerSlides[_currentBannerIndex]['textColor']
+                        : Colors.white.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          // Tap left/right to navigate
+          Positioned.fill(
+            child: Row(
               children: [
-                Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: AppTheme.primaryColor, shape: BoxShape.circle)),
-                const SizedBox(width: 6),
-                Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        shape: BoxShape.circle)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_currentBannerIndex > 0) {
+                        _bannerController.previousPage(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    },
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_currentBannerIndex < _bannerSlides.length - 1) {
+                        _bannerController.nextPage(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    },
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBannerSlide(Map<String, dynamic> slide) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: slide['gradient'],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // Background pattern
+            CustomPaint(
+              painter: _KlikPatternPainter(
+                color: slide['textColor'].withValues(alpha: 0.1),
+              ),
+              size: Size(MediaQuery.of(context).size.width - 32, 140),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: slide['textColor'],
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    slide['textColor'].withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            slide['badge'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Main title
+                        Text(
+                          slide['title'],
+                          style: TextStyle(
+                            fontSize: 38,
+                            fontWeight: FontWeight.w900,
+                            color: slide['textColor'],
+                            height: 0.9,
+                            shadows: [
+                              Shadow(
+                                color:
+                                    slide['textColor'].withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Subtitle badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: slide['textColor'],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            slide['subtitle'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Emoji mascot with animation
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 600),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: 0.8 + (value * 0.2),
+                        child: Container(
+                          width: 85,
+                          height: 85,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    slide['textColor'].withValues(alpha: 0.2),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              slide['emoji'],
+                              style: const TextStyle(fontSize: 46),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1181,8 +1355,8 @@ class _HomePageState extends State<HomePage> {
                           width: 200,
                           decoration: const BoxDecoration(
                             color: Color(0xFFFDD835),
-                            borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(16)),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(16)),
                           ),
                           child: const Center(
                             child: Icon(Icons.restaurant,
@@ -1382,8 +1556,8 @@ class _HomePageState extends State<HomePage> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(20)),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(20)),
                           ),
                           child: const Center(
                             child: Icon(Icons.restaurant,
@@ -1640,17 +1814,16 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTrendingSection() {
     // Sort by rating and review count for trending
-    final trendingHotels = [..._hotels]
-      ..sort((a, b) {
+    final trendingHotels = [..._hotels]..sort((a, b) {
         // Sort by rating first, then by review count
         final ratingCompare = b.rating.compareTo(a.rating);
         if (ratingCompare != 0) return ratingCompare;
         return 0; // Could add review count comparison here
       });
-    
+
     final displayHotels = trendingHotels.take(6).toList();
     if (displayHotels.isEmpty) return const SizedBox.shrink();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1688,13 +1861,12 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFastestDeliverySection() {
     // Sort by delivery fee (lower = faster/cheaper delivery)
-    final fastDeliveryHotels = [..._hotels]
-      ..sort((a, b) {
+    final fastDeliveryHotels = [..._hotels]..sort((a, b) {
         // Assuming lower delivery fee means faster service
         // You can add a deliveryTime field to Hotel model for more accuracy
         return a.deliveryFee.compareTo(b.deliveryFee);
       });
-    
+
     final displayHotels = fastDeliveryHotels.take(6).toList();
     if (displayHotels.isEmpty) return const SizedBox.shrink();
 
@@ -1735,15 +1907,14 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildNearbyOffersSection() {
     // Sort by distance (nearest first)
-    final nearbyHotels = [..._hotels]
-      ..sort((a, b) {
+    final nearbyHotels = [..._hotels]..sort((a, b) {
         // Sort by distance if available
         if (a.distance != null && b.distance != null) {
           return a.distance!.compareTo(b.distance!);
         }
         return 0;
       });
-    
+
     final displayHotels = nearbyHotels.take(6).toList();
     if (displayHotels.isEmpty) return const SizedBox.shrink();
 
@@ -1850,10 +2021,14 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _KlikPatternPainter extends CustomPainter {
+  final Color color;
+
+  _KlikPatternPainter({this.color = Colors.white});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.18)
+      ..color = color.withValues(alpha: 0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 

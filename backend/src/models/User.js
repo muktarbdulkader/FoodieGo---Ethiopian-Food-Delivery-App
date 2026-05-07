@@ -166,20 +166,61 @@ const userSchema = new mongoose.Schema({
   }],
   lastLogin: {
     type: Date
+  },
+  // Referral system
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  referralRewards: {
+    totalEarned: { type: Number, default: 0 },
+    pendingAmount: { type: Number, default: 0 },
+    totalReferrals: { type: Number, default: 0 },
+    successfulReferrals: { type: Number, default: 0 }
   }
 }, { timestamps: true });
 
 // Ensure hotelName is unique for restaurant users (sparse index)
 userSchema.index(
-  { hotelName: 1 }, 
-  { 
-    unique: true, 
+  { hotelName: 1 },
+  {
+    unique: true,
     sparse: true,
-    partialFilterExpression: { 
-      role: 'restaurant', 
-      hotelName: { $exists: true, $ne: null, $ne: '' } 
+    partialFilterExpression: {
+      role: 'restaurant',
+      hotelName: { $exists: true, $ne: null, $ne: '' }
     }
   }
 );
+
+// Generate unique referral code before saving
+userSchema.pre('save', async function (next) {
+  // Only generate for users (not restaurants/delivery)
+  if (this.isNew && this.role === 'user' && !this.referralCode) {
+    // Generate code: First 4 chars of user ID + 4 random chars
+    const idPart = this._id.toString().substring(18, 22).toUpperCase();
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    this.referralCode = `${idPart}${randomPart}`;
+
+    // Ensure uniqueness
+    let attempts = 0;
+    while (attempts < 5) {
+      const existing = await mongoose.model('User').findOne({ referralCode: this.referralCode });
+      if (!existing) break;
+      // Generate new random part if collision
+      const newRandom = Math.random().toString(36).substring(2, 6).toUpperCase();
+      this.referralCode = `${idPart}${newRandom}`;
+      attempts++;
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model('User', userSchema);

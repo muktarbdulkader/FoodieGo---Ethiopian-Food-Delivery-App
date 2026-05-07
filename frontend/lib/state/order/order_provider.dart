@@ -11,11 +11,13 @@ class OrderProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _hasFetched = false;
+  DateTime? _lastUpdated;
 
   List<Order> get orders => _orders;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasFetched => _hasFetched;
+  DateTime? get lastUpdated => _lastUpdated;
 
   /// Fetch all orders for current user
   Future<void> fetchOrders({bool silent = false}) async {
@@ -33,6 +35,7 @@ class OrderProvider extends ChangeNotifier {
       _orders = await _orderRepository.getAllOrders();
       _isLoading = false;
       _hasFetched = true;
+      _lastUpdated = DateTime.now();
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -68,5 +71,6 @@ class OrderProvider extends ChangeNotifier {
     _isLoading = false;
     _error = null;
     _hasFetched = false;
+    _lastUpdated = null;
   }
 }

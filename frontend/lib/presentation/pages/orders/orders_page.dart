@@ -54,21 +54,23 @@ class _OrdersPageState extends State<OrdersPage>
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dineInProvider = Provider.of<DineInProvider>(context, listen: false);
-    
+
     // Guest user with active dine-in order
     if (!authProvider.isLoggedIn) {
-      if (dineInProvider.currentTable != null && dineInProvider.currentRestaurantId != null) {
+      if (dineInProvider.currentTable != null &&
+          dineInProvider.currentRestaurantId != null) {
         return OrderStatusPage(
           tableId: dineInProvider.currentTable!.id,
           restaurantId: dineInProvider.currentRestaurantId!,
-          guestSessionId: dineInProvider.guestSessionId, // Pass guest session ID
+          guestSessionId:
+              dineInProvider.guestSessionId, // Pass guest session ID
         );
       }
-      
+
       // Guest user without active order - show login prompt
       return _buildLoginPrompt();
     }
-    
+
     // Logged in user - show order history
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -101,20 +103,72 @@ class _OrdersPageState extends State<OrdersPage>
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'My Orders',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
+          // Title row with refresh button
+          Row(
+            children: [
+              const Text(
+                'My Orders',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              // Refresh button
+              Consumer<OrderProvider>(
+                builder: (context, orderProvider, _) {
+                  final lastUpdated = orderProvider.lastUpdated;
+                  String tooltip = 'Refresh orders';
+                  if (lastUpdated != null) {
+                    final diff = DateTime.now().difference(lastUpdated);
+                    if (diff.inSeconds < 60) {
+                      tooltip = 'Updated just now';
+                    } else if (diff.inMinutes < 60) {
+                      tooltip = 'Updated ${diff.inMinutes}m ago';
+                    } else {
+                      tooltip = 'Updated ${diff.inHours}h ago';
+                    }
+                  }
+
+                  return IconButton(
+                    icon: orderProvider.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryColor,
+                            ),
+                          )
+                        : const Icon(Icons.refresh,
+                            color: AppTheme.primaryColor),
+                    onPressed: orderProvider.isLoading
+                        ? null
+                        : () => orderProvider.fetchOrders(),
+                    tooltip: tooltip,
+                  );
+                },
+              ),
+              const SizedBox(width: 4),
+              // Support button
+              IconButton(
+                icon: Icon(Icons.headset_mic_outlined,
+                    color: Colors.grey.shade600),
+                onPressed: () {
+                  // Contact support
+                },
+                tooltip: 'Support',
+              ),
+            ],
           ),
-          const Spacer(),
+          const SizedBox(height: 12),
+          // Search bar - full width
           Container(
-            width: 200,
             height: 44,
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
@@ -131,23 +185,18 @@ class _OrdersPageState extends State<OrdersPage>
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: Colors.grey.shade400, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
               ),
               onChanged: (value) => setState(() {}),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: Icon(Icons.headset_mic_outlined, color: Colors.grey.shade700),
-              onPressed: () {
-                // Contact support
-              },
             ),
           ),
         ],
@@ -300,7 +349,7 @@ class _OrdersPageState extends State<OrdersPage>
   Widget _buildOrdersList(OrderProvider orderProvider) {
     // Filter orders based on selected tab
     List<Order> filteredOrders = orderProvider.orders;
-    
+
     if (_selectedTabIndex == 1) {
       // In progress
       filteredOrders = orderProvider.orders.where((order) {
@@ -320,7 +369,8 @@ class _OrdersPageState extends State<OrdersPage>
         final searchLower = _searchController.text.toLowerCase();
         final orderNumber = order.orderNumber.toLowerCase();
         final orderId = order.id.toLowerCase();
-        return orderNumber.contains(searchLower) || orderId.contains(searchLower);
+        return orderNumber.contains(searchLower) ||
+            orderId.contains(searchLower);
       }).toList();
     }
 
@@ -386,91 +436,77 @@ class _OrdersPageState extends State<OrdersPage>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.shopping_bag_outlined, size: 24),
+                    child: const Icon(Icons.shopping_bag_outlined, size: 22),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Order ID and Status in one row
                         Row(
                           children: [
-                            Text(
-                              'Order ID: ',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
+                            Expanded(
+                              child: Text(
+                                order.orderNumber.isNotEmpty
+                                    ? '#${order.orderNumber}'
+                                    : '#${order.id.length >= 6 ? order.id.substring(order.id.length - 6).toUpperCase() : order.id.toUpperCase()}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Text(
-                              order.orderNumber.isNotEmpty
-                                  ? 'ID-${order.orderNumber}'
-                                  : 'ID-${order.id.length >= 4 ? order.id.substring(order.id.length - 4).toUpperCase() : order.id.toUpperCase()}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
+                            const SizedBox(width: 8),
+                            _buildStatusBadge(order.status),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
+                        // Amount and Items
                         Row(
                           children: [
-                            Text(
-                              'Amount: ',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
                             Text(
                               '₦${order.totalPrice.toStringAsFixed(0)}',
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryColor,
                               ),
                             ),
-                            const Spacer(),
                             Text(
-                              'Item: ',
+                              ' • ${order.items.length} items',
                               style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              '${order.items.length}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
+                        // Date
                         Row(
                           children: [
                             Icon(Icons.calendar_today,
-                                size: 12, color: Colors.grey.shade400),
+                                size: 11, color: Colors.grey.shade400),
                             const SizedBox(width: 4),
                             Text(
-                              'ETA: ${_formatETA(order.createdAt)}',
+                              _formatETA(order.createdAt),
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
                               ),
                             ),
                           ],
@@ -478,14 +514,12 @@ class _OrdersPageState extends State<OrdersPage>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  _buildStatusBadge(order.status),
                 ],
               ),
             ),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius:
@@ -495,7 +529,7 @@ class _OrdersPageState extends State<OrdersPage>
                 child: Text(
                   _getActionButtonText(order.status),
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
@@ -512,7 +546,7 @@ class _OrdersPageState extends State<OrdersPage>
     Color bgColor;
     Color textColor;
     String label;
-    IconData icon;
+    IconData? icon;
 
     switch (status) {
       case 'pending':
@@ -525,13 +559,13 @@ class _OrdersPageState extends State<OrdersPage>
       case 'preparing':
         bgColor = const Color(0xFFFFF3E0);
         textColor = const Color(0xFFF57C00);
-        label = 'Delayed';
-        icon = Icons.warning_amber;
+        label = 'In Progress';
+        icon = null;
         break;
       case 'out_for_delivery':
         bgColor = const Color(0xFFE8F5E9);
         textColor = const Color(0xFF388E3C);
-        label = 'Out for Delivery';
+        label = 'On Way';
         icon = Icons.local_shipping;
         break;
       case 'delivered':
@@ -549,25 +583,27 @@ class _OrdersPageState extends State<OrdersPage>
       default:
         bgColor = Colors.grey.shade100;
         textColor = Colors.grey.shade700;
-        label = 'Unknown';
+        label = 'Pending';
         icon = Icons.help_outline;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 4),
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: textColor),
+            const SizedBox(width: 3),
+          ],
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: textColor,
             ),
@@ -596,7 +632,23 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   String _formatETA(DateTime? date) {
-    if (date == null) return 'Dec 25 2025';
+    if (date == null) return 'Today';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final orderDate = DateTime(date.year, date.month, date.day);
+
+    // Check if today
+    if (orderDate == today) {
+      return 'Today, ${_formatTime(date)}';
+    }
+
+    // Check if yesterday
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (orderDate == yesterday) {
+      return 'Yesterday, ${_formatTime(date)}';
+    }
+
+    // Otherwise show date
     final months = [
       'Jan',
       'Feb',
@@ -611,9 +663,15 @@ class _OrdersPageState extends State<OrdersPage>
       'Nov',
       'Dec'
     ];
-    // Add estimated delivery time (e.g., 30 minutes from order time)
-    final eta = date.add(const Duration(minutes: 30));
-    return '${months[eta.month - 1]} ${eta.day} ${eta.year}';
+    return '${months[date.month - 1]} ${date.day}';
+  }
+
+  String _formatTime(DateTime date) {
+    final hour = date.hour;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$displayHour:$minute $period';
   }
 
   Widget _buildLoginPrompt() {
