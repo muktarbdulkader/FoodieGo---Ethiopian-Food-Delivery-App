@@ -57,6 +57,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
 
   void _setupWebSocket() {
     _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
+    debugPrint('[CHAT] Setting up WebSocket for order: ${widget.order.id}');
+    debugPrint('[CHAT] Is driver: ${widget.isDriver}');
     _webSocketProvider?.joinRoom('order:${widget.order.id}');
     _webSocketProvider?.on('chat:message', _handleNewMessage);
     _webSocketProvider?.on('driver:location', _handleLocationUpdate);
@@ -80,6 +82,7 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
   }
 
   void _handleLocationUpdate(dynamic data) {
+    debugPrint('[CHAT] Received driver:location event: $data');
     if (mounted && data['orderId'] == widget.order.id) {
       final location = data['location'];
       if (location != null) {
@@ -100,6 +103,9 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
         });
         _scrollToBottom();
       }
+    } else {
+      debugPrint(
+          '[CHAT] Location update ignored - orderId mismatch or not mounted');
     }
   }
 
@@ -128,7 +134,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
       _sendLocationUpdate(position);
     });
 
-    _locationShareTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _locationShareTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) async {
       if (_currentPosition != null) {
         await _sendLocationUpdate(_currentPosition!);
       }
@@ -137,6 +144,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
 
   Future<void> _sendLocationUpdate(Position position) async {
     try {
+      debugPrint(
+          '[CHAT] Sending location update: ${position.latitude}, ${position.longitude}');
       await _orderRepo.updateDriverLocation(
         position.latitude,
         position.longitude,
@@ -154,8 +163,9 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
         },
         'timestamp': DateTime.now().toIso8601String(),
       });
+      debugPrint('[CHAT] Location emitted via WebSocket');
     } catch (e) {
-      debugPrint('Error sending location: $e');
+      debugPrint('[CHAT] Error sending location: $e');
     }
   }
 
@@ -181,15 +191,17 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
       final messages = await _orderRepo.getChatMessages(widget.order.id);
       if (mounted) {
         setState(() {
-          _messages = messages.map((m) => {
-            'id': m.id,
-            'text': m.message,
-            'sender': m.senderName,
-            'senderRole': m.senderRole,
-            'type': m.type ?? 'text',
-            'timestamp': m.timestamp,
-            'location': m.metadata?['location'],
-          }).toList();
+          _messages = messages
+              .map((m) => {
+                    'id': m.id,
+                    'text': m.message,
+                    'sender': m.senderName,
+                    'senderRole': m.senderRole,
+                    'type': m.type ?? 'text',
+                    'timestamp': m.timestamp,
+                    'location': m.metadata?['location'],
+                  })
+              .toList();
           _isLoading = false;
         });
         if (!silent) _scrollToBottom();
@@ -199,7 +211,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
     }
   }
 
-  Future<void> _sendMessage({String? type, Map<String, dynamic>? metadata}) async {
+  Future<void> _sendMessage(
+      {String? type, Map<String, dynamic>? metadata}) async {
     final text = _messageController.text.trim();
     if ((text.isEmpty && type != 'location') || _isSending) return;
 
@@ -207,7 +220,9 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
     try {
       final message = await _orderRepo.sendChatMessage(
         widget.order.id,
-        text.isNotEmpty ? text : (type == 'location' ? '📍 Shared live location' : ''),
+        text.isNotEmpty
+            ? text
+            : (type == 'location' ? '📍 Shared live location' : ''),
         type: type ?? 'text',
         metadata: metadata,
       );
@@ -242,7 +257,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
       if (mounted) {
         setState(() => _isSending = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to send: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -263,7 +279,9 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not get location: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Could not get location: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -303,6 +321,42 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
           ],
         ),
         actions: [
+          // WebSocket connection status
+          Consumer<WebSocketProvider>(
+            builder: (context, wsProvider, _) {
+              final isConnected = wsProvider.isConnected;
+              return Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isConnected
+                      ? Colors.green.withValues(alpha: 0.3)
+                      : Colors.red.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isConnected ? Icons.circle : Icons.error_outline,
+                      color: isConnected ? Colors.green[700] : Colors.red[700],
+                      size: 10,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isConnected ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color:
+                            isConnected ? Colors.green[700] : Colors.red[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           if (_isSharingLocation)
             Container(
               margin: const EdgeInsets.only(right: 8),
@@ -341,7 +395,10 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
               padding: const EdgeInsets.all(12),
               child: DeliveryMapWidget(
                 driverLocation: _currentPosition != null
-                    ? {'latitude': _currentPosition!.latitude, 'longitude': _currentPosition!.longitude}
+                    ? {
+                        'latitude': _currentPosition!.latitude,
+                        'longitude': _currentPosition!.longitude
+                      }
                     : widget.order.delivery?.driverLocation,
                 restaurantLocation: widget.order.delivery?.pickupLocation,
                 customerLocation: widget.order.deliveryAddress,
@@ -429,7 +486,8 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             // Sender name (if not me)
             if (!isMe)
@@ -502,7 +560,9 @@ class _DeliveryChatPageState extends State<DeliveryChatPage> {
           Container(
             height: 120,
             decoration: BoxDecoration(
-              color: isMe ? Colors.white.withValues(alpha: 0.2) : Colors.grey.shade100,
+              color: isMe
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(

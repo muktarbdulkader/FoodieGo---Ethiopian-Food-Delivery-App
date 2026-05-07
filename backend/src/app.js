@@ -22,7 +22,7 @@ const MAX_REQUESTS = 100; // max requests per window
 const rateLimiter = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
-  
+
   if (!rateLimit[ip]) {
     rateLimit[ip] = { count: 1, startTime: now };
   } else if (now - rateLimit[ip].startTime > RATE_LIMIT_WINDOW) {
@@ -56,21 +56,21 @@ const auditLogger = (req, res, next) => {
   const url = req.originalUrl;
   const ip = req.ip || req.connection.remoteAddress;
   const userId = req.user?.id || 'anonymous';
-  
+
   // Log to console (in production, use proper logging service)
   if (process.env.NODE_ENV !== 'test') {
     console.log(`[AUDIT] ${timestamp} | ${method} ${url} | IP: ${ip} | User: ${userId}`);
   }
-  
+
   // Store original end function
   const originalEnd = res.end;
-  res.end = function(...args) {
+  res.end = function (...args) {
     if (process.env.NODE_ENV !== 'test') {
       console.log(`[AUDIT] ${timestamp} | ${method} ${url} | Status: ${res.statusCode}`);
     }
     originalEnd.apply(res, args);
   };
-  
+
   next();
 };
 
@@ -93,11 +93,11 @@ const sanitizeInput = (req, res, next) => {
     }
     return obj;
   };
-  
+
   if (req.body) req.body = sanitize(req.body);
   if (req.query) req.query = sanitize(req.query);
   if (req.params) req.params = sanitize(req.params);
-  
+
   next();
 };
 
@@ -109,17 +109,7 @@ app.use(auditLogger);
 // Compression middleware for better performance
 app.use(compression());
 
-// CORS configuration - allow multiple origins
-const allowedOrigins = [
-  'https://foodiego-99b1e.web.app',     // Production frontend
-  'https://foodiego-99b1e.firebaseapp.com', // Firebase alt domain
-  'http://localhost:3000',               // Local development
-  'http://localhost:8080',
-  'http://localhost:5000',
-  'http://127.0.0.1:3000',
-];
-
-// TEMPORARY: Allow all origins for testing
+// CORS configuration - allow all origins for testing
 app.use(cors({
   origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -141,8 +131,8 @@ app.use('/api', routes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage()

@@ -987,8 +987,9 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                     : RefreshIndicator(
                         onRefresh: _loadOrders,
                         child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: _filteredOrders.length,
+                          cacheExtent: 200,
                           itemBuilder: (context, index) {
                             final order = _filteredOrders[index];
                             return _buildOrderCard(order);
@@ -1167,117 +1168,121 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     final tableNumber = _getTableNumber(order);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
+      margin: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
+      elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: statusColor, width: 2),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Compact Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
               ),
             ),
-            child: Row(
-              children: [
-                // Table Number - Large and prominent
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    tableNumber,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Order #${order.orderNumber}',
-                        style: const TextStyle(
-                          fontSize: 16,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 400;
+                return Row(
+                  children: [
+                    // Table Number Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tableNumber,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isWide ? 22 : 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        timeAgo,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '#${order.orderNumber}',
+                            style: TextStyle(
+                              fontSize: isWide ? 14 : 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time,
+                                  size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                timeAgo,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (order.createdAt != null)
+                            OrderTimer(
+                              orderTime: order.createdAt!,
+                              showFlashing: order.status != 'completed' &&
+                                  order.status != 'cancelled',
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Status Badge - Compact
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        order.status.substring(0, 1).toUpperCase() +
+                            order.status.substring(1),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      // Order Timer
-                      if (order.createdAt != null)
-                        OrderTimer(
-                          orderTime: order.createdAt!,
-                          showFlashing: order.status != 'completed' &&
-                              order.status != 'cancelled',
-                        ),
-                    ],
-                  ),
-                ),
-                // Status Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    order.status.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
 
-          // Order Items
+          // Order Items - Compact
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Items:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // Items list
                 ...order.items.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
                         children: [
                           Container(
-                            width: 30,
-                            height: 30,
+                            width: 26,
+                            height: 26,
                             decoration: BoxDecoration(
                               color:
                                   AppTheme.primaryColor.withValues(alpha: 0.1),
@@ -1288,66 +1293,72 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                                 '${item.quantity}x',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 12,
                                   color: AppTheme.primaryColor,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               item.name,
-                              style: const TextStyle(fontSize: 16),
+                              style: const TextStyle(fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Text(
-                            'ETB ${item.price.toStringAsFixed(2)}',
+                            'ETB ${item.price.toStringAsFixed(0)}',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
                     )),
-                const Divider(height: 24),
+                const Divider(height: 16),
+                // Total row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Total:',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'ETB ${order.totalPrice.toStringAsFixed(2)}',
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryColor,
                       ),
                     ),
                   ],
                 ),
+                // Notes - compact
                 if (order.notes != null && order.notes!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.amber[50],
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: Colors.amber[200]!),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.note, color: Colors.amber, size: 20),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.note, color: Colors.amber, size: 16),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             order.notes!,
-                            style: const TextStyle(fontSize: 14),
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
                           ),
                         ),
                       ],
@@ -1365,199 +1376,180 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     );
   }
 
-  ButtonStyle _getButtonStyle(Color bgColor) {
+  ButtonStyle _getButtonStyle(Color bgColor, {bool compact = false}) {
     return ElevatedButton.styleFrom(
       backgroundColor: bgColor,
       foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-      elevation: 4,
-      shadowColor: bgColor.withOpacity(0.4),
+      padding: compact
+          ? const EdgeInsets.symmetric(vertical: 12, horizontal: 16)
+          : const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      elevation: 2,
+      shadowColor: bgColor.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
-      minimumSize: const Size(0, 56), // Minimum 56dp height for accessibility
+      minimumSize: const Size(0, 48),
     );
   }
 
   Widget _buildActionButtons(Order order) {
     if (order.status == 'pending') {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange[50],
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10),
-          ),
-          border: Border(
-            top: BorderSide(color: Colors.orange[200]!, width: 1),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Quick action chips for common rejection reasons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 350;
+          final isVeryNarrow = constraints.maxWidth < 280;
+
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(14),
+                bottomRight: Radius.circular(14),
+              ),
+              border: Border(
+                top: BorderSide(color: Colors.orange[200]!, width: 1),
+              ),
+            ),
+            child: Column(
               children: [
-                _buildQuickRejectChip(order, 'Out of stock', Icons.inventory_2),
-                _buildQuickRejectChip(order, 'Kitchen busy', Icons.schedule),
-                _buildQuickRejectChip(order, 'Closing soon', Icons.access_time),
+                // Quick action chips
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _buildQuickRejectChip(
+                        order,
+                        isVeryNarrow ? 'Stock' : 'Out of stock',
+                        Icons.inventory_2),
+                    _buildQuickRejectChip(order,
+                        isVeryNarrow ? 'Busy' : 'Kitchen busy', Icons.schedule),
+                    _buildQuickRejectChip(
+                        order,
+                        isVeryNarrow ? 'Closing' : 'Closing soon',
+                        Icons.access_time),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Action buttons row
+                Row(
+                  children: [
+                    // Reject button
+                    Expanded(
+                      flex: isWide ? 1 : 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _rejectOrder(order),
+                        icon: const Icon(Icons.close, size: 20),
+                        label: Text(
+                          isVeryNarrow ? 'X' : (isWide ? 'REJECT' : 'NO'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: _getButtonStyle(Colors.red, compact: !isWide),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Accept button
+                    Expanded(
+                      flex: isWide ? 2 : 3,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _acceptOrder(order),
+                        icon: const Icon(Icons.check_circle, size: 22),
+                        label: Text(
+                          isVeryNarrow ? 'OK' : 'ACCEPT',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: _getButtonStyle(Colors.green, compact: !isWide),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                // Reject button - large red
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _rejectOrder(order),
-                    icon: const Icon(Icons.close, size: 28),
-                    label: const Text(
-                      'REJECT',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    style: _getButtonStyle(Colors.red).copyWith(
-                      backgroundColor: WidgetStateProperty.all(Colors.red),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Accept button - larger green (2x width)
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _acceptOrder(order),
-                    icon: const Icon(Icons.check_circle, size: 32),
-                    label: const Text(
-                      'ACCEPT ORDER',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    style: _getButtonStyle(Colors.green).copyWith(
-                      backgroundColor: WidgetStateProperty.all(Colors.green),
-                      padding: WidgetStateProperty.all(
-                        const EdgeInsets.symmetric(
-                            vertical: 20, horizontal: 24),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          );
+        },
       );
     } else if (order.status == 'confirmed') {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.blue[50],
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10),
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
           ),
           border: Border(
             top: BorderSide(color: Colors.blue[200]!, width: 1),
           ),
         ),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _updateOrderStatus(order, 'preparing'),
-            icon: const Icon(Icons.restaurant, size: 28),
-            label: const Text(
-              'START PREPARING',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-            style: _getButtonStyle(Colors.purple).copyWith(
-              backgroundColor: WidgetStateProperty.all(Colors.purple),
-              padding: WidgetStateProperty.all(
-                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
-              ),
+        child: ElevatedButton.icon(
+          onPressed: () => _updateOrderStatus(order, 'preparing'),
+          icon: const Icon(Icons.restaurant, size: 22),
+          label: const Text(
+            'START PREPARING',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          style: _getButtonStyle(Colors.purple),
         ),
       );
     } else if (order.status == 'preparing') {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.purple[50],
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10),
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
           ),
           border: Border(
             top: BorderSide(color: Colors.purple[200]!, width: 1),
           ),
         ),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _updateOrderStatus(order, 'ready'),
-            icon: const Icon(Icons.done_all, size: 28),
-            label: const Text(
-              'MARK AS READY',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-            style: _getButtonStyle(Colors.green).copyWith(
-              backgroundColor: WidgetStateProperty.all(Colors.green),
-              padding: WidgetStateProperty.all(
-                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
-              ),
+        child: ElevatedButton.icon(
+          onPressed: () => _updateOrderStatus(order, 'ready'),
+          icon: const Icon(Icons.done_all, size: 22),
+          label: const Text(
+            'MARK AS READY',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          style: _getButtonStyle(Colors.green),
         ),
       );
     } else if (order.status == 'ready') {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.green[50],
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10),
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
           ),
           border: Border(
             top: BorderSide(color: Colors.green[200]!, width: 1),
           ),
         ),
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _updateOrderStatus(order, 'completed'),
-            icon: const Icon(Icons.celebration, size: 28),
-            label: const Text(
-              'COMPLETE ORDER',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-            style: _getButtonStyle(Colors.teal).copyWith(
-              backgroundColor: WidgetStateProperty.all(Colors.teal),
-              padding: WidgetStateProperty.all(
-                const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
-              ),
+        child: ElevatedButton.icon(
+          onPressed: () => _updateOrderStatus(order, 'completed'),
+          icon: const Icon(Icons.celebration, size: 22),
+          label: const Text(
+            'COMPLETE ORDER',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
           ),
+          style: _getButtonStyle(Colors.teal),
         ),
       );
     }
