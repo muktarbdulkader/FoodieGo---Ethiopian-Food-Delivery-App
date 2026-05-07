@@ -18,12 +18,28 @@ class TelebirrService {
     this.notifyUrl = config.notifyUrl;
     this.fabricToken = null;
     this.tokenExpiry = null;
-    this.mockMode = process.env.TELEBIRR_MOCK_MODE === 'true';
-    
+
+    // Check mock mode from environment variable
+    const mockModeEnv = process.env.TELEBIRR_MOCK_MODE;
+    this.mockMode = mockModeEnv === 'true' || mockModeEnv === '1';
+
+    console.log('[TELEBIRR] ==========================================');
+    console.log('[TELEBIRR] Service initializing...');
+    console.log('[TELEBIRR] Base URL:', this.baseUrl);
+    console.log('[TELEBIRR] Fabric App ID:', this.fabricAppId ? '✓ Set' : '✗ Not set');
+    console.log('[TELEBIRR] App Secret:', this.appSecret ? '✓ Set' : '✗ Not set');
+    console.log('[TELEBIRR] Merchant App ID:', this.merchantAppId);
+    console.log('[TELEBIRR] Merchant Code:', this.merchantCode);
+    console.log('[TELEBIRR] Return URL:', this.returnUrl);
+    console.log('[TELEBIRR] Notify URL:', this.notifyUrl);
+    console.log('[TELEBIRR] Mock Mode:', this.mockMode ? '⚠️  ENABLED' : '✓ DISABLED (Real API)');
+    console.log('[TELEBIRR] ==========================================');
+
     if (this.mockMode) {
-      console.log('[TELEBIRR] ⚠️  MOCK MODE ENABLED - Using simulated responses');
+      console.log('[TELEBIRR] ⚠️  WARNING: Using simulated/mock responses');
+      console.log('[TELEBIRR] Set TELEBIRR_MOCK_MODE=false to use real API');
     } else {
-      console.log('[TELEBIRR] Service initialized');
+      console.log('[TELEBIRR] ✓ Real Telebirr API will be used');
     }
   }
 
@@ -47,7 +63,7 @@ class TelebirrService {
     this.fabricToken = await applyFabricToken();
     // Token expires in 1 hour (set expiry to 55 minutes to be safe)
     this.tokenExpiry = Date.now() + (55 * 60 * 1000);
-    
+
     return this.fabricToken;
   }
 
@@ -65,14 +81,19 @@ class TelebirrService {
           description
         } = orderData;
 
+        console.log('[TELEBIRR] ==========================================');
         console.log('[TELEBIRR] Creating payment for order:', orderId);
+        console.log('[TELEBIRR] Amount:', amount);
+        console.log('[TELEBIRR] Mock Mode:', this.mockMode);
+        console.log('[TELEBIRR] ==========================================');
 
         // Mock mode - return fake response
         if (this.mockMode) {
+          console.log('[TELEBIRR] ⚠️  MOCK MODE: Returning simulated response');
           const outTradeNo = `ORDER_${orderId}_${Date.now()}`;
           const mockResponse = {
             success: true,
-            paymentUrl: `http://localhost:5173/mock-payment?orderId=${orderId}&amount=${amount}`,
+            paymentUrl: `https://foodiego-tqz4.onrender.com/mock-payment?orderId=${orderId}&amount=${amount}`,
             prepayId: 'MOCK_PREPAY_' + Date.now(),
             transactionId: outTradeNo,
             rawRequest: JSON.stringify({
@@ -85,17 +106,19 @@ class TelebirrService {
               code: 0,
               msg: 'Mock success',
               data: {
-                toPayUrl: `http://localhost:5173/mock-payment?orderId=${orderId}&amount=${amount}`,
+                toPayUrl: `https://foodiego-tqz4.onrender.com/mock-payment?orderId=${orderId}&amount=${amount}`,
                 prepay_id: 'MOCK_PREPAY_' + Date.now()
               }
             }
           };
-          
+
           console.log('[TELEBIRR] Mock: Payment created successfully');
           return resolve(mockResponse);
         }
 
-        // Real API call
+        // Real API call - Calling actual Telebirr API
+        console.log('[TELEBIRR] 🚀 CALLING REAL TELEBIRR API...');
+        console.log('[TELEBIRR] API Endpoint:', this.baseUrl + '/payment/v1/merchant/preOrder');
         const fabricToken = await this.getFabricToken();
         const outTradeNo = `ORDER_${orderId}_${Date.now()}`;
 
@@ -188,7 +211,7 @@ class TelebirrService {
     };
 
     req.biz_content = biz;
-    
+
     // Sign the request
     req.sign = tools.signRequestObject(req);
     req.sign_type = 'SHA256WithRSA';
@@ -205,10 +228,10 @@ class TelebirrService {
 
       // Extract sign and data
       const { sign, sign_type, ...data } = callbackData;
-      
+
       // Verify signature
       const expectedSign = tools.signRequestObject(data);
-      
+
       if (sign !== expectedSign) {
         console.error('[TELEBIRR] Signature mismatch');
         console.error('Expected:', expectedSign);
@@ -225,10 +248,10 @@ class TelebirrService {
 
       // Check payment status
       const tradeStatus = bizContent.trade_status || data.trade_status;
-      const isPaid = tradeStatus === 'TRADE_SUCCESS' || 
-                     tradeStatus === 'SUCCESS' ||
-                     tradeStatus === 'PAID';
-      
+      const isPaid = tradeStatus === 'TRADE_SUCCESS' ||
+        tradeStatus === 'SUCCESS' ||
+        tradeStatus === 'PAID';
+
       // Extract order ID from out_trade_no
       const outTradeNo = bizContent.out_trade_no || data.out_trade_no;
       const orderId = this.extractOrderId(outTradeNo);
@@ -302,8 +325,8 @@ class TelebirrService {
             console.log('[TELEBIRR] Query response:', result);
 
             if (result.code === 0 || result.code === '0') {
-              const bizContent = typeof result.data.biz_content === 'string' 
-                ? JSON.parse(result.data.biz_content) 
+              const bizContent = typeof result.data.biz_content === 'string'
+                ? JSON.parse(result.data.biz_content)
                 : result.data.biz_content;
 
               resolve({
