@@ -6,6 +6,7 @@ import '../../../state/auth/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../core/utils/navigation_utils.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
@@ -68,7 +69,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
   Future<void> _checkForNewAssignments() async {
     try {
       final myOrders = await _orderRepo.getAllOrders();
-      
+
       // Check if there are new orders we haven't seen before
       final newOrders = myOrders.where((order) {
         final isNew = !_myDeliveries.any((existing) => existing.id == order.id);
@@ -81,14 +82,16 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
         for (final order in newOrders) {
           await NotificationService.showDriverAssignmentNotification(
             orderNumber: order.orderNumber,
-            restaurantName: order.items.isNotEmpty ? order.items.first.hotelName : 'Restaurant',
+            restaurantName: order.items.isNotEmpty
+                ? order.items.first.hotelName
+                : 'Restaurant',
             customerName: order.userName ?? 'Customer',
             deliveryAddress: order.deliveryAddress?.fullAddress ?? 'Address',
             totalPrice: order.totalPrice,
             orderId: order.id,
           );
         }
-        
+
         // Refresh the list
         _loadOrders();
       }
@@ -606,6 +609,32 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                 Expanded(
                     child: Text(hotelName,
                         style: const TextStyle(fontWeight: FontWeight.bold))),
+                // Navigate to restaurant button
+                if (isMyDelivery && order.delivery?.pickupLocation != null)
+                  IconButton(
+                    onPressed: () async {
+                      try {
+                        await NavigationUtils.navigateToRestaurant(
+                          latitude: order.delivery?.pickupLocation?.latitude,
+                          longitude: order.delivery?.pickupLocation?.longitude,
+                          restaurantName: hotelName,
+                          restaurantAddress:
+                              order.delivery?.pickupLocation?.address ?? '',
+                        );
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Navigation error: $e')),
+                          );
+                        }
+                      }
+                    },
+                    icon:
+                        const Icon(Icons.navigation, color: Color(0xFF3B82F6)),
+                    tooltip: 'Navigate to Restaurant',
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -664,7 +693,7 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Icon(Icons.location_on,
-                          size: 14, color: Color(0xFFEF4444)),
+                          color: Color(0xFFEF4444), size: 18),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -675,6 +704,63 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      // Navigate to customer button
+                      if (isMyDelivery)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () async {
+                                try {
+                                  await NavigationUtils.navigateToCustomer(
+                                    latitude: order.deliveryAddress?.latitude,
+                                    longitude: order.deliveryAddress?.longitude,
+                                    customerName: order.userName ?? 'Customer',
+                                    deliveryAddress:
+                                        order.deliveryAddress!.fullAddress,
+                                  );
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('Navigation error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.navigation,
+                                  color: Color(0xFF10B981), size: 20),
+                              tooltip: 'Navigate to Customer',
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
+                            // Call customer button
+                            if (order.userPhone != null &&
+                                order.userPhone!.isNotEmpty)
+                              IconButton(
+                                onPressed: () async {
+                                  try {
+                                    await NavigationUtils.callCustomer(
+                                        order.userPhone!);
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text('Call error: $e')),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.phone,
+                                    color: Color(0xFF3B82F6), size: 20),
+                                tooltip: 'Call Customer',
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                 ],
@@ -690,9 +776,9 @@ class _DeliveryDashboardPageState extends State<DeliveryDashboardPage>
                         context,
                         MaterialPageRoute(
                             builder: (_) => DeliveryChatPage(
-                              order: order,
-                              isDriver: true,
-                            )),
+                                  order: order,
+                                  isDriver: true,
+                                )),
                       ),
                       icon: const Icon(Icons.chat, size: 18),
                       label: const Text('Chat & Share Location'),

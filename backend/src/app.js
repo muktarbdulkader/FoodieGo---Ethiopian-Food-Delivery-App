@@ -109,15 +109,40 @@ app.use(auditLogger);
 // Compression middleware for better performance
 app.use(compression());
 
-// CORS configuration - allow all origins for testing
+// CORS configuration - explicitly allow frontend origins
+const allowedOrigins = [
+  'https://foodiego-99b1e.web.app',     // Production frontend
+  'https://foodiego-99b1e.firebaseapp.com', // Firebase alternate domain
+  'http://localhost:3000',               // Local development
+  'http://localhost:8080',
+  'http://localhost:5000',
+  'http://localhost:9000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:5000',
+];
+
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or server-side requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
+
+// Handle preflight (OPTIONS) requests for all routes
+app.options('*', cors());
 
 // Body parsing with size limits (prevent DoS)
 app.use(express.json({ limit: '10mb' }));
