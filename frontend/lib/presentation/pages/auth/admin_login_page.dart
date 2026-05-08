@@ -325,19 +325,71 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     style: TextButton.styleFrom(
                         foregroundColor: Colors.grey.shade600),
                   ),
-                  // Super admin link (hidden/subtle)
-                  TextButton(
-                    onPressed: () =>
-                        Navigator.pushReplacementNamed(context, '/super-admin'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey.shade400,
-                      textStyle: const TextStyle(fontSize: 11),
-                    ),
-                    child: const Text('Platform Admin'),
-                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Hidden super admin entry — tap version text 5 times
+                  _SuperAdminTapEntry(),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hidden entry point for Super Admin portal.
+/// Tap the version text 5 times quickly to navigate to /super-admin.
+class _SuperAdminTapEntry extends StatefulWidget {
+  @override
+  State<_SuperAdminTapEntry> createState() => _SuperAdminTapEntryState();
+}
+
+class _SuperAdminTapEntryState extends State<_SuperAdminTapEntry> {
+  int _tapCount = 0;
+  DateTime? _lastTap;
+
+  void _onTap() {
+    final now = DateTime.now();
+    // Reset if more than 1.5 seconds between taps
+    if (_lastTap != null && now.difference(_lastTap!).inMilliseconds > 1500) {
+      _tapCount = 0;
+    }
+    _lastTap = now;
+    _tapCount++;
+
+    if (_tapCount == 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Tap 2 more times...'),
+          duration: const Duration(milliseconds: 800),
+          backgroundColor: Colors.grey.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    if (_tapCount >= 5) {
+      _tapCount = 0;
+      Navigator.pushReplacementNamed(context, '/super-admin');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 24),
+        child: Text(
+          'v1.0.0',
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade400,
+            letterSpacing: 0.5,
           ),
         ),
       ),
