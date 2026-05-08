@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
+import '../../../state/language/language_provider.dart';
 
 /// Bill Management Page for Dine-In
 /// Shows itemized bill, totals, and allows requesting payment
@@ -127,9 +129,9 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
-        title: const Text(
-          'Your Bill',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.watch<LanguageProvider>().loc.yourBill,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -187,9 +189,9 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         children: [
           Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text('No active order', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+          Text(context.read<LanguageProvider>().loc.noActiveOrderBill, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
           const SizedBox(height: 8),
-          Text('Place an order first to see your bill', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+          Text(context.read<LanguageProvider>().loc.addItemsFirst, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
         ],
       ),
     );
@@ -269,7 +271,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           ),
           const SizedBox(height: 12),
           Text(
-            isPaid ? 'Bill Paid ✓' : 'Your Bill',
+            isPaid ? '${context.read<LanguageProvider>().loc.billPaid} ✓' : context.read<LanguageProvider>().loc.yourBill,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -394,11 +396,11 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                 topRight: Radius.circular(16),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.restaurant_menu, color: AppTheme.primaryColor, size: 20),
-                SizedBox(width: 8),
-                Text('Order Items', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Icon(Icons.restaurant_menu, color: AppTheme.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                Text(context.read<LanguageProvider>().loc.orderItems, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -524,17 +526,17 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.payment, color: Colors.blue, size: 20),
-              SizedBox(width: 8),
-              Text('Payment Options', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              const Icon(Icons.payment, color: Colors.blue, size: 20),
+              const SizedBox(width: 8),
+              Text(context.read<LanguageProvider>().loc.paymentOptions, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
             ],
           ),
           const SizedBox(height: 12),
           _buildPaymentOption(Icons.phone_android, 'Telebirr', 'Pay via mobile money'),
           const SizedBox(height: 8),
-          _buildPaymentOption(Icons.payments, 'Cash', 'Pay cash to the waiter'),
+          _buildPaymentOption(Icons.payments, context.read<LanguageProvider>().loc.cash, context.read<LanguageProvider>().loc.payCashWaiter),
           const SizedBox(height: 8),
           _buildPaymentOption(Icons.account_balance, 'CBE Birr', 'Commercial Bank of Ethiopia'),
         ],
@@ -571,7 +573,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
               )
             : Icon(_billRequested ? Icons.check_circle : Icons.notifications_active),
         label: Text(
-          _billRequested ? 'Waiter Notified ✓' : 'Request Bill',
+          _billRequested ? context.read<LanguageProvider>().loc.waiterNotifiedBill : context.read<LanguageProvider>().loc.requestBill,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
@@ -594,18 +596,18 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.green[300]!),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 48),
-          SizedBox(height: 12),
+          const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          const SizedBox(height: 12),
           Text(
-            'Bill Paid',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+            context.read<LanguageProvider>().loc.billPaid,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Thank you for dining with us!',
-            style: TextStyle(fontSize: 14, color: Colors.green),
+            context.read<LanguageProvider>().loc.thankYouDining,
+            style: const TextStyle(fontSize: 14, color: Colors.green),
           ),
         ],
       ),

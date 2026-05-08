@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../state/order/order_provider.dart';
 import '../../../state/auth/auth_provider.dart';
 import '../../../state/dine_in/dine_in_provider.dart';
+import '../../../state/language/language_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/order.dart';
 import '../../widgets/loading_widget.dart';
@@ -110,9 +111,9 @@ class _OrdersPageState extends State<OrdersPage>
           // Title row with refresh button
           Row(
             children: [
-              const Text(
-                'My Orders',
-                style: TextStyle(
+              Text(
+                context.watch<LanguageProvider>().loc.myOrders,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
@@ -221,10 +222,10 @@ class _OrdersPageState extends State<OrdersPage>
         ),
         indicatorColor: AppTheme.primaryColor,
         indicatorWeight: 3,
-        tabs: const [
-          Tab(text: 'All Order'),
-          Tab(text: 'In progress'),
-          Tab(text: 'Completed'),
+        tabs: [
+          Tab(text: context.read<LanguageProvider>().loc.allOrders),
+          Tab(text: context.read<LanguageProvider>().loc.inProgress),
+          Tab(text: context.read<LanguageProvider>().loc.completedLabel),
         ],
       ),
     );
@@ -331,8 +332,8 @@ class _OrdersPageState extends State<OrdersPage>
                   gradient: AppTheme.primaryGradient,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Browse Menu',
+                child: Text(
+                  context.read<LanguageProvider>().loc.browseMenu,
                   style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

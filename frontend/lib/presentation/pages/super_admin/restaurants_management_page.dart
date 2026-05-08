@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 
 class RestaurantsManagementPage extends StatefulWidget {
@@ -37,7 +36,7 @@ class _RestaurantsManagementPageState extends State<RestaurantsManagementPage> {
       if (_searchController.text.isNotEmpty) query.write('&search=${_searchController.text}');
       if (_statusFilter != 'all') query.write('&status=$_statusFilter');
 
-      final response = await ApiService.get('${ApiConstants.baseUrl}/super-admin/restaurants$query');
+      final response = await ApiService.get('/super-admin/restaurants$query');
       if (mounted) {
         setState(() {
           _restaurants = response['data'] ?? [];
@@ -55,7 +54,7 @@ class _RestaurantsManagementPageState extends State<RestaurantsManagementPage> {
     final newStatus = !(restaurant['isActive'] ?? true);
     try {
       await ApiService.put(
-        '${ApiConstants.baseUrl}/super-admin/restaurants/${restaurant['_id']}',
+        '/super-admin/restaurants/${restaurant['_id']}',
         {'isActive': newStatus},
       );
       _load();
@@ -95,7 +94,7 @@ class _RestaurantsManagementPageState extends State<RestaurantsManagementPage> {
     if (confirmed != true) return;
 
     try {
-      await ApiService.delete('${ApiConstants.baseUrl}/super-admin/restaurants/${restaurant['_id']}');
+      await ApiService.delete('/super-admin/restaurants/${restaurant['_id']}');
       _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +114,12 @@ class _RestaurantsManagementPageState extends State<RestaurantsManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddRestaurantSheet,
+        backgroundColor: const Color(0xFFFF6B35),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Add Restaurant', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -318,6 +323,170 @@ class _RestaurantsManagementPageState extends State<RestaurantsManagementPage> {
         const SizedBox(width: 4),
         Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
       ],
+    );
+  }
+
+  void _showAddRestaurantSheet() {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final hotelNameCtrl = TextEditingController();
+    final hotelAddressCtrl = TextEditingController();
+    final hotelDescCtrl = TextEditingController();
+    String category = 'restaurant';
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Row(
+                    children: [
+                      Icon(Icons.restaurant, color: Color(0xFFFF6B35), size: 24),
+                      SizedBox(width: 10),
+                      Text('Add Restaurant', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Account Info', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  _sheetField(nameCtrl, 'Owner Name', Icons.person, required: true),
+                  const SizedBox(height: 12),
+                  _sheetField(emailCtrl, 'Email', Icons.email, keyboardType: TextInputType.emailAddress, required: true),
+                  const SizedBox(height: 12),
+                  _sheetField(passwordCtrl, 'Password', Icons.lock, obscure: true, required: true),
+                  const SizedBox(height: 12),
+                  _sheetField(phoneCtrl, 'Phone', Icons.phone, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 20),
+                  const Text('Restaurant Info', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  _sheetField(hotelNameCtrl, 'Restaurant Name', Icons.store, required: true),
+                  const SizedBox(height: 12),
+                  _sheetField(hotelAddressCtrl, 'Address', Icons.location_on),
+                  const SizedBox(height: 12),
+                  _sheetField(hotelDescCtrl, 'Description', Icons.description, maxLines: 2),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: category,
+                    decoration: InputDecoration(
+                      labelText: 'Category',
+                      prefixIcon: const Icon(Icons.category),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'restaurant', child: Text('Restaurant')),
+                      DropdownMenuItem(value: 'cafe', child: Text('Cafe')),
+                      DropdownMenuItem(value: 'fast_food', child: Text('Fast Food')),
+                      DropdownMenuItem(value: 'fine_dining', child: Text('Fine Dining')),
+                      DropdownMenuItem(value: 'bakery', child: Text('Bakery')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (v) => setSheetState(() => category = v ?? 'restaurant'),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setSheetState(() => isLoading = true);
+                        try {
+                          await ApiService.post('/super-admin/users', {
+                            'name': nameCtrl.text.trim(),
+                            'email': emailCtrl.text.trim(),
+                            'password': passwordCtrl.text,
+                            'phone': phoneCtrl.text.trim(),
+                            'role': 'restaurant',
+                            'hotelName': hotelNameCtrl.text.trim(),
+                            'hotelAddress': hotelAddressCtrl.text.trim(),
+                            'hotelDescription': hotelDescCtrl.text.trim(),
+                            'hotelCategory': category,
+                          });
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _load();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Restaurant created successfully'), backgroundColor: Colors.green),
+                            );
+                          }
+                        } catch (e) {
+                          setSheetState(() => isLoading = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF6B35),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: isLoading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Create Restaurant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+    bool obscure = false,
+    bool required = false,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      ),
+      validator: required ? (v) => v?.trim().isEmpty == true ? '$label is required' : null : null,
     );
   }
 }

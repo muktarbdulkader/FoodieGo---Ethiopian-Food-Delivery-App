@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 
 class PlatformOrdersPage extends StatefulWidget {
@@ -29,7 +28,7 @@ class _PlatformOrdersPageState extends State<PlatformOrdersPage> {
       final query = StringBuffer('?limit=30');
       if (_statusFilter.isNotEmpty) query.write('&status=$_statusFilter');
 
-      final response = await ApiService.get('${ApiConstants.baseUrl}/super-admin/orders$query');
+      final response = await ApiService.get('/super-admin/orders$query');
       if (mounted) {
         setState(() {
           _orders = response['data'] ?? [];

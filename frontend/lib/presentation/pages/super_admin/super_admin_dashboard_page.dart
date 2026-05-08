@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../../../state/auth/auth_provider.dart';
 import 'restaurants_management_page.dart';
@@ -28,7 +27,7 @@ class _SuperAdminDashboardPageState extends State<SuperAdminDashboardPage> {
 
   Future<void> _loadStats() async {
     try {
-      final response = await ApiService.get('${ApiConstants.baseUrl}/super-admin/dashboard');
+      final response = await ApiService.get('/super-admin/dashboard');
       if (mounted) {
         setState(() {
           _stats = response['data'];

@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
+import '../../../state/language/language_provider.dart';
 
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
@@ -408,9 +409,10 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = context.watch<LanguageProvider>().loc;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order Status'),
+        title: Text(loc.orderStatus),
         actions: [
           IconButton(
             icon: _isRefreshing
@@ -455,7 +457,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No active order',
+                            loc.noActiveOrder,
                             style: TextStyle(
                               fontSize: 18,
                               color: Colors.grey[600],
@@ -463,7 +465,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Place an order to see status here',
+                            loc.placeOrderFirst,
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[500],
@@ -649,7 +651,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                 child: ElevatedButton.icon(
                   onPressed: _callWaiter,
                   icon: const Icon(Icons.notifications_active),
-                  label: const Text('Call Waiter'),
+                  label: Text(context.read<LanguageProvider>().loc.callWaiter),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.secondaryColor,
                     foregroundColor: Colors.white,
@@ -667,12 +669,13 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   }
 
   Widget _buildStatusTimeline(String currentStatus) {
+    final loc = context.read<LanguageProvider>().loc;
     final statuses = [
-      {'key': 'pending', 'label': 'Order Placed', 'icon': Icons.receipt},
-      {'key': 'confirmed', 'label': 'Accepted', 'icon': Icons.check_circle},
-      {'key': 'preparing', 'label': 'Preparing', 'icon': Icons.restaurant},
-      {'key': 'ready', 'label': 'Ready', 'icon': Icons.done_all},
-      {'key': 'completed', 'label': 'Served', 'icon': Icons.celebration},
+      {'key': 'pending', 'label': loc.orderPlacedLabel, 'icon': Icons.receipt},
+      {'key': 'confirmed', 'label': loc.accepted, 'icon': Icons.check_circle},
+      {'key': 'preparing', 'label': loc.preparing, 'icon': Icons.restaurant},
+      {'key': 'ready', 'label': loc.ready, 'icon': Icons.done_all},
+      {'key': 'completed', 'label': loc.served, 'icon': Icons.celebration},
     ];
 
     final currentIndex = statuses.indexWhere((s) => s['key'] == currentStatus);
@@ -833,13 +836,14 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   }
 
   Future<void> _callWaiter() async {
+    final loc = context.read<LanguageProvider>().loc;
     // Show loading
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -847,14 +851,12 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text('Calling waiter...'),
-              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(loc.callingWaiter)),
             ],
           ),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -870,16 +872,16 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Waiter has been notified!'),
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(loc.waiterNotified),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -891,7 +893,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
               children: [
                 const Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Failed to call waiter: $e')),
+                Expanded(child: Text('${loc.failedCallWaiter}: $e')),
               ],
             ),
             backgroundColor: Colors.red,

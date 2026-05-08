@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 
 class UsersManagementPage extends StatefulWidget {
@@ -36,7 +35,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
       if (_searchController.text.isNotEmpty) query.write('&search=${_searchController.text}');
       if (_roleFilter.isNotEmpty) query.write('&role=$_roleFilter');
 
-      final response = await ApiService.get('${ApiConstants.baseUrl}/super-admin/users$query');
+      final response = await ApiService.get('/super-admin/users$query');
       if (mounted) {
         setState(() {
           _users = response['data'] ?? [];
@@ -54,7 +53,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     final newStatus = !(user['isActive'] ?? true);
     try {
       await ApiService.put(
-        '${ApiConstants.baseUrl}/super-admin/users/${user['_id']}',
+        '/super-admin/users/${user['_id']}',
         {'isActive': newStatus},
       );
       _load();
@@ -86,7 +85,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     if (confirmed != true) return;
 
     try {
-      await ApiService.delete('${ApiConstants.baseUrl}/super-admin/users/${user['_id']}');
+      await ApiService.delete('/super-admin/users/${user['_id']}');
       _load();
     } catch (e) {
       if (mounted) {
@@ -119,6 +118,12 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddDeliverySheet,
+        backgroundColor: const Color(0xFF4ECDC4),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Add Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -272,6 +277,130 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         ),
         isThreeLine: true,
       ),
+    );
+  }
+
+  void _showAddDeliverySheet() {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    bool isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Row(
+                    children: [
+                      Icon(Icons.delivery_dining, color: Color(0xFF4ECDC4), size: 24),
+                      SizedBox(width: 10),
+                      Text('Add Delivery Driver', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _field(nameCtrl, 'Full Name', Icons.person, required: true),
+                  const SizedBox(height: 12),
+                  _field(emailCtrl, 'Email', Icons.email, keyboardType: TextInputType.emailAddress, required: true),
+                  const SizedBox(height: 12),
+                  _field(passwordCtrl, 'Password', Icons.lock, obscure: true, required: true),
+                  const SizedBox(height: 12),
+                  _field(phoneCtrl, 'Phone Number', Icons.phone, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setSheetState(() => isLoading = true);
+                        try {
+                          await ApiService.post('/super-admin/users', {
+                            'name': nameCtrl.text.trim(),
+                            'email': emailCtrl.text.trim(),
+                            'password': passwordCtrl.text,
+                            'phone': phoneCtrl.text.trim(),
+                            'role': 'delivery',
+                          });
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _load();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Delivery driver created successfully'), backgroundColor: Colors.green),
+                            );
+                          }
+                        } catch (e) {
+                          setSheetState(() => isLoading = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4ECDC4),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: isLoading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Create Driver Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+    bool obscure = false,
+    bool required = false,
+  }) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      ),
+      validator: required ? (v) => v?.trim().isEmpty == true ? '$label is required' : null : null,
     );
   }
 }

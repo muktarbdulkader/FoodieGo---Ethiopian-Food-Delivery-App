@@ -16,6 +16,7 @@ const {
   deleteUser,
   getAllOrders,
   createSuperAdmin,
+  createManagedUser,
 } = require('../controllers/superAdmin.controller');
 
 // Public: create first super admin (requires secret)
@@ -35,6 +36,7 @@ router.delete('/restaurants/:id', deleteRestaurant);
 
 // User management
 router.get('/users', getAllUsers);
+router.post('/users', createManagedUser);
 router.put('/users/:id', updateUser);
 router.delete('/users/:id', deleteUser);
 

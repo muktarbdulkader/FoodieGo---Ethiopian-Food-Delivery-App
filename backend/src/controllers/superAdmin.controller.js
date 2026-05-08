@@ -313,6 +313,74 @@ const createSuperAdmin = async (req, res, next) => {
   }
 };
 
+// ─── CREATE RESTAURANT OR DELIVERY USER (by super admin) ─────────────────────
+
+const createManagedUser = async (req, res, next) => {
+  try {
+    const {
+      name, email, password, phone, role,
+      hotelName, hotelAddress, hotelPhone, hotelDescription, hotelCategory, hotelImage,
+    } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ success: false, message: 'name, email, password and role are required' });
+    }
+    if (!['restaurant', 'delivery'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be restaurant or delivery' });
+    }
+    if (role === 'restaurant' && !hotelName) {
+      return res.status(400).json({ success: false, message: 'Hotel name is required for restaurant accounts' });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ success: false, message: 'Email already registered' });
+
+    if (role === 'restaurant' && hotelName) {
+      const existingHotel = await User.findOne({
+        hotelName: { $regex: new RegExp(`^${hotelName}$`, 'i') },
+        role: 'restaurant',
+      });
+      if (existingHotel) return res.status(400).json({ success: false, message: 'Hotel name already taken' });
+    }
+
+    const hashed = await hashPassword(password);
+    const userData = {
+      name,
+      email,
+      password: hashed,
+      phone: phone || '',
+      role,
+      isVerified: true,
+      isActive: true,
+    };
+
+    if (role === 'restaurant') {
+      userData.hotelName = hotelName;
+      userData.hotelAddress = hotelAddress || '';
+      userData.hotelPhone = hotelPhone || phone || '';
+      userData.hotelDescription = hotelDescription || '';
+      userData.hotelCategory = hotelCategory || 'restaurant';
+      if (hotelImage) userData.hotelImage = hotelImage;
+    }
+
+    const user = await User.create(userData);
+
+    res.status(201).json({
+      success: true,
+      message: `${role === 'restaurant' ? 'Restaurant' : 'Delivery driver'} account created successfully`,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        hotelName: user.hotelName,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getPlatformStats,
   getAllRestaurants,
@@ -324,4 +392,5 @@ module.exports = {
   deleteUser,
   getAllOrders,
   createSuperAdmin,
+  createManagedUser,
 };

@@ -196,6 +196,57 @@ class AppLocalizations {
   String get visaMastercard => get('visa_mastercard');
   String get table => get('table');
   String get restaurantMenu => get('restaurant_menu');
+
+  // Order Status Page
+  String get callWaiter => get('call_waiter');
+  String get placeNewOrder => get('place_new_order');
+  String get noActiveOrder => get('no_active_order');
+  String get placeOrderFirst => get('place_order_first');
+  String get orderPlacedLabel => get('order_placed_label');
+  String get accepted => get('accepted');
+  String get ready => get('ready');
+  String get served => get('served');
+  String get orderCancelled => get('order_cancelled');
+  String get contactWaiter => get('contact_waiter');
+  String get callingWaiter => get('calling_waiter');
+  String get waiterNotified => get('waiter_notified');
+  String get failedCallWaiter => get('failed_call_waiter');
+
+  // Bill Page
+  String get yourBill => get('your_bill');
+  String get noActiveOrderBill => get('no_active_order_bill');
+  String get addItemsFirst => get('add_items_first');
+  String get orderItems => get('order_items');
+  String get paymentOptions => get('payment_options');
+  String get requestBill => get('request_bill');
+  String get waiterNotifiedBill => get('waiter_notified_bill');
+  String get billPaid => get('bill_paid');
+  String get thankYouDining => get('thank_you_dining');
+  String get payCashWaiter => get('pay_cash_waiter');
+
+  // Orders Page
+  String get allOrders => get('all_orders');
+  String get inProgress => get('in_progress');
+  String get completedLabel => get('completed_label');
+  String get noOrdersYet => get('no_orders_yet');
+  String get startOrdering => get('start_ordering');
+  String get browseMenu => get('browse_menu');
+  String get orderNumber => get('order_number');
+  String get items => get('items');
+  String get viewDetails => get('view_details');
+  String get track => get('track');
+
+  // Home Page
+  String get searchCuisines => get('search_cuisines');
+  String get goodMorning => get('good_morning');
+  String get goodAfternoon => get('good_afternoon');
+  String get goodEvening => get('good_evening');
+  String get whatToEat => get('what_to_eat');
+  String get all => get('all');
+  String get restaurants => get('restaurants');
+  String get featured => get('featured');
+  String get topRated => get('top_rated');
+  String get openNow => get('open_now');
 }
 
 // English Translations
@@ -367,6 +418,53 @@ const Map<String, String> _englishTranslations = {
   'visa_mastercard': 'Visa, Mastercard',
   'table': 'Table',
   'restaurant_menu': 'Restaurant Menu',
+  // Order Status Page
+  'call_waiter': 'Call Waiter',
+  'place_new_order': 'Place New Order',
+  'no_active_order': 'No active order',
+  'place_order_first': 'Place an order to see status here',
+  'order_placed_label': 'Order Placed',
+  'accepted': 'Accepted',
+  'ready': 'Ready',
+  'served': 'Served',
+  'order_cancelled': 'Order Cancelled',
+  'contact_waiter': 'Please contact the waiter for assistance',
+  'calling_waiter': 'Calling waiter...',
+  'waiter_notified': 'Waiter has been notified!',
+  'failed_call_waiter': 'Failed to call waiter',
+  // Bill Page
+  'your_bill': 'Your Bill',
+  'no_active_order_bill': 'No active order',
+  'add_items_first': 'Place an order first to see your bill',
+  'order_items': 'Order Items',
+  'payment_options': 'Payment Options',
+  'request_bill': 'Request Bill',
+  'waiter_notified_bill': 'Waiter Notified ✓',
+  'bill_paid': 'Bill Paid',
+  'thank_you_dining': 'Thank you for dining with us!',
+  'pay_cash_waiter': 'Pay cash to the waiter',
+  // Orders Page
+  'all_orders': 'All Orders',
+  'in_progress': 'In Progress',
+  'completed_label': 'Completed',
+  'no_orders_yet': 'No orders yet',
+  'start_ordering': 'Start ordering delicious food!',
+  'browse_menu': 'Browse Menu',
+  'order_number': 'Order',
+  'items': 'items',
+  'view_details': 'View Details',
+  'track': 'Track',
+  // Home Page
+  'search_cuisines': 'Search cuisines, restaurants...',
+  'good_morning': 'Good Morning',
+  'good_afternoon': 'Good Afternoon',
+  'good_evening': 'Good Evening',
+  'what_to_eat': 'What would you like to eat?',
+  'all': 'All',
+  'restaurants': 'Restaurants',
+  'featured': 'Featured',
+  'top_rated': 'Top Rated',
+  'open_now': 'Open Now',
 };
 
 // Afaan Oromoo Translations
@@ -538,6 +636,53 @@ const Map<String, String> _oromoTranslations = {
   'visa_mastercard': 'Visa, Mastercard',
   'table': 'Minjaala',
   'restaurant_menu': 'Tarree Nyaataa',
+  // Order Status Page
+  'call_waiter': 'Tajaajilaa Waamuu',
+  'place_new_order': 'Ajaja Haaraa Galchi',
+  'no_active_order': 'Ajajni hin jiru',
+  'place_order_first': 'Haala ilaaluuf ajaja galchi',
+  'order_placed_label': 'Ajajni Galche',
+  'accepted': "Fudhatame",
+  'ready': "Qophaa'e",
+  'served': 'Tajaajilame',
+  'order_cancelled': 'Ajajni Haqame',
+  'contact_waiter': 'Gargaarsa argachuuf tajaajilaa quunnamaa',
+  'calling_waiter': 'Tajaajilaa waammaa jira...',
+  'waiter_notified': 'Tajaajilaan beeksifame!',
+  'failed_call_waiter': 'Tajaajilaa waamuun hin milkaa\'in',
+  // Bill Page
+  'your_bill': 'Herrega Kee',
+  'no_active_order_bill': 'Ajajni hin jiru',
+  'add_items_first': 'Herrega ilaaluuf dursa ajaja galchi',
+  'order_items': 'Wantawwan Ajajame',
+  'payment_options': 'Filannoo Kaffaltii',
+  'request_bill': 'Herrega Gaafadhu',
+  'waiter_notified_bill': 'Tajaajilaan Beeksifame ✓',
+  'bill_paid': 'Herregni Kaffalame',
+  'thank_you_dining': 'Nyaata keetiif galatoomi!',
+  'pay_cash_waiter': 'Tajaajilaa biratti qarshiin kaffali',
+  // Orders Page
+  'all_orders': 'Ajajawwan Hunda',
+  'in_progress': 'Adeemaa Jira',
+  'completed_label': "Xumurrame",
+  'no_orders_yet': 'Ajajni hin jiru',
+  'start_ordering': 'Nyaata mi\'aawaa ajajuu jalqabi!',
+  'browse_menu': 'Tarree Ilaali',
+  'order_number': 'Ajaja',
+  'items': 'wantawwan',
+  'view_details': 'Ibsa Ilaali',
+  'track': 'Hordofi',
+  // Home Page
+  'search_cuisines': 'Nyaata, mana nyaataa barbaadi...',
+  'good_morning': 'Akkam bulte',
+  'good_afternoon': 'Akkam ooltee',
+  'good_evening': 'Akkam ooltee',
+  'what_to_eat': 'Maal nyaachuu barbaadda?',
+  'all': 'Hunda',
+  'restaurants': 'Mana Nyaataa',
+  'featured': 'Filatamoo',
+  'top_rated': 'Sadarkaa Ol\'aanaa',
+  'open_now': 'Amma Banaa',
 };
 
 // Amharic Translations
@@ -709,4 +854,51 @@ const Map<String, String> _amharicTranslations = {
   'visa_mastercard': 'ቪዛ፣ ማስተርካርድ',
   'table': 'ጠረጴዛ',
   'restaurant_menu': 'የምግብ ቤት ምናሌ',
+  // Order Status Page
+  'call_waiter': 'አስተናጋጅ ጥራ',
+  'place_new_order': 'አዲስ ትዕዛዝ አስገባ',
+  'no_active_order': 'ንቁ ትዕዛዝ የለም',
+  'place_order_first': 'ሁኔታ ለማየት ትዕዛዝ አስገባ',
+  'order_placed_label': 'ትዕዛዝ ገብቷል',
+  'accepted': 'ተቀብሏል',
+  'ready': 'ዝግጁ',
+  'served': 'ቀርቧል',
+  'order_cancelled': 'ትዕዛዝ ተሰርዟል',
+  'contact_waiter': 'ለእርዳታ አስተናጋጁን ያነጋግሩ',
+  'calling_waiter': 'አስተናጋጅ በመጥራት ላይ...',
+  'waiter_notified': 'አስተናጋጁ ተነግሯቸዋል!',
+  'failed_call_waiter': 'አስተናጋጅ መጥራት አልተሳካም',
+  // Bill Page
+  'your_bill': 'ሂሳብህ',
+  'no_active_order_bill': 'ንቁ ትዕዛዝ የለም',
+  'add_items_first': 'ሂሳብ ለማየት መጀመሪያ ትዕዛዝ አስገባ',
+  'order_items': 'የትዕዛዝ ዕቃዎች',
+  'payment_options': 'የክፍያ አማራጮች',
+  'request_bill': 'ሂሳብ ጠይቅ',
+  'waiter_notified_bill': 'አስተናጋጅ ተነግሯቸዋል ✓',
+  'bill_paid': 'ሂሳብ ተከፍሏል',
+  'thank_you_dining': 'ስለ ምግብ ቤታችን ጎብኝዎት እናመሰግናለን!',
+  'pay_cash_waiter': 'ለአስተናጋጁ ጥሬ ገንዘብ ክፈል',
+  // Orders Page
+  'all_orders': 'ሁሉም ትዕዛዞች',
+  'in_progress': 'በሂደት ላይ',
+  'completed_label': 'ተጠናቋል',
+  'no_orders_yet': 'ገና ትዕዛዝ የለም',
+  'start_ordering': 'ጣፋጭ ምግብ ማዘዝ ጀምር!',
+  'browse_menu': 'ምናሌ ይመልከቱ',
+  'order_number': 'ትዕዛዝ',
+  'items': 'ዕቃዎች',
+  'view_details': 'ዝርዝሮች ይመልከቱ',
+  'track': 'ተከታተል',
+  // Home Page
+  'search_cuisines': 'ምግቦችን፣ ሬስቶራንቶችን ፈልግ...',
+  'good_morning': 'እንደምን አደሩ',
+  'good_afternoon': 'እንደምን ዋሉ',
+  'good_evening': 'እንደምን ዋሉ',
+  'what_to_eat': 'ምን መብላት ይፈልጋሉ?',
+  'all': 'ሁሉም',
+  'restaurants': 'ሬስቶራንቶች',
+  'featured': 'ተለይቶ የቀረበ',
+  'top_rated': 'ከፍተኛ ደረጃ',
+  'open_now': 'አሁን ክፍት',
 };
