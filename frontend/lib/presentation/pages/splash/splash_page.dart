@@ -138,6 +138,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       case SessionType.delivery:
         if (isDeliveryLoggedIn) route = '/delivery';
         break;
+      case SessionType.superAdmin:
+        if (StorageUtils.isLoggedIn(SessionType.superAdmin)) route = '/super-admin';
+        break;
       case SessionType.user:
         if (isUserLoggedIn) route = '/';
         break;

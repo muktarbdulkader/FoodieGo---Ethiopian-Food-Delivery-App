@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'restaurant', 'delivery'],
+    enum: ['user', 'restaurant', 'delivery', 'super_admin'],
     default: 'user'
   },
   // For restaurant owners - their hotel ID (uses their user _id)

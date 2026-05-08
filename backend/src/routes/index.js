@@ -14,6 +14,7 @@ const tableRoutes = require('./table.routes');
 const paymentRoutes = require('./payment.routes'); // NEW - Telebirr payment
 const loyaltyRoutes = require('./loyalty.routes'); // NEW - Loyalty points
 const referralRoutes = require('./referral.routes'); // NEW - Referral system
+const superAdminRoutes = require('./superAdmin.routes'); // Super Admin
 
 const router = express.Router();
 
@@ -29,5 +30,6 @@ router.use('/tables', tableRoutes);
 router.use('/payments', paymentRoutes); // NEW - Telebirr payment
 router.use('/loyalty', loyaltyRoutes); // NEW - Loyalty points
 router.use('/referral', referralRoutes); // NEW - Referral system
+router.use('/super-admin', superAdminRoutes); // Super Admin
 
 module.exports = router;

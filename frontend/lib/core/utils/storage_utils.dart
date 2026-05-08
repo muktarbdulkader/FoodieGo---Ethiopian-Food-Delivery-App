@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Session type enum to distinguish different user sessions
-enum SessionType { user, admin, delivery }
+enum SessionType { user, admin, delivery, superAdmin }
 
 /// Storage Utils
 /// Handles local storage operations for auth token and user data
@@ -17,6 +17,8 @@ class StorageUtils {
   static const String _adminDataKey = 'admin_data';
   static const String _deliveryTokenKey = 'delivery_token';
   static const String _deliveryDataKey = 'delivery_data';
+  static const String _superAdminTokenKey = 'super_admin_token';
+  static const String _superAdminDataKey = 'super_admin_data';
   static const String _lastSessionKey = 'last_session_type';
   static const String _languageKey = 'app_language';
 
@@ -49,6 +51,8 @@ class StorageUtils {
         return _adminTokenKey;
       case SessionType.delivery:
         return _deliveryTokenKey;
+      case SessionType.superAdmin:
+        return _superAdminTokenKey;
       case SessionType.user:
         return _userTokenKey;
     }
@@ -62,6 +66,8 @@ class StorageUtils {
         return _adminDataKey;
       case SessionType.delivery:
         return _deliveryDataKey;
+      case SessionType.superAdmin:
+        return _superAdminDataKey;
       case SessionType.user:
         return _userDataKey;
     }
@@ -101,6 +107,8 @@ class StorageUtils {
     await _prefs?.remove(_adminDataKey);
     await _prefs?.remove(_deliveryTokenKey);
     await _prefs?.remove(_deliveryDataKey);
+    await _prefs?.remove(_superAdminTokenKey);
+    await _prefs?.remove(_superAdminDataKey);
   }
 
   /// Check if user is logged in for current session type

@@ -25,6 +25,8 @@ import 'presentation/pages/delivery/delivery_dashboard_page.dart';
 import 'presentation/pages/dine_in/qr_scanner_page.dart';
 import 'presentation/pages/dine_in/dine_in_menu_page.dart';
 import 'presentation/pages/splash/splash_page.dart';
+import 'presentation/pages/super_admin/super_admin_login_page.dart';
+import 'presentation/pages/super_admin/super_admin_dashboard_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -62,6 +64,7 @@ class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
   late AuthProvider _userAuthProvider;
   late AuthProvider _adminAuthProvider;
   late AuthProvider _deliveryAuthProvider;
+  late AuthProvider _superAdminAuthProvider;
   late LanguageProvider _languageProvider;
   bool _isInitialized = false;
   late AppLinks _appLinks;
@@ -83,6 +86,8 @@ class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
       ..initWithoutSettingSession(sessionType: SessionType.admin);
     _deliveryAuthProvider = AuthProvider()
       ..initWithoutSettingSession(sessionType: SessionType.delivery);
+    _superAdminAuthProvider = AuthProvider()
+      ..initWithoutSettingSession(sessionType: SessionType.superAdmin);
     _languageProvider = LanguageProvider();
 
     // Restore the correct session type
@@ -103,6 +108,9 @@ class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
           break;
         case SessionType.delivery:
           _deliveryAuthProvider.logout();
+          break;
+        case SessionType.superAdmin:
+          _superAdminAuthProvider.logout();
           break;
         case SessionType.user:
           _userAuthProvider.logout();
@@ -263,6 +271,10 @@ class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
                 if (settings.name?.startsWith('/delivery') == true) {
                   return _buildDeliveryRoute(settings);
                 }
+                // SUPER ADMIN PORTAL - /super-admin routes
+                if (settings.name?.startsWith('/super-admin') == true) {
+                  return _buildSuperAdminRoute(settings);
+                }
                 // USER PORTAL - default routes
                 return _buildUserRoute(settings);
               },
@@ -353,6 +365,32 @@ class _FoodieGoAppState extends State<FoodieGoApp> with WidgetsBindingObserver {
               message: 'Delivery access only',
               redirectRoute: '/delivery',
             );
+          },
+        ),
+      ),
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  /// Build super admin portal route
+  PageRouteBuilder _buildSuperAdminRoute(RouteSettings settings) {
+    StorageUtils.setSessionType(SessionType.superAdmin);
+
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => ChangeNotifierProvider.value(
+        value: _superAdminAuthProvider,
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            if (settings.name == '/super-admin/login' || !auth.isLoggedIn) {
+              return const SuperAdminLoginPage();
+            }
+            if (auth.isSuperAdmin) {
+              return const SuperAdminDashboardPage();
+            }
+            return const SuperAdminLoginPage();
           },
         ),
       ),

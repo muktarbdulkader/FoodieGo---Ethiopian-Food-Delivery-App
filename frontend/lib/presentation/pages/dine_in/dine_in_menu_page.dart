@@ -11,6 +11,7 @@ import '../../../state/dine_in/dine_in_provider.dart';
 import '../../../data/models/food.dart';
 import '../cart/cart_page.dart';
 import 'order_status_page.dart';
+import 'bill_page.dart';
 import 'qr_scanner_page.dart';
 
 class DineInMenuPage extends StatefulWidget {
@@ -458,6 +459,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                 _buildNavItem(Icons.home, 'Menu', true),
                 _buildNavItem(Icons.favorite_border, 'Favorites', false),
                 _buildNavItem(Icons.receipt_long, 'Orders', false),
+                _buildNavItem(Icons.receipt, 'Bill', false),
                 _buildNavItem(Icons.person_outline, 'Profile', false),
               ],
             ),
@@ -480,7 +482,18 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                 restaurantId: widget.restaurantId,
                 guestSessionId: context
                     .read<DineInProvider>()
-                    .guestSessionId, // Pass guest session ID
+                    .guestSessionId,
+              ),
+            ),
+          );
+        } else if (label == 'Bill') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BillPage(
+                tableId: widget.tableId,
+                restaurantId: widget.restaurantId,
+                guestSessionId: context.read<DineInProvider>().guestSessionId,
               ),
             ),
           );
@@ -602,6 +615,25 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               () {
                 Navigator.pop(ctx);
                 _openQRScanner();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildProfileOption(
+              ctx,
+              Icons.receipt,
+              'View Bill',
+              () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BillPage(
+                      tableId: widget.tableId,
+                      restaurantId: widget.restaurantId,
+                      guestSessionId: context.read<DineInProvider>().guestSessionId,
+                    ),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 12),

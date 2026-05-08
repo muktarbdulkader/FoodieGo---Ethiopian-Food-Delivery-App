@@ -325,6 +325,16 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     style: TextButton.styleFrom(
                         foregroundColor: Colors.grey.shade600),
                   ),
+                  // Super admin link (hidden/subtle)
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushReplacementNamed(context, '/super-admin'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade400,
+                      textStyle: const TextStyle(fontSize: 11),
+                    ),
+                    child: const Text('Platform Admin'),
+                  ),
                 ],
               ),
             ),
