@@ -17,6 +17,8 @@ class Food {
   final bool isSpicy;
   final bool isFeatured;
   final double discount;
+  // Menu types
+  final List<String> menuTypes;
   // Engagement metrics
   final int viewCount;
   final int likeCount;
@@ -47,6 +49,7 @@ class Food {
     this.isSpicy = false,
     this.isFeatured = false,
     this.discount = 0,
+    this.menuTypes = const ['delivery', 'dine_in'],
     this.viewCount = 0,
     this.likeCount = 0,
     this.orderCount = 0,
@@ -98,6 +101,9 @@ class Food {
       isSpicy: json['isSpicy'] ?? false,
       isFeatured: json['isFeatured'] ?? false,
       discount: (json['discount'] ?? 0).toDouble(),
+      menuTypes: json['menuTypes'] != null
+          ? List<String>.from(json['menuTypes'])
+          : ['delivery', 'dine_in'],
       viewCount: json['viewCount'] ?? 0,
       likeCount: json['likeCount'] ?? 0,
       orderCount: json['orderCount'] ?? 0,
@@ -129,6 +135,7 @@ class Food {
       isSpicy: isSpicy,
       isFeatured: isFeatured,
       discount: discount,
+      menuTypes: menuTypes,
       viewCount: viewCount,
       likeCount: likeCount ?? this.likeCount,
       orderCount: orderCount,

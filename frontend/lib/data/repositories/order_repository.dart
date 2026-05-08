@@ -240,7 +240,7 @@ class OrderRepository {
       requestBody['guestSessionId'] = guestSessionId;
     }
 
-    final response = await ApiService.post(ApiConstants.orders, requestBody);
+    final response = await ApiService.postPublic(ApiConstants.orders, requestBody);
 
     return Order.fromJson(response['data']);
   }

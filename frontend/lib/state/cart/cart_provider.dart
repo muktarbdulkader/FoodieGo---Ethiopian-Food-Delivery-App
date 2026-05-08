@@ -136,8 +136,8 @@ class CartProvider extends ChangeNotifier {
     required double subtotal,
     required double tax,
     required double totalPrice,
-    String?
-        guestSessionId, // NEW: Guest session ID to identify individual guests
+    String? guestSessionId,
+    String? notes, // Special instructions for kitchen
   }) async {
     if (_items.isEmpty) return null;
 
@@ -153,7 +153,8 @@ class CartProvider extends ChangeNotifier {
         subtotal: subtotal,
         tax: tax,
         totalPrice: totalPrice,
-        guestSessionId: guestSessionId, // Pass guest session ID
+        guestSessionId: guestSessionId,
+        notes: notes,
       );
       _items.clear();
       _isLoading = false;

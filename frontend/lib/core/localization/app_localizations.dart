@@ -247,6 +247,30 @@ class AppLocalizations {
   String get featured => get('featured');
   String get topRated => get('top_rated');
   String get openNow => get('open_now');
+
+  // Dine-in Menu Page
+  String get dineInMenu => get('dine_in_menu');
+  String get searchMenuItems => get('search_menu_items');
+  String get allItems => get('all_items');
+  String get addedToCart => get('added_to_cart');
+  String get noItemsFound => get('no_items_found');
+  String get tryDifferentSearch => get('try_different_search');
+  String get menu => get('menu');
+  String get dineInSubtitle => get('dine_in_subtitle');
+
+  // Food Detail Page
+  String get addToOrder => get('add_to_order');
+  String get specialInstructions => get('special_instructions');
+  String get specialInstructionsHint => get('special_instructions_hint');
+  String get doneness => get('doneness');
+  String get removals => get('removals');
+  String get premiumAddOns => get('premium_add_ons');
+  String get signature => get('signature');
+  String get chefsChoice => get('chefs_choice');
+  String get vegetarian => get('vegetarian');
+  String get spicy => get('spicy');
+  String get prepTime => get('prep_time');
+  String get calories => get('calories');
 }
 
 // English Translations
@@ -465,6 +489,28 @@ const Map<String, String> _englishTranslations = {
   'featured': 'Featured',
   'top_rated': 'Top Rated',
   'open_now': 'Open Now',
+  // Dine-in Menu
+  'dine_in_menu': 'Dine-in Menu',
+  'search_menu_items': 'Search menu items...',
+  'all_items': 'All Items',
+  'added_to_cart': 'added to cart',
+  'no_items_found': 'No items found',
+  'try_different_search': 'Try a different search or category',
+  'menu': 'Menu',
+  'dine_in_subtitle': 'Dine-in Menu',
+  // Food Detail
+  'add_to_order': 'Add to Order',
+  'special_instructions': 'Special Instructions',
+  'special_instructions_hint': 'Any allergies or special requests?',
+  'doneness': 'Doneness',
+  'removals': 'Removals',
+  'premium_add_ons': 'Premium Add-ons',
+  'signature': 'SIGNATURE',
+  'chefs_choice': "CHEF'S CHOICE",
+  'vegetarian': 'Vegetarian',
+  'spicy': 'Spicy',
+  'prep_time': 'Prep Time',
+  'calories': 'Calories',
 };
 
 // Afaan Oromoo Translations
@@ -683,6 +729,28 @@ const Map<String, String> _oromoTranslations = {
   'featured': 'Filatamoo',
   'top_rated': 'Sadarkaa Ol\'aanaa',
   'open_now': 'Amma Banaa',
+  // Dine-in Menu
+  'dine_in_menu': 'Tarree Nyaataa',
+  'search_menu_items': 'Nyaata barbaadi...',
+  'all_items': 'Hunda',
+  'added_to_cart': 'gaaritti dabalame',
+  'no_items_found': 'Wanti hin argamne',
+  'try_different_search': 'Barbaadii ykn ramaddii biraa yaalii',
+  'menu': 'Tarree',
+  'dine_in_subtitle': 'Tarree Nyaataa',
+  // Food Detail
+  'add_to_order': 'Ajajaatti Dabali',
+  'special_instructions': 'Qajeelfama Addaa',
+  'special_instructions_hint': 'Allergii ykn gaaffii addaa qabdaa?',
+  'doneness': 'Bilchaatina',
+  'removals': 'Haaquuwwan',
+  'premium_add_ons': 'Dabalata Addaa',
+  'signature': 'MALLATTOO',
+  'chefs_choice': 'FILANNO ASOOSAA',
+  'vegetarian': 'Kuduraa',
+  'spicy': 'Daadhii',
+  'prep_time': 'Yeroo Qophii',
+  'calories': 'Kaloorii',
 };
 
 // Amharic Translations
@@ -901,4 +969,26 @@ const Map<String, String> _amharicTranslations = {
   'featured': 'ተለይቶ የቀረበ',
   'top_rated': 'ከፍተኛ ደረጃ',
   'open_now': 'አሁን ክፍት',
+  // Dine-in Menu
+  'dine_in_menu': 'የምግብ ቤት ምናሌ',
+  'search_menu_items': 'ምናሌ ዕቃዎችን ፈልግ...',
+  'all_items': 'ሁሉም',
+  'added_to_cart': 'ወደ ጋሪ ተጨምሯል',
+  'no_items_found': 'ምንም ዕቃ አልተገኘም',
+  'try_different_search': 'ሌላ ፍለጋ ወይም ምድብ ሞክር',
+  'menu': 'ምናሌ',
+  'dine_in_subtitle': 'የምግብ ቤት ምናሌ',
+  // Food Detail
+  'add_to_order': 'ወደ ትዕዛዝ ጨምር',
+  'special_instructions': 'ልዩ መመሪያዎች',
+  'special_instructions_hint': 'አለርጂ ወይም ልዩ ጥያቄ አለህ?',
+  'doneness': 'የብስለት ደረጃ',
+  'removals': 'ማስወገጃዎች',
+  'premium_add_ons': 'ተጨማሪ ዕቃዎች',
+  'signature': 'ፊርማ',
+  'chefs_choice': 'የሼፍ ምርጫ',
+  'vegetarian': '채식주의자',
+  'spicy': 'ቅመም',
+  'prep_time': 'የዝግጅት ጊዜ',
+  'calories': 'ካሎሪ',
 };

@@ -16,6 +16,7 @@ import '../../../data/repositories/order_repository.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/api_service.dart';
 import '../orders/orders_page.dart';
+import '../dine_in/dine_in_cart_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key});
@@ -138,7 +139,14 @@ class _CheckoutPageState extends State<CheckoutPage>
   Future<void> _loadUserLocation() async {
     // Check if this is a dine-in order - skip location for dine-in
     final dineInProvider = context.read<DineInProvider>();
-    if (dineInProvider.isDineInMode) {
+    final cart = context.read<CartProvider>();
+
+    // Detect dine-in: either provider is active OR cart items have a tableId context
+    final isDineIn = dineInProvider.isDineInMode ||
+        (dineInProvider.currentRestaurantId != null) ||
+        cart.items.any((i) => i.hotelId.isNotEmpty && dineInProvider.currentTable != null);
+
+    if (isDineIn || dineInProvider.isDineInMode) {
       // For dine-in, we don't need location - customer is at the restaurant
       setState(() {
         _currentAddress = 'Dine-In at Restaurant';
@@ -1370,6 +1378,29 @@ class _CheckoutPageState extends State<CheckoutPage>
   @override
   Widget build(BuildContext context) {
     final loc = context.watch<LanguageProvider>().loc;
+
+    // ── Dine-in guard: redirect to dedicated dine-in cart ──────────────────
+    final dineIn = context.watch<DineInProvider>();
+    if (dineIn.isDineInMode) {
+      // Use post-frame to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DineInCartPage(
+                restaurantId: dineIn.currentRestaurantId ?? '',
+                tableId: dineIn.currentTable?.id ?? '',
+              ),
+            ),
+          );
+        }
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────────
 
     // Check if cart is empty
     final cart = context.watch<CartProvider>();

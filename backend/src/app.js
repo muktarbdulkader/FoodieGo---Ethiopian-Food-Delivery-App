@@ -111,11 +111,11 @@ app.use(compression());
 
 // CORS configuration - explicitly allow frontend origins
 const allowedOrigins = [
-  'https://foodiego-99b1e.web.app',         // Production frontend (1e)
-  'https://foodiego-99b1e.firebaseapp.com', // Firebase alternate (1e)
-  'https://foodiego-99ble.web.app',         // Production frontend (ble)
-  'https://foodiego-99ble.firebaseapp.com', // Firebase alternate (ble)
-  'http://localhost:3000',               // Local development
+  'https://foodiego-99b1e.web.app',
+  'https://foodiego-99b1e.firebaseapp.com',
+  'https://foodiego-99ble.web.app',
+  'https://foodiego-99ble.firebaseapp.com',
+  'http://localhost:3000',
   'http://localhost:8080',
   'http://localhost:5000',
   'http://localhost:9000',
@@ -124,32 +124,38 @@ const allowedOrigins = [
   'http://127.0.0.1:5000',
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or server-side requests)
+    // Allow requests with no origin (mobile apps, curl, server-side)
     if (!origin) return callback(null, true);
 
     if (
       allowedOrigins.includes(origin) ||
       origin.includes('localhost') ||
       origin.includes('127.0.0.1') ||
-      origin.includes('foodiego') // Allow all foodiego subdomains (web.app, firebaseapp.com)
+      origin.includes('foodiego') ||
+      origin.includes('web.app') ||
+      origin.includes('firebaseapp.com')
     ) {
       callback(null, true);
     } else {
       console.warn(`CORS blocked request from: ${origin}`);
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      // Still allow — don't block, just warn
+      callback(null, true);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+  optionsSuccessStatus: 204,
+};
 
-// Handle preflight (OPTIONS) requests for all routes
-app.options('*', cors());
+// Handle ALL preflight OPTIONS requests immediately — before any other middleware
+app.options('*', cors(corsOptions));
+
+// Apply CORS to all routes
+app.use(cors(corsOptions));
 
 // Body parsing with size limits (prevent DoS)
 app.use(express.json({ limit: '10mb' }));

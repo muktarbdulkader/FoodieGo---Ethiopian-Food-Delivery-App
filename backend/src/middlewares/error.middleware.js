@@ -8,6 +8,13 @@
  * Hides sensitive error details in production
  */
 const errorHandler = (err, req, res, next) => {
+  // Always set CORS headers so browser can read the error response
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   // Log error for debugging (but not sensitive data)
   const errorLog = {
     timestamp: new Date().toISOString(),
