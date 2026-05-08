@@ -19,6 +19,7 @@ backend/.env
 backend/logs/
 backend/*.log
 backend/npm-debug.log*
+node_modules/
 
 # =========================
 # Frontend (Flutter)
