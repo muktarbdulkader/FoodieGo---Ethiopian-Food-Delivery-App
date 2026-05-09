@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/repositories/order_repository.dart';
@@ -313,6 +314,31 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     }
 
     super.dispose();
+  }
+
+  /// Load orders from local cache for instant UI
+  Future<void> _loadFromCache() async {
+    if (_restaurantId == null) return;
+
+    try {
+      final cachedData =
+          await OfflineStorage.get('kitchen_orders_$_restaurantId');
+      if (cachedData != null && mounted) {
+        final List<dynamic> decoded = jsonDecode(cachedData);
+        final List<Order> cachedOrders =
+            decoded.map((json) => Order.fromJson(json)).toList();
+
+        setState(() {
+          _orders = cachedOrders;
+          // Don't set loading to false yet, wait for fresh data
+          _knownOrderIds = cachedOrders.map((o) => o.id).toSet();
+        });
+
+        debugPrint('[KITCHEN] Loaded ${_orders.length} orders from cache');
+      }
+    } catch (e) {
+      debugPrint('[KITCHEN] Error loading from cache: $e');
+    }
   }
 
   Future<void> _loadOrders({int retryCount = 0}) async {

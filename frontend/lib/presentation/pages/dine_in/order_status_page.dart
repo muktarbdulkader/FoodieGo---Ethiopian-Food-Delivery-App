@@ -49,6 +49,23 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     });
   }
 
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _webSocketProvider?.removeListener(_onWebSocketStateChanged);
+    
+    // Leave room and remove listeners
+    if (_webSocketProvider != null) {
+      final roomName = 'table:${widget.tableId}';
+      _webSocketProvider!.leaveRoom(roomName);
+      _webSocketProvider!.off('order:updated');
+      _webSocketProvider!.off('order:created');
+      _webSocketProvider!.off('notification:new');
+    }
+    
+    super.dispose();
+  }
+
   void _setupWebSocket() async {
     _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
 
@@ -273,31 +290,25 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   }
 
   /// Navigate back to menu page to place a new order
-  void _goToMenu() {
-    Navigator.pushReplacementNamed(
-      context,
-      '/dine-in-menu',
-      arguments: {
-        'restaurantId': widget.restaurantId,
-        'tableId': widget.tableId,
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    // Cancel refresh timer
-    _refreshTimer?.cancel();
-
-    // Leave room and remove listeners
-    if (_webSocketProvider != null) {
-      final roomName = 'table:${widget.tableId}';
-      _webSocketProvider!.leaveRoom(roomName);
-      _webSocketProvider!.off('order:updated');
-      _webSocketProvider!.off('order:created');
+  void _goToMenu() async {
+    // Clear the current guest session to allow a fresh start
+    // since the backend has already freed the table
+    try {
+      await context.read<DineInProvider>().clearGuestSession(widget.tableId);
+    } catch (e) {
+      debugPrint('Error clearing session: $e');
     }
 
-    super.dispose();
+    if (mounted) {
+      Navigator.pushReplacementNamed(
+        context,
+        '/dine-in-menu',
+        arguments: {
+          'restaurantId': widget.restaurantId,
+          'tableId': widget.tableId,
+        },
+      );
+    }
   }
 
   Future<void> _loadOrderStatus() async {

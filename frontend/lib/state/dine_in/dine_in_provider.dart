@@ -115,17 +115,22 @@ class DineInProvider extends ChangeNotifier {
       await _tableRepository.endTableSession(_currentTable!.id);
       
       // Clear guest session from storage
-      if (_guestSessionId != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('guest_session_${_currentTable!.id}');
-        await prefs.remove('guest_session_timestamp_${_currentTable!.id}');
-      }
+      await clearGuestSession(_currentTable!.id);
       
       clearDineInSession();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
     }
+  }
+
+  Future<void> clearGuestSession(String tableId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('guest_session_$tableId');
+    await prefs.remove('guest_session_timestamp_$tableId');
+    _guestSessionId = null;
+    notifyListeners();
+    debugPrint('[DINE-IN] Guest session cleared for table $tableId');
   }
 
   String? getTableNumber() {
