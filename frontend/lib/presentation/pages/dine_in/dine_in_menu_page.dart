@@ -683,12 +683,12 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.premiumGold,
                             ),
                           ),
                           const SizedBox(width: 2),
                           const Icon(Icons.keyboard_arrow_down,
-                              size: 16, color: AppTheme.primaryColor),
+                              size: 16, color: AppTheme.premiumGold),
                         ],
                       ),
                     ),
@@ -729,7 +729,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-                color: AppTheme.primaryColor, width: 1.5),
+                color: AppTheme.premiumGold, width: 1.5),
           ),
         ),
       ),

@@ -7,6 +7,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../data/services/api_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/language/language_provider.dart';
+import '../../../state/dine_in/dine_in_provider.dart';
+import '../../widgets/notification_dialog.dart';
 
 class OrderStatusPage extends StatefulWidget {
   final String tableId;
@@ -155,6 +157,53 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     _loadOrderStatus();
   }
 
+  void _showNotificationDialog(dynamic notification) {
+    if (!mounted) return;
+    
+    // Extract message properly from nested structure if needed
+    final message = notification['message'] ?? 
+                  (notification is Map ? notification['text'] : null) ?? 
+                  'Your order has been updated';
+
+    NotificationDialog.show(
+      context: context,
+      title: notification['title'] ?? 'Kitchen Update',
+      message: message,
+      buttonText: 'Got it',
+      icon: _getNotificationIcon(notification['type']),
+      iconColor: AppTheme.premiumGold,
+    );
+    
+    // Automatically mark as read
+    _markNotificationRead();
+  }
+
+  IconData _getNotificationIcon(String? type) {
+    switch (type) {
+      case 'success': return Icons.check_circle_outline;
+      case 'error': return Icons.error_outline;
+      case 'warning': return Icons.warning_amber_rounded;
+      default: return Icons.info_outline;
+    }
+  }
+
+  void _showCancellationDialog(String orderNumber, {String? reason}) {
+    if (!mounted) return;
+
+    NotificationDialog.show(
+      context: context,
+      title: 'Order Cancelled',
+      message: reason ?? 'Your order #$orderNumber has been cancelled by the kitchen. Please contact the waiter for more information.',
+      buttonText: 'Place New Order',
+      onButtonPressed: () {
+        Navigator.pop(context); // Close dialog
+        _goToMenu(); // Redirect to menu
+      },
+      icon: Icons.cancel_outlined,
+      iconColor: Colors.redAccent,
+    );
+  }
+
   String _getStatusUpdateMessage(String status, String orderNumber) {
     switch (status) {
       case 'confirmed':
@@ -187,90 +236,6 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       default:
         return Icons.info;
     }
-  }
-
-  void _showCancellationDialog(String orderNumber, {String? reason}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.cancel, color: Colors.red[400], size: 32),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Order Cancelled',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your order #$orderNumber has been cancelled by the kitchen.',
-              style: const TextStyle(fontSize: 16),
-            ),
-            if (reason != null && reason.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Reason:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(reason),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            const Text(
-              'Please contact the waiter for assistance or place a new order.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _goToMenu();
-            },
-            icon: const Icon(Icons.restaurant_menu),
-            label: const Text('Place New Order'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _vibratePattern() async {
@@ -345,73 +310,6 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     }
   }
 
-  void _showNotificationDialog(Map<String, dynamic> notification) {
-    final type = notification['type'] ?? 'info';
-    final message = notification['message'] ?? '';
-
-    Color backgroundColor;
-    IconData icon;
-
-    switch (type) {
-      case 'success':
-        backgroundColor = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'error':
-        backgroundColor = Colors.red;
-        icon = Icons.error;
-        break;
-      case 'warning':
-        backgroundColor = Colors.orange;
-        icon = Icons.warning;
-        break;
-      default:
-        backgroundColor = Colors.blue;
-        icon = Icons.info;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(icon, color: backgroundColor, size: 32),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Order Update',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(fontSize: 16),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _markNotificationRead();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: backgroundColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _markNotificationRead() async {
     if (_orderData == null) return;
 
@@ -450,70 +348,89 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
   Widget build(BuildContext context) {
     final loc = context.watch<LanguageProvider>().loc;
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(loc.orderStatus),
+        title: Text(loc.orderStatus, style: const TextStyle(color: AppTheme.premiumGold, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.premiumGold),
         actions: [
           IconButton(
             icon: _isRefreshing
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.premiumGold),
                   )
-                : const Icon(Icons.refresh),
+                : const Icon(Icons.refresh, color: AppTheme.premiumGold),
             onPressed: _isRefreshing ? null : _onRefreshPressed,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text('Error: $_error'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadOrderStatus,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _orderData == null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.restaurant_menu,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            loc.noActiveOrder,
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.black,
+              Color(0xFF1A1A1A),
+              Color(0xFF0D0D0D),
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.premiumGold))
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error: $_error', style: const TextStyle(color: Colors.white70)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadOrderStatus,
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.premiumGold),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _orderData == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.restaurant_menu,
+                              size: 64,
+                              color: AppTheme.premiumGold.withValues(alpha: 0.5),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            loc.placeOrderFirst,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
+                            const SizedBox(height: 16),
+                            Text(
+                              loc.noActiveOrder,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _buildOrderStatus(),
+                            const SizedBox(height: 8),
+                            Text(
+                              loc.placeOrderFirst,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _buildOrderStatus(),
+      ),
     );
   }
 
@@ -533,13 +450,14 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Order Header
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.2)),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     Row(
@@ -551,16 +469,26 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                             Text(
                               'Order #$orderNumber',
                               style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Table $tableNumber',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.premiumGold.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Table $tableNumber',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.premiumGold,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -568,18 +496,26 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 8,
+                            vertical: 10,
                           ),
                           decoration: BoxDecoration(
                             color: _getStatusColor(status),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _getStatusColor(status).withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Text(
                             status.toUpperCase(),
                             style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w900,
                               fontSize: 12,
+                              letterSpacing: 1,
                             ),
                           ),
                         ),
@@ -720,60 +656,61 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     final currentIndex = statuses.indexWhere((s) => s['key'] == currentStatus);
     final isCancelled = currentStatus == 'cancelled';
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: isCancelled
             ? Column(
                 children: [
-                  Icon(
-                    Icons.cancel,
-                    size: 64,
-                    color: Colors.red[400],
+                  const Icon(
+                    Icons.cancel_outlined,
+                    size: 80,
+                    color: Colors.redAccent,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
                   const Text(
-                    'Order Cancelled',
+                    'ORDER REJECTED',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.redAccent,
+                      letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
-                    'Your order was rejected by the kitchen',
+                    'Your order was rejected by the kitchen staff. Please try ordering another item or call the waiter for help.',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                      fontSize: 15,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      height: 1.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _goToMenu,
-                    icon: const Icon(Icons.restaurant_menu),
-                    label: const Text('Place New Order'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _goToMenu,
+                      icon: const Icon(Icons.restaurant_menu),
+                      label: const Text('EXPLORE MENU'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.premiumGold,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   TextButton(
                     onPressed: _callWaiter,
-                    child: const Text('Call Waiter for Help'),
+                    child: const Text('Need Help? Call Waiter', style: TextStyle(color: Colors.white70)),
                   ),
                 ],
               )
@@ -788,64 +725,73 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 52,
+                            height: 52,
                             decoration: BoxDecoration(
                               color: isActive
-                                  ? AppTheme.primaryColor
-                                  : Colors.grey[300],
+                                  ? AppTheme.premiumGold
+                                  : Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
+                              boxShadow: isActive ? [
+                                BoxShadow(
+                                  color: AppTheme.premiumGold.withValues(alpha: 0.4),
+                                  blurRadius: 15,
+                                  spreadRadius: 1,
+                                )
+                              ] : null,
                             ),
                             child: Icon(
                               status['icon'] as IconData,
-                              color: Colors.white,
-                              size: 24,
+                              color: isActive ? Colors.black : Colors.white24,
+                              size: 26,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 20),
                           Expanded(
-                            child: Text(
-                              status['label'] as String,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: isCurrent
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isActive ? Colors.black : Colors.grey,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  status['label'] as String,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w900
+                                        : FontWeight.bold,
+                                    color: isActive ? Colors.white : Colors.white24,
+                                  ),
+                                ),
+                                if (isCurrent)
+                                  Text(
+                                    'Processing your order...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.premiumGold.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                           if (isCurrent)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Current',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                            const Icon(Icons.hourglass_bottom, color: AppTheme.premiumGold, size: 20),
                         ],
                       ),
                       if (index < statuses.length - 1)
                         Container(
                           margin: const EdgeInsets.only(
-                              left: 23, top: 4, bottom: 4),
+                              left: 25, top: 8, bottom: 8),
                           width: 2,
-                          height: 32,
-                          color: isActive
-                              ? AppTheme.primaryColor
-                              : Colors.grey[300],
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                isActive ? AppTheme.premiumGold : Colors.white12,
+                                (index + 1 <= currentIndex) ? AppTheme.premiumGold : Colors.white10,
+                              ],
+                            ),
+                          ),
                         ),
                     ],
                   );

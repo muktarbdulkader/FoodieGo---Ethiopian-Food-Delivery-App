@@ -125,17 +125,19 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppTheme.premiumCream, // Luxury Cream background
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppTheme.textPrimary,
+        centerTitle: true,
         title: Text(
           context.watch<LanguageProvider>().loc.yourBill,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: AppTheme.premiumGold),
             onPressed: () {
               setState(() => _isLoading = true);
               _loadBill();
@@ -145,7 +147,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: AppTheme.premiumGold, strokeWidth: 2))
           : _error != null
               ? _buildError()
               : _orderData == null
@@ -208,37 +210,287 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
     final isPaid = status == 'completed';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          // Receipt Header
-          _buildReceiptHeader(orderNumber, tableNumber, isPaid),
-          const SizedBox(height: 16),
-
-          // Order Status Banner
+          // Order Status Banner (Premium)
           _buildStatusBanner(status),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
-          // Items List
-          _buildItemsCard(items),
-          const SizedBox(height: 16),
-
-          // Totals Card
-          _buildTotalsCard(subtotal, tax, totalPrice),
+          // Items List (Elegant Receipt Style)
+          _buildReceiptCard(items, subtotal, tax, totalPrice, orderNumber, tableNumber, isPaid),
           const SizedBox(height: 24),
 
-          // Payment Methods Info
-          if (!isPaid) _buildPaymentInfo(),
-          if (!isPaid) const SizedBox(height: 16),
-
-          // Request Bill Button
-          if (!isPaid) _buildRequestBillButton(),
+          // Payment Methods (Interactive)
+          if (!isPaid) ...[
+            _buildSectionTitle('Select Payment Method'),
+            const SizedBox(height: 12),
+            _buildInteractivePaymentOptions(),
+            const SizedBox(height: 24),
+            _buildRequestBillButton(),
+          ],
+          
           if (isPaid) _buildPaidBadge(),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 40),
         ],
       ),
     );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.textPrimary,
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptCard(List<dynamic> items, double subtotal, double tax, double total, String orderNo, String tableNo, bool isPaid) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Receipt Header
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.premiumGold.withValues(alpha: 0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('ORDER ID', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+                        Text('#$orderNo', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('TABLE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
+                        Text(tableNo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.premiumGold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Items
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                ...items.map((item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      Text('${item['quantity']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.premiumGold)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600))),
+                      Text('ETB ${((item['price'] ?? 0.0) as num).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                )),
+                
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: DottedDivider(),
+                ),
+                
+                _buildTotalLine('Subtotal', subtotal),
+                if (tax > 0) _buildTotalLine('VAT (15%)', tax),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
+                    Text('ETB ${total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppTheme.premiumGold)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalLine(String label, double amount) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
+          Text('ETB ${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  String _selectedMethod = 'Telebirr';
+
+  Widget _buildInteractivePaymentOptions() {
+    final methods = [
+      {'id': 'Telebirr', 'name': 'Telebirr', 'icon': Icons.phone_android, 'desc': 'Scan QR to pay instantly'},
+      {'id': 'CBE Birr', 'name': 'CBE Birr', 'icon': Icons.account_balance, 'desc': 'Commercial Bank of Ethiopia'},
+      {'id': 'Cash', 'name': 'Cash', 'icon': Icons.payments, 'desc': 'Hand cash to the waiter'},
+    ];
+
+    return Column(
+      children: methods.map((m) => _buildPaymentCard(m)).toList(),
+    );
+  }
+
+  Widget _buildPaymentCard(Map<String, dynamic> method) {
+    final isSelected = _selectedMethod == method['id'];
+    
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMethod = method['id']!),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppTheme.premiumGold : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? AppTheme.premiumGold.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.premiumGold : AppTheme.premiumCream,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(method['icon'] as IconData, color: isSelected ? Colors.white : AppTheme.premiumGold, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(method['name'] as String, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(method['desc'] as String, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
+                if (isSelected) const Icon(Icons.check_circle, color: AppTheme.premiumGold),
+              ],
+            ),
+            if (isSelected && method['id'] != 'Cash') ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.premiumCream,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.qr_code_2_rounded, size: 120, color: AppTheme.textPrimary),
+                    const SizedBox(height: 8),
+                    Text('Scan to Pay via ${method['name']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.premiumGold)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _confirmSelfPayment(method['name']!),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.premiumGold,
+                    side: const BorderSide(color: AppTheme.premiumGold),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('I Have Paid - Confirm'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmSelfPayment(String method) async {
+    // Show a confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Confirm Payment'),
+        content: Text('Did you successfully pay via $method? This will notify the kitchen to verify.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.premiumGold, foregroundColor: Colors.white),
+            child: const Text('Yes, I Paid'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      // Notify kitchen
+      try {
+        await ApiService.postPublic(
+          '${ApiConstants.orders}/dine-in/call-waiter',
+          {
+            'tableId': widget.tableId,
+            'message': '💰 Customer reported payment via $method. Please verify and mark as paid.',
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment report sent! Waiter will verify shortly.')),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error reporting payment: $e');
+      }
+    }
   }
 
   Widget _buildReceiptHeader(String orderNumber, String tableNumber, bool isPaid) {
@@ -319,55 +571,54 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
       case 'pending':
         color = Colors.orange;
         icon = Icons.hourglass_empty;
-        message = 'Order is being reviewed by kitchen';
+        message = 'Reviewing Order';
         break;
       case 'confirmed':
         color = Colors.blue;
         icon = Icons.check_circle_outline;
-        message = 'Order confirmed — kitchen is preparing';
+        message = 'Confirmed & Preparing';
         break;
       case 'preparing':
         color = Colors.purple;
         icon = Icons.restaurant;
-        message = 'Your food is being prepared';
+        message = 'Cooking Your Meal';
         break;
       case 'ready':
         color = Colors.green;
         icon = Icons.done_all;
-        message = 'Food is ready — waiter will bring it shortly';
+        message = 'Ready to Serve';
         break;
       case 'completed':
-        color = Colors.teal;
-        icon = Icons.celebration;
-        message = 'Order completed — thank you!';
+        color = AppTheme.premiumGold;
+        icon = Icons.star;
+        message = 'Paid & Completed';
         break;
       case 'cancelled':
         color = Colors.red;
         icon = Icons.cancel;
-        message = 'Order was cancelled';
+        message = 'Order Cancelled';
         break;
       default:
         color = Colors.grey;
         icon = Icons.info;
-        message = 'Status: $status';
+        message = status.toUpperCase();
     }
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14),
-            ),
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 10),
+          Text(
+            message,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
           ),
         ],
       ),
@@ -577,11 +828,12 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _billRequested ? Colors.green : AppTheme.primaryColor,
+          backgroundColor: _billRequested ? Colors.green : AppTheme.premiumGold,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          elevation: _billRequested ? 0 : 4,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          elevation: _billRequested ? 0 : 8,
+          shadowColor: AppTheme.premiumGold.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -590,27 +842,59 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
   Widget _buildPaidBadge() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.green[50],
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.green[300]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
       ),
       child: Column(
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          const SizedBox(height: 12),
+          const Icon(Icons.check_circle, color: Colors.green, size: 64),
+          const SizedBox(height: 20),
           Text(
             context.read<LanguageProvider>().loc.billPaid,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             context.read<LanguageProvider>().loc.thankYouDining,
-            style: const TextStyle(fontSize: 14, color: Colors.green),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: Colors.grey[600]),
           ),
         ],
       ),
+    );
+  }
+}
+
+class DottedDivider extends StatelessWidget {
+  const DottedDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final boxWidth = constraints.constrainWidth();
+        const dashWidth = 5.0;
+        const dashHeight = 1.0;
+        final dashCount = (boxWidth / (2 * dashWidth)).floor();
+        return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
+          children: List.generate(dashCount, (_) {
+            return const SizedBox(
+              width: dashWidth,
+              height: dashHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: Colors.grey),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

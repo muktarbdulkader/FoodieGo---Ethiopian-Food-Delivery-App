@@ -241,31 +241,44 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   void _handleWaiterCall(dynamic data) {
     debugPrint('[KITCHEN] Waiter called: $data');
 
-    // Play waiter call sound with table number in selected language
+    // Play waiter call sound
     final tableNumber = data['tableNumber']?.toString();
     _playWaiterCallSound(tableNumber: tableNumber);
 
-    // Show dialog
+    // Update state immediately
     if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
+      setState(() {
+        // Add to list if not already there (based on _id)
+        final callId = data['_id']?.toString() ?? data['id']?.toString() ?? '';
+        if (!_waiterCalls.any((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId)) {
+          _waiterCalls.insert(0, data);
+          // Automatically show alerts panel if hidden
+          _showWaiterCalls = true;
+        }
+      });
+
+      // Show snackbar for quick notification
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
             children: [
-              const Icon(Icons.notifications_active,
-                  color: Colors.orange, size: 32),
+              const Icon(Icons.notifications_active, color: Colors.white),
               const SizedBox(width: 12),
-              Text('Table ${data['tableNumber']?.toString() ?? 'Unknown'}'),
+              Expanded(
+                child: Text(
+                  'Table $tableNumber: ${data['message'] ?? 'Needs assistance'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
             ],
           ),
-          content:
-              Text(data['message']?.toString() ?? 'Customer needs assistance'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
         ),
       );
     }
@@ -941,7 +954,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_active),
+                icon: Icon(_showWaiterCalls ? Icons.notifications_off : Icons.notifications_active),
                 onPressed: () {
                   setState(() {
                     _showWaiterCalls = !_showWaiterCalls;
@@ -950,21 +963,20 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                     _loadWaiterCalls();
                   }
                 },
-                tooltip: 'Waiter Calls',
               ),
               if (_waiterCalls.isNotEmpty)
                 Positioned(
-                  right: 4,
-                  top: 4,
+                  right: 8,
+                  top: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
                       color: Colors.red,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
+                      minWidth: 16,
+                      minHeight: 16,
                     ),
                     child: Text(
                       '${_waiterCalls.length}',
@@ -1110,11 +1122,9 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   String _getTableNumber(Order order) {
-    // Try order.tableNumber first
     if (order.tableNumber != null && order.tableNumber!.isNotEmpty) {
       return order.tableNumber!;
     }
-    // Fall back to tableId (safely handle short IDs)
     if (order.tableId != null && order.tableId!.isNotEmpty) {
       final id = order.tableId!;
       final displayLength = id.length < 6 ? id.length : 6;
@@ -1124,103 +1134,144 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   Widget _buildWaiterCallsPanel() {
+    final paymentReports = _waiterCalls.where((c) => c['message']?.toString().contains('💰') == true || c['message']?.toString().toLowerCase().contains('pay') == true).toList();
+    final otherCalls = _waiterCalls.where((c) => !paymentReports.contains(c)).toList();
+
     return Container(
-      color: Colors.orange.shade50,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.notifications_active, color: Colors.orange.shade700),
-              const SizedBox(width: 8),
-              Text(
-                'Active Waiter Calls',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange.shade700,
-                ),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _loadWaiterCalls,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Refresh'),
-              ),
-            ],
+      width: double.infinity, // Use full width for bottom sheet or side panel
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: Colors.grey[200]!)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
           ),
-          const SizedBox(height: 12),
-          if (_waiterCalls.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.red[700]!, Colors.red[500]!],
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text('No active waiter calls'),
-                ],
-              ),
-            )
-          else
-            ..._waiterCalls.map((call) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  color: Colors.white,
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Colors.orange,
-                      child: Icon(Icons.table_restaurant,
-                          color: Colors.white),
-                    ),
-                    title: Text(
-                      'Table ${call['tableNumber'] ?? 'N/A'}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(call['message']?.toString() ??
-                        'Customer needs assistance'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                const Text(
+                  'Active Alerts',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                  onPressed: () => setState(() => _showWaiterCalls = false),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _waiterCalls.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          _getTimeAgo(_safeParseDateTime(call['createdAt'])),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            final callId = call['_id']?.toString() ??
-                                call['id']?.toString() ??
-                                '';
-                            if (callId.isNotEmpty) {
-                              _acknowledgeWaiterCall(callId);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Invalid call ID'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Attend'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
+                        Icon(Icons.check_circle_outline, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text('No pending calls', style: TextStyle(color: Colors.grey[500])),
                       ],
                     ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
+                      if (paymentReports.isNotEmpty) ...[
+                        _buildCallSectionHeader('Payment Reports', Colors.orange),
+                        ...paymentReports.map((call) => _buildCallItem(call, isPayment: true)),
+                      ],
+                      if (otherCalls.isNotEmpty) ...[
+                        _buildCallSectionHeader('Service Requests', Colors.blue),
+                        ...otherCalls.map((call) => _buildCallItem(call, isPayment: false)),
+                      ],
+                    ],
                   ),
-                )),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCallSectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Row(
+        children: [
+          Container(width: 4, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13, letterSpacing: 0.5)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCallItem(Map<String, dynamic> call, {bool isPayment = false}) {
+    final callId = call['_id']?.toString() ?? call['id']?.toString() ?? '';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: isPayment ? Colors.orange[200]! : Colors.blue[100]!),
+      ),
+      color: isPayment ? Colors.orange[50] : Colors.blue[50]?.withValues(alpha: 0.3),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Table ${call['tableNumber'] ?? call['tableId'] ?? 'N/A'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  _formatTime(DateTime.parse(call['createdAt'] ?? DateTime.now().toIso8601String())),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              call['message'] ?? 'Needs assistance',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => _acknowledgeWaiterCall(callId),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isPayment ? Colors.orange[700] : Colors.blue[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Acknowledge'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1590,34 +1641,62 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         ),
       );
     } else if (order.status == 'ready') {
+      final hasPayment = _hasPaymentReported(order);
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.green[50],
+          color: hasPayment ? Colors.orange[50] : Colors.green[50],
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(14),
             bottomRight: Radius.circular(14),
           ),
           border: Border(
-            top: BorderSide(color: Colors.green[200]!, width: 1),
+            top: BorderSide(color: hasPayment ? Colors.orange[200]! : Colors.green[200]!, width: 1),
           ),
         ),
-        child: ElevatedButton.icon(
-          onPressed: () => _updateOrderStatus(order, 'completed'),
-          icon: const Icon(Icons.celebration, size: 22),
-          label: const Text(
-            'COMPLETE ORDER',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            if (hasPayment) ...[
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.payment, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'PAYMENT REPORTED',
+                    style: TextStyle(fontWeight: FontWeight.w900, color: Colors.orange, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+            ElevatedButton.icon(
+              onPressed: () => _updateOrderStatus(order, 'completed'),
+              icon: Icon(hasPayment ? Icons.verified_user : Icons.check_circle, size: 22),
+              label: Text(
+                hasPayment ? 'VERIFY & COMPLETE' : 'MARK COMPLETED',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: _getButtonStyle(hasPayment ? Colors.orange[700]! : Colors.teal),
             ),
-          ),
-          style: _getButtonStyle(Colors.teal),
+          ],
         ),
       );
     }
 
     return const SizedBox.shrink();
+  }
+
+  bool _hasPaymentReported(Order order) {
+    // Check if there's an active waiter call for this table with payment emoji or message
+    return _waiterCalls.any((call) =>
+        (call['tableNumber']?.toString() == order.tableNumber ||
+            call['tableId']?.toString() == order.tableId) &&
+        (call['message']?.toString().contains('💰') == true ||
+            call['message']?.toString().toLowerCase().contains('pay') == true));
   }
 
   /// Quick rejection reason chip for faster workflow
