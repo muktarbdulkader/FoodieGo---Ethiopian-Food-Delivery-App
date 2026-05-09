@@ -289,46 +289,51 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     final foods = foodProvider.foods;
     final categories = _getCategories(foods, loc);
     final filtered = _getFilteredFoods(foods);
+    final featuredItems = foods.where((f) => f.isFeatured || f.rating >= 4.5).take(5).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.premiumCream, // Luxury Cream background
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(foods),
             Expanded(
               child: foodProvider.isLoading && foods.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryColor,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : foodProvider.error != null && foods.isEmpty
                       ? _buildError(foodProvider.error!)
                       : CustomScrollView(
+                          physics: const BouncingScrollPhysics(),
                           slivers: [
                             SliverToBoxAdapter(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildSearchBar(loc),
-                                  const SizedBox(height: 4),
-                                  _buildCategoryChips(categories),
+                                  if (featuredItems.isNotEmpty && _selectedCategory == loc.allItems) ...[
+                                    _buildSectionTitle(loc.get('special_offers') ?? 'Featured Today'),
+                                    _buildFeaturedList(featuredItems, cartProvider, loc),
+                                  ],
                                   const SizedBox(height: 12),
+                                  _buildCategoryChips(categories),
+                                  _buildSectionTitle(_selectedCategory == loc.allItems 
+                                      ? (loc.get('all_items') ?? 'All Items')
+                                      : _selectedCategory),
                                 ],
                               ),
                             ),
                             filtered.isEmpty
-                                ? SliverFillRemaining(
-                                    child: _buildEmpty(loc))
+                                ? SliverFillRemaining(child: _buildEmpty(loc))
                                 : SliverPadding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        16, 0, 16, 100),
+                                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                                     sliver: SliverList(
-                                      delegate:
-                                          SliverChildBuilderDelegate(
-                                        (context, index) =>
-                                            _buildFoodCard(
-                                                filtered[index],
-                                                cartProvider,
-                                                loc),
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) => _buildFoodCard(filtered[index], cartProvider, loc),
                                         childCount: filtered.length,
                                       ),
                                     ),
@@ -340,6 +345,163 @@ class _DineInMenuPageState extends State<DineInMenuPage>
         ),
       ),
       bottomNavigationBar: _buildBottomNav(cartProvider, loc),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.textPrimary,
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedList(List<Food> items, CartProvider cart, AppLocalizations loc) {
+    return SizedBox(
+      height: 220,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, index) => _buildFeaturedCard(items[index], cart, loc),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedCard(Food food, CartProvider cart, AppLocalizations loc) {
+    final priceText = 'ETB ${food.getFinalDineInPrice().toStringAsFixed(0)}';
+    
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DineInFoodDetailPage(
+            food: food,
+            restaurantId: widget.restaurantId,
+            tableId: widget.tableId,
+          ),
+        ),
+      ),
+      child: Container(
+        width: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.1), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.premiumGold.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                    child: Hero(
+                      tag: 'food_image_${food.id}',
+                      child: Image.network(
+                        food.image,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(color: AppTheme.premiumBeige),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: AppTheme.premiumGold, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            food.rating.toString(),
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary, 
+                              fontSize: 11, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      food.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800, 
+                        fontSize: 14, 
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          priceText,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900, 
+                            fontSize: 16, 
+                            color: AppTheme.premiumGold
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.premiumGold,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.add, color: Colors.white, size: 14),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -575,44 +737,42 @@ class _DineInMenuPageState extends State<DineInMenuPage>
   }
 
   Widget _buildCategoryChips(List<String> categories) {
-    return SizedBox(
-      height: 40,
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final cat = categories[index];
           final isSelected = cat == _selectedCategory;
           return GestureDetector(
             onTap: () => setState(() => _selectedCategory = cat),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 9),
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                color: isSelected ? AppTheme.premiumGold : Colors.white,
+                borderRadius: BorderRadius.circular(16), // Less round, more modern
+                boxShadow: isSelected 
+                  ? [BoxShadow(color: AppTheme.premiumGold.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]
+                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
                 border: Border.all(
-                  color: isSelected
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade300,
+                  color: isSelected ? AppTheme.premiumGold : Colors.grey.shade200,
                   width: 1,
                 ),
               ),
               child: Text(
                 cat,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected
-                      ? FontWeight.w600
-                      : FontWeight.w400,
-                  color: isSelected
-                      ? Colors.white
-                      : AppTheme.textSecondary,
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? Colors.white : AppTheme.textSecondary,
+                  letterSpacing: 0.2,
                 ),
               ),
             ),
@@ -641,102 +801,106 @@ class _DineInMenuPageState extends State<DineInMenuPage>
         ),
       ),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.05), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16)),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: food.image.isNotEmpty
-                        ? Image.network(
-                            food.image,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : _buildImagePlaceholder(),
-                            errorBuilder: (_, __, ___) =>
-                                _buildImagePlaceholder(),
-                          )
-                        : _buildImagePlaceholder(),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Hero(
+                    tag: 'food_image_list_${food.id}',
+                    child: SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: food.image.isNotEmpty
+                          ? Image.network(
+                              food.image,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                            )
+                          : _buildImagePlaceholder(),
+                    ),
                   ),
                 ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      priceText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                if (food.discount > 0)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        '-${food.discount.toInt()}%',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Row(
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          food.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                            height: 1.2,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          food.description,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[500],
-                            height: 1.4,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  Text(
+                    food.name,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.4,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 12),
-                  cartQty == 0
-                      ? _buildAddButton(food)
-                      : _buildQtyControl(food, cartQty),
+                  const SizedBox(height: 6),
+                  Text(
+                    food.description,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.grey[600],
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        priceText,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.premiumGold,
+                        ),
+                      ),
+                      cartQty == 0
+                          ? _buildAddButton(food)
+                          : _buildQtyControl(food, cartQty),
+                    ],
+                  ),
                 ],
               ),
             ),

@@ -495,6 +495,24 @@ const updateOrderStatus = async (req, res, next) => {
 
     // Emit WebSocket events for dine-in orders
     if (order.type === 'dine_in' && order.tableId && order.restaurantId) {
+      // If order is completed or cancelled, free up the table session
+      if (status === 'completed' || status === 'cancelled') {
+        try {
+          const Table = require('../models/Table');
+          await Table.findByIdAndUpdate(order.tableId, {
+            $set: {
+              'currentSession.isOccupied': false,
+              'currentSession.customerId': null,
+              'currentSession.startTime': null,
+              'currentSession.orderIds': []
+            }
+          });
+          console.log(`[ORDER] Table ${order.tableNumber} session cleared because order ${order.orderNumber} was ${status}`);
+        } catch (tableError) {
+          console.error('[ORDER] Failed to clear table session:', tableError);
+        }
+      }
+
       try {
         const eventPayload = {
           eventType: 'order:updated',

@@ -3,6 +3,14 @@ import 'package:flutter/services.dart';
 
 /// App Theme - Klik Style Design
 class AppTheme {
+  // PREMIUM COLORS - Luxury Style
+  static const Color premiumGold = Color(0xFFD4AF37); // Classic Gold
+  static const Color premiumGoldLight = Color(0xFFF9E79F);
+  static const Color premiumDark = Color(0xFF121212); // Deep Black
+  static const Color premiumDarkGrey = Color(0xFF1E1E1E);
+  static const Color premiumCream = Color(0xFFFDFBF7); // Soft Cream
+  static const Color premiumBeige = Color(0xFFF5F0E6);
+
   // PRIMARY COLORS - Klik Red
   static const Color primaryColor = Color(0xFFE53935);
   static const Color primaryLight = Color(0xFFFF6F60);
@@ -29,7 +37,6 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFFFAFAFA);
   static const Color surfaceColor = Colors.white;
   static const Color cardColor = Colors.white;
-
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1A1A1A);
   static const Color textSecondary = Color(0xFF666666);
