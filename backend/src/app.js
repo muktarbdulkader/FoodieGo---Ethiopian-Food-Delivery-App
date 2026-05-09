@@ -10,6 +10,54 @@ const { errorHandler, notFound } = require('./middlewares/error.middleware');
 
 const app = express();
 
+// CORS configuration - explicitly allow frontend origins
+const allowedOrigins = [
+  'https://foodiego-99b1e.web.app',
+  'https://foodiego-99b1e.firebaseapp.com',
+  'https://foodiego-99b1e.web.app',
+  'https://foodiego-99ble.firebaseapp.com',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://localhost:5000',
+  'http://localhost:9000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:5000',
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, server-side)
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      origin.includes('foodiego') ||
+      origin.includes('web.app') ||
+      origin.includes('firebaseapp.com')
+    ) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from: ${origin}`);
+      // Still allow — don't block, just warn
+      callback(null, true);
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+
+// Handle ALL preflight OPTIONS requests immediately — before any other middleware
+app.options('*', cors(corsOptions));
+
+// Apply CORS to all routes
+app.use(cors(corsOptions));
+
 // ===================
 // SECURITY MIDDLEWARE
 // ===================
@@ -17,7 +65,7 @@ const app = express();
 // Rate limiting - prevent brute force attacks
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const MAX_REQUESTS = 100; // max requests per window
+const MAX_REQUESTS = 1000; // max requests per window
 
 const rateLimiter = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
@@ -109,53 +157,7 @@ app.use(auditLogger);
 // Compression middleware for better performance
 app.use(compression());
 
-// CORS configuration - explicitly allow frontend origins
-const allowedOrigins = [
-  'https://foodiego-99b1e.web.app',
-  'https://foodiego-99b1e.firebaseapp.com',
-  'https://foodiego-99ble.web.app',
-  'https://foodiego-99ble.firebaseapp.com',
-  'http://localhost:3000',
-  'http://localhost:8080',
-  'http://localhost:5000',
-  'http://localhost:9000',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:8080',
-  'http://127.0.0.1:5000',
-];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, server-side)
-    if (!origin) return callback(null, true);
-
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.includes('localhost') ||
-      origin.includes('127.0.0.1') ||
-      origin.includes('foodiego') ||
-      origin.includes('web.app') ||
-      origin.includes('firebaseapp.com')
-    ) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked request from: ${origin}`);
-      // Still allow — don't block, just warn
-      callback(null, true);
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
-  credentials: true,
-  preflightContinue: false,
-  optionsSuccessStatus: 204,
-};
-
-// Handle ALL preflight OPTIONS requests immediately — before any other middleware
-app.options('*', cors(corsOptions));
-
-// Apply CORS to all routes
-app.use(cors(corsOptions));
 
 // Body parsing with size limits (prevent DoS)
 app.use(express.json({ limit: '10mb' }));
