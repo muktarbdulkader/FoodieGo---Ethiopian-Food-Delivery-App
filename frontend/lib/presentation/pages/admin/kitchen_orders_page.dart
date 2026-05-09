@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../../data/models/order.dart';
+import '../../../data/models/cart_item.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/kitchen_localizations.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../core/utils/offline_storage.dart';
 import '../../../core/services/audio_service.dart';
 import '../../../state/websocket/websocket_provider.dart';
 import '../../../state/auth/auth_provider.dart';
@@ -35,24 +37,28 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   DateTime? _lastUpdated;
   Set<String> _knownOrderIds = {}; // Track known orders to detect new ones
   bool _hasJoinedRoom = false; // Track if we've successfully joined the room
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _restaurantId = context.read<AuthProvider>().user?.id;
+
+    // Load from cache first for instant UI
+    _loadFromCache();
+
     _loadOrders();
     _loadWaiterCalls();
+
+    // Auto-refresh every 2 minutes as fallback
+    _refreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      _loadOrders();
+      _loadWaiterCalls();
+    });
 
     // Setup WebSocket listener after frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupWebSocket();
-    });
-
-    // Auto-refresh every 3 seconds for near-instant order detection
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) {
-        _loadOrders();
-        _loadWaiterCalls();
-      }
     });
   }
 
@@ -175,7 +181,40 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     // Play sound alert
     _playNewOrderSound();
 
-    // Reload orders
+    // Optimistically add to UI for instant speed
+    try {
+      if (data != null && data['orderId'] != null) {
+        final newOrder = Order(
+          id: data['orderId'].toString(),
+          orderNumber: data['orderNumber']?.toString() ?? '',
+          status: data['status']?.toString() ?? 'pending',
+          type: 'dine_in',
+          tableId: data['tableId']?.toString(),
+          tableNumber: data['tableNumber']?.toString(),
+          restaurantId: data['restaurantId']?.toString(),
+          totalPrice: (data['totalPrice'] ?? 0).toDouble(),
+          notes: data['notes']?.toString(),
+          createdAt: data['timestamp'] != null ? DateTime.parse(data['timestamp']) : DateTime.now(),
+          items: (data['items'] as List<dynamic>?)
+                  ?.map((item) => CartItem.fromJson(item as Map<String, dynamic>))
+                  .toList() ?? [],
+          userId: '',
+        );
+
+        if (mounted) {
+          setState(() {
+            if (!_orders.any((o) => o.id == newOrder.id)) {
+              _orders.insert(0, newOrder);
+              _knownOrderIds.add(newOrder.id);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[KITCHEN] Optimistic add failed: $e');
+    }
+
+    // Reload orders in background to sync
     _loadOrders();
 
     // Show snackbar
@@ -280,12 +319,13 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     const maxRetries = 2;
     const retryDelay = Duration(seconds: 3);
 
-    try {
-      final orders = await _orderRepository.getAllOrders();
+    if (retryCount == 0) {
+      _errorMessage = null; // Clear error on fresh load
+    }
 
-      // Filter only dine-in orders
-      final dineInOrders =
-          orders.where((order) => order.type == 'dine_in').toList();
+    try {
+      final dineInOrders = await _orderRepository.getDineInOrders(
+          restaurantId: _restaurantId, activeOnly: true);
 
       // Sort by creation time (newest first)
       dineInOrders.sort((a, b) {
@@ -313,7 +353,12 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
           _isRefreshing = false;
           _lastUpdated = DateTime.now();
           _knownOrderIds = allIds;
+          _errorMessage = null;
         });
+
+        // Save to cache for offline/instant use
+        final ordersJson = dineInOrders.map((o) => o.toJson()).toList();
+        OfflineStorage.save('kitchen_orders_$_restaurantId', jsonEncode(ordersJson));
 
         // Alert for each new order (only after initial load)
         if (!isFirstLoad && newOrders.isNotEmpty) {
@@ -323,7 +368,6 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading kitchen orders: $e');
 
       // Retry logic for timeout errors (backend sleeping on Render free tier)
       if (e.toString().contains('timed out') && retryCount < maxRetries) {
@@ -787,10 +831,56 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading && _orders.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage != null && _orders.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 64),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() => _isLoading = true);
+                    _loadOrders();
+                    _loadWaiterCalls();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Try Again'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kitchen Orders'),
         actions: [
+          if (_errorMessage != null && _orders.isNotEmpty)
+            Tooltip(
+              message: _errorMessage,
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              ),
+            ),
           // Language selector
           InkWell(
             onTap: _showLanguageSelector,

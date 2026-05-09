@@ -49,16 +49,44 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     });
   }
 
-  void _setupWebSocket() {
+  void _setupWebSocket() async {
     _webSocketProvider = Provider.of<WebSocketProvider>(context, listen: false);
 
+    // If not connected, connect as guest (backend now supports guest connections)
+    if (!_webSocketProvider!.isConnected) {
+      debugPrint('[ORDER STATUS] Connecting as guest to WebSocket...');
+      await _webSocketProvider!.connect('guest_token'); 
+    }
+
     // Join table room
-    final roomName = 'table:${widget.tableId}';
-    _webSocketProvider!.joinRoom(roomName);
+    _joinTableRoom();
 
     // Listen for order updates
     _webSocketProvider!.on('order:updated', _handleOrderUpdate);
     _webSocketProvider!.on('order:created', _handleOrderUpdate);
+    _webSocketProvider!.on('notification:new', (data) {
+      debugPrint('[ORDER STATUS] Received manual notification: $data');
+      if (data['notification'] != null && mounted) {
+        _showNotificationDialog(data['notification']);
+      }
+    });
+
+    // Listen for connection changes to rejoin room if needed
+    _webSocketProvider!.addListener(_onWebSocketStateChanged);
+  }
+
+  void _onWebSocketStateChanged() {
+    if (_webSocketProvider!.isConnected && mounted) {
+      debugPrint('[ORDER STATUS] WebSocket reconnected, rejoining table room');
+      _joinTableRoom();
+    }
+  }
+
+  void _joinTableRoom() {
+    if (_webSocketProvider == null) return;
+    final roomName = 'table:${widget.tableId}';
+    _webSocketProvider!.joinRoom(roomName);
+    debugPrint('[ORDER STATUS] Requested to join room: $roomName');
   }
 
   void _handleOrderUpdate(dynamic data) {
@@ -66,6 +94,11 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
     final status = data['status'];
     final orderNumber = data['orderNumber'] ?? 'N/A';
+
+    // Show manual notification if present in the update
+    if (data['notification'] != null && mounted) {
+      _showNotificationDialog(data['notification']);
+    }
 
     // Use message from kitchen if available, otherwise generate locally
     final message =
@@ -86,11 +119,6 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
           backgroundColor: backgroundColor,
           duration: const Duration(seconds: 5),
           behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {},
-          ),
         ),
       );
     }
@@ -100,9 +128,9 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
       _vibratePattern(); // Order ready - pattern vibration
     } else if (status == 'cancelled') {
       _vibrateLong(); // Order cancelled - long vibration
-      // Show dialog for cancellation
+      // Show dialog for cancellation if not already showing notification dialog
       if (mounted) {
-        _showCancellationDialog(orderNumber, reason: data['reason']);
+        _showCancellationDialog(orderNumber, reason: data['reason'] ?? data['message']);
       }
     }
 

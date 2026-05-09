@@ -13,7 +13,17 @@ const authenticateSocket = async (socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return next(new Error('Authentication token required'));
+      // Allow guest connections for dine-in support
+      socket.user = { 
+        _id: 'guest_' + Math.random().toString(36).substring(2, 9),
+        name: 'Guest',
+        role: 'user',
+        isGuest: true
+      };
+      socket.userId = socket.user._id;
+      socket.userRole = 'user';
+      console.log(`[SOCKET] Guest connected: ${socket.id}`);
+      return next();
     }
 
     // Verify JWT token
@@ -23,7 +33,11 @@ const authenticateSocket = async (socket, next) => {
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
-      return next(new Error('User not found'));
+      // If token is invalid/user deleted, still allow as guest rather than blocking
+      socket.user = { _id: 'guest_fallback', name: 'Guest', role: 'user', isGuest: true };
+      socket.userId = 'guest_fallback';
+      socket.userRole = 'user';
+      return next();
     }
 
     // Attach user to socket
@@ -35,7 +49,11 @@ const authenticateSocket = async (socket, next) => {
     next();
   } catch (error) {
     console.error('[SOCKET] Authentication error:', error.message);
-    next(new Error('Invalid authentication token'));
+    // On error, allow as guest instead of disconnecting
+    socket.user = { _id: 'guest_error_fallback', name: 'Guest', role: 'user', isGuest: true };
+    socket.userId = 'guest_error_fallback';
+    socket.userRole = 'user';
+    next();
   }
 };
 

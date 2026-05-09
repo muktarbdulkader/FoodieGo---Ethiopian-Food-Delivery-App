@@ -72,21 +72,13 @@ function initializeSocketServer(httpServer) {
           return;
         }
 
-        // For table rooms, verify customer has an active order
+        // For table rooms, allow joining to see status updates
         if (roomName.startsWith('table:') && user.role !== 'restaurant') {
           const tableId = roomName.split(':')[1];
-          const hasActiveOrder = await Order.findOne({
-            tableId,
-            status: { $nin: ['completed', 'cancelled'] }
-          });
-
-          if (!hasActiveOrder) {
-            socket.emit('error', { 
-              message: 'No active order for this table',
-              roomName 
-            });
-            return;
-          }
+          // We allow joining even if no active order is found, 
+          // as the user might be about to place one or just finished one.
+          // This ensures they receive the 'cancelled' or 'completed' events.
+          console.log(`[SOCKET] Guest ${user.name} joining table room ${tableId}`);
         }
 
         // Join the room

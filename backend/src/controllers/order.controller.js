@@ -60,11 +60,20 @@ const getAllOrders = async (req, res, next) => {
       filter = { user: req.user._id };
     }
 
+    // Safety: Only fetch orders from last 30 days for general list
+    // This prevents loading thousands of old orders that cause timeouts
+    if (!filter.createdAt) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      filter.createdAt = { $gte: thirtyDaysAgo };
+    }
+
     const orders = await Order.find(filter)
       .populate("user", "name email phone address")
       .populate("restaurant", "name")
       .populate("tableId", "tableNumber") // Populate table number for dine-in orders
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(100); // Limit to 100 orders to prevent massive payloads and timeouts
 
     console.log(`Found ${orders.length} orders for ${userRole} user ${req.user.name}`);
 
@@ -1168,11 +1177,22 @@ const getDineInOrders = async (req, res, next) => {
       filter.status = status;
     }
 
+    // Exclude completed and cancelled if activeOnly is true
+    if (req.query.activeOnly === 'true') {
+      filter.status = { $nin: ['delivered', 'cancelled', 'completed'] };
+      
+      // Safety: Only look at orders from the last 7 days for "active" view
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      filter.createdAt = { $gte: sevenDaysAgo };
+    }
+
     const orders = await Order.find(filter)
       .populate('user', 'name email phone')
       .populate('tableId', 'tableNumber location capacity')
       .populate('restaurantId', 'hotelName hotelAddress')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(50); // Limit to 50 most recent active orders to prevent timeout
 
     // Group orders by table
     const ordersByTable = {};
@@ -1337,11 +1357,15 @@ const getOrderStatusByTable = async (req, res, next) => {
       });
     }
 
-    // Build filter
+    // Build filter - show most recent order regardless of status
+    // so guests can see if their order was rejected or completed
+    const twelveHoursAgo = new Date();
+    twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+
     const filter = {
       tableId,
       type: 'dine_in',
-      status: { $nin: ['completed', 'cancelled'] } // Exclude completed/cancelled orders
+      createdAt: { $gte: twelveHoursAgo }
     };
 
     // Filter by guestSessionId if provided (so each guest only sees their own orders)

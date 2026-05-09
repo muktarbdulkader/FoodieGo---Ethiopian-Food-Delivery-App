@@ -132,66 +132,10 @@
   </div>
   
   <script>
-    // Aggressive cache clearing on load
-    (function() {
-      // Clear all caches immediately
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          names.forEach(function(name) {
-            caches.delete(name);
-          });
-        });
-      }
-      
-      // Clear service worker cache
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          registrations.forEach(function(registration) {
-            registration.unregister();
-          });
-        });
-      }
-      
-      // Force reload if coming from cache
-      if (performance.navigation.type === 2) {
-        window.location.reload(true);
-      }
-    })();
-    
-    // Service Worker Registration with auto-update
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/flutter_service_worker.js')
-          .then((registration) => {
-            console.log('Service Worker registered:', registration);
-            
-            // Check for updates every 60 seconds
-            setInterval(() => {
-              registration.update();
-            }, 60000);
-            
-            // Listen for updates
-            registration.addEventListener('updatefound', () => {
-              const newWorker = registration.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New version available, force reload
-                  console.log('New version available, reloading...');
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
-                }
-              });
-            });
-          })
-          .catch((error) => {
-            console.log('Service Worker registration failed:', error);
-          });
-        
-        // Listen for controller change (new service worker activated)
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('New service worker activated, reloading...');
-          window.location.reload();
-        });
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
       });
     }
     
@@ -199,11 +143,21 @@
     window.addEventListener('flutter-first-frame', function() {
       const loading = document.getElementById('loading');
       if (loading) {
-        loading.style.transition = 'opacity 0.3s ease';
+        loading.style.transition = 'opacity 0.4s ease-out';
         loading.style.opacity = '0';
-        setTimeout(() => loading.remove(), 300);
+        setTimeout(() => loading.remove(), 400);
       }
     });
+
+    // Fallback: hide loading screen after 15 seconds if first frame didn't fire
+    // (helps if there's a minor error but the app still rendered)
+    setTimeout(() => {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 400);
+      }
+    }, 15000);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>

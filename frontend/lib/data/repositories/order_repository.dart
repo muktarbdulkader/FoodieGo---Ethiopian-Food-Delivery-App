@@ -15,6 +15,24 @@ class OrderRepository {
     return ordersJson.map((json) => Order.fromJson(json)).toList();
   }
 
+  /// Get all dine-in orders (for restaurant)
+  Future<List<Order>> getDineInOrders({String? restaurantId, bool activeOnly = false}) async {
+    String query = '?';
+    if (restaurantId != null) query += 'restaurantId=$restaurantId&';
+    if (activeOnly) query += 'activeOnly=true&';
+    
+    // Remove trailing ? or &
+    if (query.endsWith('?') || query.endsWith('&')) {
+      query = query.substring(0, query.length - 1);
+    }
+    
+    final response = await ApiService.get('${ApiConstants.orders}/dine-in$query');
+    
+    // The endpoint might return { data: [...] } or { data: [...], groupedByTable: [...] }
+    final List<dynamic> ordersJson = response['data'] ?? [];
+    return ordersJson.map((json) => Order.fromJson(json)).toList();
+  }
+
   /// Create a new order with payment & delivery
   Future<Order> createOrder({
     required List<CartItem> items,
