@@ -3,7 +3,9 @@ class Food {
   final String id;
   final String name;
   final String description;
-  final double price;
+  final double price; // Default delivery price
+  final double? dineInPrice;
+  final double? takeawayPrice;
   final String hotelId;
   final String hotelName;
   final String image;
@@ -36,6 +38,8 @@ class Food {
     required this.name,
     required this.description,
     required this.price,
+    this.dineInPrice,
+    this.takeawayPrice,
     required this.hotelId,
     required this.hotelName,
     this.image = '',
@@ -87,6 +91,8 @@ class Food {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
+      dineInPrice: json['dineInPrice'] != null ? (json['dineInPrice'] as num).toDouble() : null,
+      takeawayPrice: json['takeawayPrice'] != null ? (json['takeawayPrice'] as num).toDouble() : null,
       hotelId: hotelId,
       hotelName: json['hotelName'] ?? json['restaurant'] ?? '',
       image: json['image'] ??
@@ -122,6 +128,8 @@ class Food {
       name: name,
       description: description,
       price: price,
+      dineInPrice: dineInPrice,
+      takeawayPrice: takeawayPrice,
       hotelId: hotelId,
       hotelName: hotelName,
       image: image,
@@ -153,6 +161,8 @@ class Food {
       'name': name,
       'description': description,
       'price': price,
+      if (dineInPrice != null) 'dineInPrice': dineInPrice,
+      if (takeawayPrice != null) 'takeawayPrice': takeawayPrice,
       'image': image,
       'category': category,
       'isAvailable': isAvailable,
@@ -165,6 +175,11 @@ class Food {
   }
 
   double get finalPrice => discount > 0 ? price * (1 - discount / 100) : price;
+
+  double getDineInPrice() => dineInPrice ?? price;
+  double getTakeawayPrice() => takeawayPrice ?? price;
+  
+  double getFinalDineInPrice() => discount > 0 ? getDineInPrice() * (1 - discount / 100) : getDineInPrice();
 
   // For backward compatibility
   String get restaurant => hotelName;

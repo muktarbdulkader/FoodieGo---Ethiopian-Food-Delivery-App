@@ -22,11 +22,11 @@ class CartItem {
   });
 
   /// Create CartItem from Food
-  factory CartItem.fromFood(Food food) {
+  factory CartItem.fromFood(Food food, {bool isDineIn = false}) {
     return CartItem(
       foodId: food.id,
       name: food.name,
-      price: food.finalPrice,
+      price: isDineIn ? food.getFinalDineInPrice() : food.finalPrice,
       hotelId: food.hotelId,
       hotelName: food.hotelName,
       image: food.image,

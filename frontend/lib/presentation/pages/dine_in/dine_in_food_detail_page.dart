@@ -603,7 +603,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                      '${AppConstants.currency}${widget.food.finalPrice.toStringAsFixed(0)}',
+                      '${AppConstants.currency}${widget.food.getFinalDineInPrice().toStringAsFixed(0)}',
                       style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -611,7 +611,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                   if (widget.food.discount > 0) ...[
                     const SizedBox(width: 8),
                     Text(
-                        '${AppConstants.currency}${widget.food.price.toStringAsFixed(0)}',
+                        '${AppConstants.currency}${widget.food.getDineInPrice().toStringAsFixed(0)}',
                         style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey.shade400,
@@ -748,7 +748,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
   }
 
   Widget _buildBottomBar() {
-    final totalPrice = widget.food.finalPrice * _quantity;
+    final totalPrice = widget.food.getFinalDineInPrice() * _quantity;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -792,7 +792,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
 
   void _addToCart() {
     for (int i = 0; i < _quantity; i++) {
-      context.read<CartProvider>().addToCart(widget.food);
+      context.read<CartProvider>().addToCart(widget.food, isDineIn: true);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

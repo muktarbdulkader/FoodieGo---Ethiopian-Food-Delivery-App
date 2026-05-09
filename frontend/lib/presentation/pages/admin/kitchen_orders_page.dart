@@ -627,6 +627,11 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
     if (confirmed != true) return;
 
+    // Optimistic UI update
+    setState(() {
+      _orders.removeWhere((o) => o.id == order.id);
+    });
+
     try {
       // Use updateOrderStatus to set status to cancelled (restaurant can do this)
       await _orderRepository.updateOrderStatus(
@@ -634,14 +639,16 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'cancelled',
       );
 
+      final messageWithMenu = reasonController.text.isNotEmpty
+          ? '${_loc.get('order_rejected')}: ${reasonController.text}. Please order another item from the menu.'
+          : '${_loc.get('order_rejected')}. Please order another item from the menu.';
+
       // Send notification to customer
       await _orderRepository.sendOrderNotification(
         orderId: order.id,
         tableId: order.tableId ?? '',
         status: 'cancelled',
-        message: reasonController.text.isNotEmpty
-            ? '${_loc.get('order_rejected')}: ${reasonController.text}'
-            : _loc.get('order_rejected'),
+        message: messageWithMenu,
         languageCode: _notificationLanguage.code,
       );
 
@@ -651,7 +658,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'orderNumber': order.orderNumber,
         'tableId': order.tableId,
         'status': 'cancelled',
-        'message': _loc.get('order_rejected'),
+        'message': messageWithMenu,
         'reason': reasonController.text,
         'languageCode': _notificationLanguage.code,
       });
@@ -669,6 +676,8 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
       _loadOrders();
     } catch (e) {
+      _loadOrders(); // Revert optimistic update
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -682,6 +691,40 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   Future<void> _updateOrderStatus(Order order, String newStatus) async {
+    // Optimistic UI update
+    setState(() {
+      final index = _orders.indexWhere((o) => o.id == order.id);
+      if (index != -1) {
+        _orders[index] = Order(
+          id: order.id,
+          orderNumber: order.orderNumber,
+          userId: order.userId,
+          userName: order.userName,
+          userEmail: order.userEmail,
+          userPhone: order.userPhone,
+          items: order.items,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          tax: order.tax,
+          tip: order.tip,
+          discount: order.discount,
+          totalPrice: order.totalPrice,
+          status: newStatus,
+          payment: order.payment,
+          deliveryAddress: order.deliveryAddress,
+          delivery: order.delivery,
+          notes: order.notes,
+          promoCode: order.promoCode,
+          createdAt: order.createdAt,
+          type: order.type,
+          tableId: order.tableId,
+          tableNumber: order.tableNumber,
+          restaurantId: order.restaurantId,
+          chatMessages: order.chatMessages,
+        );
+      }
+    });
+
     try {
       await _orderRepository.updateOrderStatus(
         order.id,
@@ -732,6 +775,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
       _loadOrders();
     } catch (e) {
+      _loadOrders(); // Revert optimistic update
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${_loc.get('failed_update')}: $e'),
@@ -1512,17 +1556,24 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
     if (confirmed != true) return;
 
+    // Optimistic UI update
+    setState(() {
+      _orders.removeWhere((o) => o.id == order.id);
+    });
+
     try {
       await _orderRepository.updateOrderStatus(
         order.id,
         'cancelled',
       );
 
+      final messageWithMenu = 'Order rejected: $reason. Please order another item from the menu.';
+
       await _orderRepository.sendOrderNotification(
         orderId: order.id,
         tableId: order.tableId ?? '',
         status: 'cancelled',
-        message: 'Order rejected: $reason',
+        message: messageWithMenu,
         languageCode: _notificationLanguage.code,
       );
 
@@ -1531,7 +1582,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
         'orderNumber': order.orderNumber,
         'tableId': order.tableId,
         'status': 'cancelled',
-        'message': 'Order rejected: $reason',
+        'message': messageWithMenu,
         'reason': reason,
         'languageCode': _notificationLanguage.code,
       });
@@ -1547,6 +1598,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
 
       _loadOrders();
     } catch (e) {
+      _loadOrders(); // Revert optimistic update
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

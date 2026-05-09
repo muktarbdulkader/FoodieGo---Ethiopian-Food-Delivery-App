@@ -22,13 +22,13 @@ class CartProvider extends ChangeNotifier {
   double get totalPrice => _items.fold(0, (sum, item) => sum + item.total);
 
   /// Add food to cart
-  void addToCart(Food food) {
+  void addToCart(Food food, {bool isDineIn = false}) {
     final existingIndex = _items.indexWhere((item) => item.foodId == food.id);
 
     if (existingIndex >= 0) {
       _items[existingIndex].quantity++;
     } else {
-      _items.add(CartItem.fromFood(food));
+      _items.add(CartItem.fromFood(food, isDineIn: isDineIn));
     }
     notifyListeners();
   }

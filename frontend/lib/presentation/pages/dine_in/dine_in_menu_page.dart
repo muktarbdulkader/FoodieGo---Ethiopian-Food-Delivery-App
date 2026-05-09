@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_localizations.dart';
@@ -33,6 +33,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
   int _currentNavIndex = 0;
 
   late AnimationController _headerAnimController;
+  late AnimationController _bgAnimController;
   late Animation<double> _headerFade;
   late Animation<Offset> _headerSlide;
 
@@ -44,6 +45,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+    _bgAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat(reverse: true);
     _headerFade = CurvedAnimation(
         parent: _headerAnimController, curve: Curves.easeOut);
     _headerSlide = Tween<Offset>(
@@ -73,6 +78,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
   void dispose() {
     _searchController.dispose();
     _headerAnimController.dispose();
+    _bgAnimController.dispose();
     super.dispose();
   }
 
@@ -101,7 +107,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
   }
 
   void _addToCart(Food food) {
-    context.read<CartProvider>().addToCart(food);
+    context.read<CartProvider>().addToCart(food, isDineIn: true);
     final loc = context.read<LanguageProvider>().loc;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -339,7 +345,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
 
   Widget _buildHeader(List<Food> foods) {
     final restaurantName =
-        foods.isNotEmpty ? foods.first.hotelName : '';
+        foods.isNotEmpty ? foods.first.hotelName : 'Welcome';
     final tableNumber =
         context.read<DineInProvider>().getTableNumber() ?? '';
     final langProvider = context.watch<LanguageProvider>();
@@ -348,9 +354,72 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       position: _headerSlide,
       child: FadeTransition(
         opacity: _headerFade,
-        child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: AnimatedBuilder(
+          animation: _bgAnimController,
+          builder: (context, child) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [
+                    0.0,
+                    0.3 + (_bgAnimController.value * 0.4),
+                    1.0
+                  ],
+                  colors: [
+                    AppTheme.primaryColor.withValues(alpha: 0.9),
+                    AppTheme.primaryColor,
+                    const Color(0xFFE65100), // A deep warm orange/red
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Decorative background elements
+                  Positioned(
+                    right: -20 + (_bgAnimController.value * 10),
+                    top: -20 - (_bgAnimController.value * 5),
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -30 - (_bgAnimController.value * 10),
+                    bottom: -10 + (_bgAnimController.value * 5),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  // Main Content
+                  child!,
+                ],
+              ),
+            );
+          },
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -358,90 +427,111 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      '${langProvider.loc.welcomeBack} 👋',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     restaurantName.isNotEmpty
                         ? Text(
                             restaurantName,
                             style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: -0.3,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              height: 1.1,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           )
                         : Container(
-                            height: 20,
+                            height: 26,
                             width: 160,
                             decoration: BoxDecoration(
-                              color: Colors.grey[200],
+                              color: Colors.white.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
-                    if (tableNumber.isNotEmpty) ...[
-                      const SizedBox(height: 3),
+                    const SizedBox(height: 12),
+                    if (tableNumber.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.table_restaurant,
-                                size: 11,
-                                color: AppTheme.primaryColor),
-                            const SizedBox(width: 4),
+                                size: 14, color: Colors.white),
+                            const SizedBox(width: 6),
                             Text(
                               'Table $tableNumber',
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor,
+                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: _showLanguagePicker,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        langProvider.currentLanguage.flag,
-                        style: const TextStyle(fontSize: 16),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: _showLanguagePicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        langProvider.currentLanguage.code.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            langProvider.currentLanguage.flag,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            langProvider.currentLanguage.code.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.keyboard_arrow_down,
+                              size: 16, color: AppTheme.primaryColor),
+                        ],
                       ),
-                      const SizedBox(width: 3),
-                      const Icon(Icons.keyboard_arrow_down,
-                          size: 14, color: AppTheme.textSecondary),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -537,7 +627,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     final cartQty = cartProvider.items
         .where((i) => i.foodId == food.id)
         .fold(0, (sum, i) => sum + i.quantity);
-    final priceText = 'ETB ${food.price.toStringAsFixed(2)}';
+    final priceText = 'ETB ${food.getFinalDineInPrice().toStringAsFixed(2)}';
 
     return GestureDetector(
       onTap: () => Navigator.push(
