@@ -1334,28 +1334,54 @@ const getPendingWaiterCalls = async (req, res, next) => {
   }
 };
 
-// Acknowledge waiter call (mark as attended)
+// Acknowledge waiter call (mark as attended/assigned)
 const acknowledgeWaiterCall = async (req, res, next) => {
   try {
     const { callId } = req.params;
+    const { assignedTo } = req.body; // Optional: name of waiter assigned
     const restaurantId = req.user._id.toString();
 
     const calls = waiterCalls.get(restaurantId) || [];
-    const callIndex = calls.findIndex(call => call._id === callId || call.id === callId);
+    const call = calls.find(c => c._id === callId || c.id === callId);
 
-    if (callIndex === -1) {
+    if (!call) {
       return res.status(404).json({
         success: false,
         message: 'Waiter call not found'
       });
     }
 
-    // Remove the call from pending list
-    calls.splice(callIndex, 1);
+    // Update call status instead of just deleting
+    call.status = 'assigned';
+    call.assignedTo = assignedTo || req.user.name || 'Staff';
+    call.assignedAt = new Date().toISOString();
+
+    // Emit WebSocket event to notify everyone (kitchen and table)
+    try {
+      const eventData = {
+        eventType: 'waiter:updated',
+        ...call
+      };
+
+      // Notify kitchen (to remove from active list or update status)
+      socketManager.broadcastToKitchen(restaurantId, 'waiter:updated', eventData);
+
+      // Notify table (guest) so they see who is coming
+      socketManager.broadcastToTable(call.tableId, 'waiter:updated', eventData);
+
+      console.log(`[ORDER] Waiter call ${callId} assigned to ${call.assignedTo}`);
+    } catch (socketError) {
+      console.error('[ORDER] Failed to emit waiter update event:', socketError);
+    }
+
+    // Optional: Auto-remove from memory after 5 minutes if completed/assigned
+    // For now, we'll keep it so getPendingWaiterCalls can filter it out if needed,
+    // or just let it be for guest visibility until table is cleared.
 
     res.json({
       success: true,
-      message: 'Waiter call acknowledged'
+      message: 'Waiter call acknowledged',
+      data: call
     });
   } catch (error) {
     next(error);
@@ -1366,7 +1392,7 @@ const acknowledgeWaiterCall = async (req, res, next) => {
 const getOrderStatusByTable = async (req, res, next) => {
   try {
     const { tableId } = req.params;
-    const { guestSessionId } = req.query; // NEW: Get guestSessionId from query params
+    const { guestSessionId } = req.query;
 
     if (!tableId) {
       return res.status(400).json({
@@ -1375,8 +1401,7 @@ const getOrderStatusByTable = async (req, res, next) => {
       });
     }
 
-    // Build filter - show most recent order regardless of status
-    // so guests can see if their order was rejected or completed
+    // Find active order
     const twelveHoursAgo = new Date();
     twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
 
@@ -1386,35 +1411,47 @@ const getOrderStatusByTable = async (req, res, next) => {
       createdAt: { $gte: twelveHoursAgo }
     };
 
-    // Filter by guestSessionId if provided (so each guest only sees their own orders)
     if (guestSessionId) {
       filter.guestSessionId = guestSessionId;
     }
 
-    // Find the most recent order for this table (and guest session if provided)
     const order = await Order.findOne(filter)
       .sort({ createdAt: -1 })
-      .populate('tableId', 'tableNumber');
+      .populate('tableId', 'tableNumber restaurantId');
 
-    if (!order) {
+    // Find active waiter calls for this table
+    let activeWaiterCall = null;
+    if (order && order.tableId && order.tableId.restaurantId) {
+      const restaurantId = order.tableId.restaurantId.toString();
+      const calls = waiterCalls.get(restaurantId) || [];
+      // Get the most recent pending or assigned call for this table
+      activeWaiterCall = calls
+        .filter(c => c.tableId === tableId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+    }
+
+    if (!order && !activeWaiterCall) {
       return res.json({
         success: true,
         data: null,
-        message: 'No active order found for this table'
+        message: 'No active order or request found for this table'
       });
     }
 
     res.json({
       success: true,
       data: {
-        orderId: order._id,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        tableNumber: order.tableNumber,
-        items: order.items,
-        totalPrice: order.totalPrice,
-        createdAt: order.createdAt,
-        notification: order.customerNotification
+        order: order ? {
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          tableNumber: order.tableNumber,
+          items: order.items,
+          totalPrice: order.totalPrice,
+          createdAt: order.createdAt,
+          notification: order.customerNotification
+        } : null,
+        waiterCall: activeWaiterCall
       }
     });
   } catch (error) {

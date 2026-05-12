@@ -125,11 +125,11 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.premiumCream, // Luxury Cream background
+      backgroundColor: AppTheme.premiumDark, // Premium Dark background
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.textPrimary,
+        foregroundColor: Colors.white,
         centerTitle: true,
         title: Text(
           context.watch<LanguageProvider>().loc.yourBill,
@@ -176,7 +176,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
               onPressed: _loadBill,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.premiumGold, foregroundColor: Colors.white),
             ),
           ],
         ),
@@ -208,6 +208,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
     final tableNumber = _orderData!['tableNumber'] ?? 'N/A';
     final status = _orderData!['status'] ?? 'pending';
     final isPaid = status == 'completed';
+    final isCancelled = status == 'cancelled';
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -222,18 +223,64 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           _buildReceiptCard(items, subtotal, tax, totalPrice, orderNumber, tableNumber, isPaid),
           const SizedBox(height: 24),
 
-          // Payment Methods (Interactive)
-          if (!isPaid) ...[
+          // Payment Methods (Interactive) - Only show if active and not cancelled
+          if (!isPaid && !isCancelled) ...[
             _buildSectionTitle('Select Payment Method'),
             const SizedBox(height: 12),
             _buildInteractivePaymentOptions(),
             const SizedBox(height: 24),
             _buildRequestBillButton(),
+          ] else if (isCancelled) ...[
+            _buildCancelledNotice(),
+          ] else if (isPaid) ...[
+            _buildPaidBadge(),
           ],
-          
-          if (isPaid) _buildPaidBadge(),
 
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancelledNotice() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.cancel_outlined, color: Colors.red, size: 48),
+          const SizedBox(height: 16),
+          const Text(
+            'Order Cancelled',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.red),
+          ),
+          const SizedBox(height: 8),
+            Text(
+            'This order was cancelled by the kitchen. You do not need to pay for this order.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[400], height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pushReplacementNamed(context, '/dine-in-menu', arguments: {
+                'restaurantId': widget.restaurantId,
+                'tableId': widget.tableId,
+              }),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Return to Menu'),
+            ),
+          ),
         ],
       ),
     );
@@ -247,7 +294,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w800,
-          color: AppTheme.textPrimary,
+          color: Colors.white,
           letterSpacing: -0.5,
         ),
       ),
@@ -261,7 +308,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -273,7 +320,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppTheme.premiumGold.withValues(alpha: 0.05),
+              color: AppTheme.premiumGold.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             ),
             child: Column(
@@ -285,7 +332,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('ORDER ID', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1)),
-                        Text('#$orderNo', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
+                        Text('#$orderNo', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
                       ],
                     ),
                     Column(
@@ -312,7 +359,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                     children: [
                       Text('${item['quantity']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.premiumGold)),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600))),
+                      Expanded(child: Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
                       Text('ETB ${((item['price'] ?? 0.0) as num).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                     ],
                   ),
@@ -329,7 +376,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppTheme.textPrimary)),
+                    const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
                     Text('ETB ${total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppTheme.premiumGold)),
                   ],
                 ),
@@ -347,8 +394,8 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
-          Text('ETB ${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500)),
+          Text('ETB ${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
         ],
       ),
     );
@@ -378,10 +425,10 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.premiumDarkGrey,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppTheme.premiumGold : Colors.transparent,
+            color: isSelected ? AppTheme.premiumGold : Colors.white.withValues(alpha: 0.05),
             width: 2,
           ),
           boxShadow: [
@@ -399,7 +446,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.premiumGold : AppTheme.premiumCream,
+                    color: isSelected ? AppTheme.premiumGold : AppTheme.premiumDark,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(method['icon'] as IconData, color: isSelected ? Colors.white : AppTheme.premiumGold, size: 20),
@@ -409,7 +456,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(method['name'] as String, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(method['name'] as String, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
                       Text(method['desc'] as String, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                     ],
                   ),
@@ -422,12 +469,12 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.premiumCream,
+                  color: AppTheme.premiumDark,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.qr_code_2_rounded, size: 120, color: AppTheme.textPrimary),
+                    const Icon(Icons.qr_code_2_rounded, size: 120, color: Colors.white),
                     const SizedBox(height: 8),
                     Text('Scan to Pay via ${method['name']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.premiumGold)),
                   ],
@@ -436,14 +483,34 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
+                child: ElevatedButton.icon(
                   onPressed: () => _confirmSelfPayment(method['name']!),
+                  icon: const Icon(Icons.verified_user_rounded),
+                  label: const Text('I HAVE PAID - NOTIFY KITCHEN'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.premiumGold,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
+                    shadowColor: AppTheme.premiumGold.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ] else if (isSelected && method['id'] == 'Cash') ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _requestBill,
+                  icon: const Icon(Icons.person_search_rounded),
+                  label: const Text('CALL WAITER FOR CASH PAYMENT'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.premiumGold,
-                    side: const BorderSide(color: AppTheme.premiumGold),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppTheme.premiumGold, width: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('I Have Paid - Confirm'),
                 ),
               ),
             ],
@@ -479,12 +546,38 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           '${ApiConstants.orders}/dine-in/call-waiter',
           {
             'tableId': widget.tableId,
-            'message': '💰 Customer reported payment via $method. Please verify and mark as paid.',
+            'message': '💰 PAYMENT VERIFICATION: Guest reports paying via $method. Order #${_orderData!['orderNumber']}.',
           },
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Payment report sent! Waiter will verify shortly.')),
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Column(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
+                  SizedBox(height: 16),
+                  Text('Payment Sent!', textAlign: TextAlign.center),
+                ],
+              ),
+              content: const Text(
+                'The kitchen has been notified. Please stay at your table while we verify the payment. Thank you!',
+                textAlign: TextAlign.center,
+              ),
+              actions: [
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Got it'),
+                  ),
+                ),
+              ],
+            ),
           );
         }
       } catch (e) {
@@ -844,10 +937,10 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
       width: double.infinity,
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.premiumDarkGrey,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: AppTheme.premiumGold.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -856,7 +949,7 @@ class _BillPageState extends State<BillPage> with SingleTickerProviderStateMixin
           const SizedBox(height: 20),
           Text(
             context.read<LanguageProvider>().loc.billPaid,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
           ),
           const SizedBox(height: 8),
           Text(

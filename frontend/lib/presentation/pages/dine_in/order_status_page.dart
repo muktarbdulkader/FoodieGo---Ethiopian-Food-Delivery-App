@@ -28,6 +28,7 @@ class OrderStatusPage extends StatefulWidget {
 
 class _OrderStatusPageState extends State<OrderStatusPage> {
   Map<String, dynamic>? _orderData;
+  Map<String, dynamic>? _waiterCallData; // NEW: Store waiter call info
   bool _isLoading = true;
   String? _error;
   WebSocketProvider? _webSocketProvider;
@@ -83,6 +84,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     // Listen for order updates
     _webSocketProvider!.on('order:updated', _handleOrderUpdate);
     _webSocketProvider!.on('order:created', _handleOrderUpdate);
+    _webSocketProvider!.on('waiter:updated', _handleWaiterUpdate);
     _webSocketProvider!.on('notification:new', (data) {
       debugPrint('[ORDER STATUS] Received manual notification: $data');
       if (data['notification'] != null && mounted) {
@@ -106,6 +108,33 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
     final roomName = 'table:${widget.tableId}';
     _webSocketProvider!.joinRoom(roomName);
     debugPrint('[ORDER STATUS] Requested to join room: $roomName');
+  }
+
+  void _handleWaiterUpdate(dynamic data) {
+    debugPrint('[ORDER STATUS] Waiter update received: $data');
+    
+    final status = data['status'];
+    final attendee = data['assignedTo'] ?? 'A staff member';
+    
+    if (status == 'assigned' && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.person, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text('$attendee is coming to assist you.')),
+            ],
+          ),
+          backgroundColor: AppTheme.premiumGold,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _vibratePattern();
+    }
+    
+    // Reload status to update UI
+    _loadOrderStatus();
   }
 
   void _handleOrderUpdate(dynamic data) {
@@ -288,7 +317,17 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
 
       if (mounted) {
         setState(() {
-          _orderData = response['data'];
+          // The new API structure is { data: { order: {...}, waiterCall: {...} } }
+          // Handle both old and new structures for safety
+          final responseData = response['data'];
+          if (responseData != null && (responseData.containsKey('order') || responseData.containsKey('waiterCall'))) {
+            _orderData = responseData['order'];
+            _waiterCallData = responseData['waiterCall'];
+          } else {
+            _orderData = responseData;
+            _waiterCallData = null;
+          }
+          
           _isLoading = false;
           _error = null;
         });
@@ -399,7 +438,7 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                       ],
                     ),
                   )
-                : _orderData == null
+                : (_orderData == null && _waiterCallData == null)
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -426,21 +465,18 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
                                 color: Colors.white54,
                               ),
                             ),
+                            const SizedBox(height: 32),
+                            // Even if no order, let them call a waiter
+                            _buildCallWaiterButton(),
                           ],
                         ),
                       )
-                    : _buildOrderStatus(),
+                    : _buildStatusContent(),
       ),
     );
   }
 
-  Widget _buildOrderStatus() {
-    final status = _orderData!['status'] ?? 'pending';
-    final orderNumber = _orderData!['orderNumber'] ?? 'N/A';
-    final tableNumber = _orderData!['tableNumber'] ?? 'N/A';
-    final items = _orderData!['items'] as List<dynamic>? ?? [];
-    final totalPrice = (_orderData!['totalPrice'] ?? 0.0).toDouble();
-
+  Widget _buildStatusContent() {
     return RefreshIndicator(
       onRefresh: _loadOrderStatus,
       child: SingleChildScrollView(
@@ -449,195 +485,312 @@ class _OrderStatusPageState extends State<OrderStatusPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order Header
+            // Waiter Call Status (Priority over order if assigned)
+            if (_waiterCallData != null) ...[
+              _buildWaiterCallStatus(),
+              const SizedBox(height: 16),
+            ],
+
+            if (_orderData != null) ...[
+              _buildOrderHeader(),
+              const SizedBox(height: 24),
+              _buildStatusTimeline(_orderData!['status'] ?? 'pending'),
+              const SizedBox(height: 24),
+              _buildOrderItemsSection(),
+            ] else if (_waiterCallData == null) ...[
+              // Should not happen with _buildStatusContent logic but for safety
+              const Center(child: Text('No active data', style: TextStyle(color: Colors.white))),
+            ],
+
+            const SizedBox(height: 32),
+
+            // Call Waiter Button (if not already assigned)
+            if (_waiterCallData == null || _waiterCallData!['status'] != 'assigned')
+              _buildCallWaiterButton(),
+            
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaiterCallStatus() {
+    final status = _waiterCallData!['status'];
+    final isAssigned = status == 'assigned';
+    final attendee = _waiterCallData!['assignedTo'];
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isAssigned 
+            ? [const Color(0xFF1E3A1E), const Color(0xFF0D1A0D)] // Dark Green for assigned
+            : [const Color(0xFF3E2C00), const Color(0xFF1A1200)], // Dark Gold for pending
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isAssigned ? Colors.green.withValues(alpha: 0.5) : AppTheme.premiumGold.withValues(alpha: 0.5),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isAssigned ? Colors.green : AppTheme.premiumGold).withValues(alpha: 0.2),
+            blurRadius: 15,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
             Container(
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.2)),
+                color: Colors.white.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Order #$orderNumber',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppTheme.premiumGold.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Table $tableNumber',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppTheme.premiumGold,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(status),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _getStatusColor(status).withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            status.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              child: Icon(
+                isAssigned ? Icons.person : Icons.notifications_active,
+                color: isAssigned ? Colors.greenAccent : AppTheme.premiumGold,
+                size: 32,
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Status Timeline
-            _buildStatusTimeline(status),
-
-            const SizedBox(height: 24),
-
-            // Order Items
-            const Text(
-              'Order Items',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    ...items.map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'ETB ${item['quantity']}x',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  item['name'] ?? '',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ),
-                              Text(
-                                'ETB ${(item['price'] ?? 0.0).toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )),
-                    const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total:',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'ETB ${totalPrice.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Call Waiter Button
-            if (status != 'completed' && status != 'cancelled')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _callWaiter,
-                  icon: const Icon(Icons.notifications_active),
-                  label: Text(context.read<LanguageProvider>().loc.callWaiter),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.secondaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isAssigned ? 'Assistance Coming!' : 'Waiter Called',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isAssigned 
+                      ? '$attendee is on the way to your table.'
+                      : 'We have notified the staff. Please wait a moment.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isAssigned)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.premiumGold),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderHeader() {
+    final status = _orderData!['status'] ?? 'pending';
+    final orderNumber = _orderData!['orderNumber'] ?? 'N/A';
+    final tableNumber = _orderData!['tableNumber'] ?? 'N/A';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Order #$orderNumber',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.premiumGold.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Table $tableNumber',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.premiumGold,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: _getStatusColor(status),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _getStatusColor(status).withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderItemsSection() {
+    final items = _orderData!['items'] as List<dynamic>? ?? [];
+    final totalPrice = (_orderData!['totalPrice'] ?? 0.0).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Order Items',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.premiumDarkGrey,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                ...items.map((item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppTheme.premiumGold.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${item['quantity']}x',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.premiumGold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: Text(
+                                item['name'] ?? '',
+                                style: const TextStyle(fontSize: 16, color: Colors.white),
+                              ),
+                          ),
+                          Text(
+                            'ETB ${(item['price'] ?? 0.0).toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[400],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                const Divider(height: 24, color: Colors.white10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total:',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'ETB ${totalPrice.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.premiumGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCallWaiterButton() {
+    final loc = context.read<LanguageProvider>().loc;
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _callWaiter,
+        icon: const Icon(Icons.notifications_active),
+        label: Text(loc.callWaiter),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black, // Black background
+          foregroundColor: AppTheme.premiumGold, // Gold text/icon
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppTheme.premiumGold, width: 2), // Thicker Gold border
+          ),
+          elevation: 4,
+          shadowColor: AppTheme.premiumGold.withValues(alpha: 0.3),
         ),
       ),
     );

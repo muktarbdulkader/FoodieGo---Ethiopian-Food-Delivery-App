@@ -257,9 +257,6 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         return;
       }
 
-      // Create a GlobalKey for the QR code widget
-      final qrKey = GlobalKey();
-
       // Show loading
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,90 +279,69 @@ class _ManageTablesPageState extends State<ManageTablesPage> {
         ),
       );
 
-      // Create QR code widget
-      final qrWidget = RepaintBoundary(
-        key: qrKey,
-        child: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Table ${table.tableNumber}',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.primaryColor, width: 3),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: QrImageView(
-                  data: table.qrCodeData,
-                  version: QrVersions.auto,
-                  size: 300,
-                  backgroundColor: Colors.white,
-                  errorCorrectionLevel: QrErrorCorrectLevel.H,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Scan to order from your table',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ),
+      // Stable Image Generation using QrPainter
+      const double size = 1024.0; // High resolution for printing
+      const double padding = 80.0;
+      
+      final qrPainter = QrPainter(
+        data: table.qrCodeData,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.H,
+        color: Colors.black,
+        emptyColor: Colors.white,
+        gapless: true,
       );
 
-      // Render the widget offscreen using a custom pipeline
-      final renderObject = RenderRepaintBoundary();
-      final pipelineOwner = PipelineOwner();
-      final buildOwner = BuildOwner(focusManager: FocusManager());
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      
+      // Draw background
+      final paint = Paint()..color = Colors.white;
+      canvas.drawRect(const Rect.fromLTWH(0, 0, size, size + 200), paint);
 
-      // Attach render object to pipeline first
-      renderObject.attach(pipelineOwner);
-      pipelineOwner.rootNode = renderObject;
+      // Draw QR Code
+      final qrCanvas = Canvas(recorder);
+      canvas.save();
+      canvas.translate(padding, padding + 100);
+      qrPainter.paint(canvas, const Size(size - (padding * 2), size - (padding * 2)));
+      canvas.restore();
 
-      // Attach widget to render tree
-      final rootElement = RenderObjectToWidgetAdapter<RenderBox>(
-        container: renderObject,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: qrWidget,
+      // Draw Text Label
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: 'Table ${table.tableNumber}',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 72,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ).attachToRenderTree(buildOwner);
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset((size - textPainter.width) / 2, 80));
 
-      // Build and layout
-      buildOwner.buildScope(rootElement);
-      buildOwner.finalizeTree();
+      // Draw Footer
+      final footerPainter = TextPainter(
+        text: const TextSpan(
+          text: 'Scan to order from your table',
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 32,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      footerPainter.layout();
+      footerPainter.paint(canvas, Offset((size - footerPainter.width) / 2, size + 80));
 
-      // Set size and layout
-      renderObject.layout(const BoxConstraints(
-        minWidth: 500,
-        maxWidth: 500,
-        minHeight: 600,
-        maxHeight: 600,
-      ));
-
-      // Paint to create layer (required before toImage)
-      pipelineOwner.flushPaint();
-
-      // Convert to image
-      final image = await renderObject.toImage(pixelRatio: 2.0);
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(size.toInt(), (size + 200).toInt());
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
       if (byteData == null) {
-        throw Exception('Failed to generate QR code image');
+        throw Exception('Failed to generate image data');
       }
 
       final bytes = byteData.buffer.asUint8List();

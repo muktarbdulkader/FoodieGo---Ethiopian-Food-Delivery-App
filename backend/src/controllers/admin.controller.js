@@ -261,15 +261,28 @@ const getAllPayments = async (req, res, next) => {
         { 'items.hotelId': hotelId },
         ...(hotelName ? [{ 'items.hotelName': hotelName }] : [])
       ],
-      'payment.status': { $exists: true }
+      'payment.status': { $exists: true },
+      status: { $ne: 'cancelled' } // Exclude cancelled orders
     };
     
     const orders = await Order.find(hotelFilter)
-      .select('orderNumber totalPrice payment delivery user createdAt items')
+      .select('orderNumber totalPrice payment delivery user createdAt items type tableId tableNumber status')
       .populate('user', 'name email phone')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, data: { transactions: orders, stats: [] } });
+    // Calculate stats by payment method
+    const stats = await Order.aggregate([
+      { $match: hotelFilter },
+      {
+        $group: {
+          _id: '$payment.method',
+          total: { $sum: '$totalPrice' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({ success: true, data: { transactions: orders, stats } });
   } catch (error) {
     next(error);
   }

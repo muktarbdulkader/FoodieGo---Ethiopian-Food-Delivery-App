@@ -161,7 +161,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
             top: 20,
           ),
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.premiumDarkGrey,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -169,10 +169,10 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Write a Review',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
               const SizedBox(height: 16),
               const Text('Rating',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
               const SizedBox(height: 8),
               Row(
                 children: List.generate(
@@ -196,10 +196,10 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                 decoration: InputDecoration(
                   hintText: 'Write your review...',
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor: AppTheme.premiumDark,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
                 ),
               ),
               const SizedBox(height: 16),
@@ -236,7 +236,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor: AppTheme.premiumGold,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -263,7 +263,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.premiumDark,
       body: Stack(
         children: [
           CustomScrollView(
@@ -286,13 +286,13 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
       expandedHeight: 320,
       pinned: true,
       stretch: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.premiumDark,
       leading: GestureDetector(
         onTap: () => Navigator.pop(context),
         child: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.premiumDarkGrey,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -300,7 +300,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
             ],
           ),
           child: const Icon(Icons.arrow_back_ios_new,
-              size: 18, color: AppTheme.textPrimary),
+              size: 18, color: Colors.white),
         ),
       ),
       actions: [
@@ -310,7 +310,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
             margin: const EdgeInsets.all(8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.premiumDarkGrey,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -322,7 +322,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
               children: [
                 Icon(_isLiked ? Icons.favorite : Icons.favorite_border,
                     size: 20,
-                    color: _isLiked ? Colors.red : AppTheme.textPrimary),
+                    color: _isLiked ? Colors.red : Colors.white),
                 if (_likeCount > 0) ...[
                   const SizedBox(width: 4),
                   Text(
@@ -332,7 +332,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: _isLiked ? Colors.red : AppTheme.textPrimary)),
+                          color: _isLiked ? Colors.red : Colors.white)),
                 ],
               ],
             ),
@@ -425,7 +425,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                             style: const TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary)),
+                                color: Colors.white)),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -517,11 +517,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary)),
+                      color: Colors.white)),
               const SizedBox(height: 12),
               Text(widget.food.description,
                   style: TextStyle(
-                      color: Colors.grey.shade600, fontSize: 15, height: 1.6)),
+                      color: Colors.grey[400], fontSize: 15, height: 1.6)),
               const SizedBox(height: 28),
               _buildPriceSection(),
             ],
@@ -551,9 +551,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.premiumDarkGrey,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: AppTheme.cardShadow),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)
+            ]),
         child: Column(
           children: [
             Container(
@@ -568,7 +570,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: AppTheme.textPrimary)),
+                    color: Colors.white)),
             const SizedBox(height: 2),
             Text(label,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
@@ -583,11 +585,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
-          AppTheme.primaryColor.withValues(alpha: 0.05),
-          AppTheme.primaryLight.withValues(alpha: 0.02)
+          AppTheme.premiumGold.withValues(alpha: 0.1),
+          AppTheme.premiumGold.withValues(alpha: 0.05)
         ]),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+        border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -607,7 +609,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                       style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor)),
+                          color: AppTheme.premiumGold)),
                   if (widget.food.discount > 0) ...[
                     const SizedBox(width: 8),
                     Text(
@@ -623,9 +625,9 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
           ),
           Container(
             decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.premiumDarkGrey,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: AppTheme.cardShadow),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
             child: Row(
               children: [
                 _buildQuantityButton(Icons.remove, () {
@@ -636,7 +638,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                     child: Text('$_quantity',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold))),
+                            fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
                 _buildQuantityButton(
                     Icons.add, () => setState(() => _quantity++)),
               ],
@@ -652,7 +654,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
       onTap: onTap,
       child: Container(
           padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 20, color: AppTheme.primaryColor)),
+          child: Icon(icon, size: 20, color: AppTheme.premiumGold)),
     );
   }
 
@@ -675,7 +677,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
                 icon: const Icon(Icons.edit, size: 18),
                 label: const Text('Write Review'),
                 style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.primaryColor),
+                    foregroundColor: AppTheme.premiumGold),
               ),
             ],
           ),
@@ -686,11 +688,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: AppTheme.premiumDark,
                   borderRadius: BorderRadius.circular(12)),
-              child: const Center(
+              child: Center(
                   child: Text('No reviews yet. Be the first to review!',
-                      style: TextStyle(color: AppTheme.textSecondary))),
+                      style: TextStyle(color: Colors.grey[500]))),
             )
           else
             ...(_reviews.take(5).map((r) => _buildReviewCard(r))),
@@ -704,9 +706,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.premiumDarkGrey,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: AppTheme.cardShadow),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -732,7 +736,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
           if (review.comment.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(review.comment,
-                style: TextStyle(color: Colors.grey.shade700, height: 1.4)),
+                style: TextStyle(color: Colors.grey[400], height: 1.4)),
           ],
         ],
       ),
@@ -752,7 +756,7 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.premiumDarkGrey,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
@@ -767,9 +771,11 @@ class _DineInFoodDetailPageState extends State<DineInFoodDetailPage>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
+                color: AppTheme.premiumGold,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: AppTheme.buttonShadow),
+                boxShadow: [
+                  BoxShadow(color: AppTheme.premiumGold.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 5))
+                ]),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

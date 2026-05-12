@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
+import 'package:provider/provider.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../state/food/food_provider.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -97,8 +99,27 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     await Future.delayed(const Duration(milliseconds: 400));
     _textController.forward();
 
-    // Navigate to next screen fast - total ~1 second
+    // For web Dine-In, pre-fetch data while splash is showing
+    if (kIsWeb) {
+      final uri = Uri.base;
+      if (uri.path == '/dine-in-menu' &&
+          uri.queryParameters.containsKey('restaurantId')) {
+        final restaurantId = uri.queryParameters['restaurantId']!;
+        try {
+          // Trigger fetch in background
+          await context.read<FoodProvider>().fetchFoodsByHotel(
+                restaurantId,
+                menuType: 'dine_in',
+              );
+        } catch (e) {
+          debugPrint('Error pre-fetching foods: $e');
+        }
+      }
+    }
+
+    // Minimum delay to ensure animations are seen
     await Future.delayed(const Duration(milliseconds: 800));
+
     if (mounted) {
       _navigateToNextScreen();
     }

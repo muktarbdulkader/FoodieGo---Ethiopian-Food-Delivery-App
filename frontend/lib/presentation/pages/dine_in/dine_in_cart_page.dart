@@ -102,12 +102,12 @@ class _DineInCartPageState extends State<DineInCartPage> {
     final tableNumber = dineIn.getTableNumber() ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.premiumDark,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.premiumDark,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.premiumGold),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -116,9 +116,9 @@ class _DineInCartPageState extends State<DineInCartPage> {
             Text(
               loc.yourCart,
               style: const TextStyle(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: Colors.white,
               ),
             ),
             if (tableNumber.isNotEmpty)
@@ -178,8 +178,9 @@ class _DineInCartPageState extends State<DineInCartPage> {
                       // Notes field
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.premiumDarkGrey,
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                         ),
                         padding: const EdgeInsets.all(14),
                         child: Column(
@@ -190,7 +191,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
-                                color: AppTheme.textPrimary,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -203,7 +204,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
                                 hintStyle: TextStyle(
                                     color: Colors.grey[400], fontSize: 13),
                                 filled: true,
-                                fillColor: Colors.grey[50],
+                                fillColor: AppTheme.premiumDark,
                                 contentPadding: const EdgeInsets.all(12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -218,7 +219,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: const BorderSide(
-                                      color: AppTheme.primaryColor, width: 1.5),
+                                      color: AppTheme.premiumGold, width: 1.5),
                                 ),
                               ),
                             ),
@@ -231,8 +232,9 @@ class _DineInCartPageState extends State<DineInCartPage> {
                       // Order summary
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.premiumDarkGrey,
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -266,7 +268,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
           : Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.premiumDarkGrey,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),
@@ -282,7 +284,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
                   child: ElevatedButton(
                     onPressed: _isPlacingOrder ? null : _placeOrder,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
+                      backgroundColor: AppTheme.premiumGold,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -340,8 +342,9 @@ class _DineInCartPageState extends State<DineInCartPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.premiumDarkGrey,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -371,7 +374,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: AppTheme.textPrimary,
+                    color: Colors.white,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -396,8 +399,8 @@ class _DineInCartPageState extends State<DineInCartPage> {
               _qtyBtn(
                 icon: Icons.remove,
                 onTap: () => cart.updateQuantity(item.foodId, item.quantity - 1),
-                color: Colors.grey.shade100,
-                iconColor: AppTheme.textPrimary,
+                color: AppTheme.premiumDark,
+                iconColor: Colors.white,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -406,13 +409,14 @@ class _DineInCartPageState extends State<DineInCartPage> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
+                    color: Colors.white,
                   ),
                 ),
               ),
               _qtyBtn(
                 icon: Icons.add,
                 onTap: () => cart.updateQuantity(item.foodId, item.quantity + 1),
-                color: AppTheme.primaryColor,
+                color: AppTheme.premiumGold,
                 iconColor: Colors.white,
               ),
             ],
@@ -451,7 +455,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: isBold ? AppTheme.textPrimary : Colors.grey[600],
+            color: isBold ? Colors.white : Colors.grey[400],
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -461,7 +465,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
             fontSize: 14,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color: valueColor ??
-                (isBold ? AppTheme.primaryColor : AppTheme.textPrimary),
+                (isBold ? AppTheme.premiumGold : Colors.white),
           ),
         ),
       ],
@@ -494,7 +498,7 @@ class _DineInCartPageState extends State<DineInCartPage> {
             icon: const Icon(Icons.restaurant_menu),
             label: const Text('Back to Menu'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.premiumGold,
               foregroundColor: Colors.white,
               padding:
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

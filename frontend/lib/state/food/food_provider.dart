@@ -216,15 +216,26 @@ class FoodProvider extends ChangeNotifier {
     // Try to load from cache first for instant display
     final cachedFoods = await OfflineStorage.getMenu();
     if (cachedFoods != null && cachedFoods.isNotEmpty) {
-      _foods = cachedFoods.map((json) => Food.fromJson(json)).toList();
-      _applyFilters();
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
+      final List<Food> tempFoods =
+          cachedFoods.map((json) => Food.fromJson(json)).toList();
 
-      // Show that we're using cached data
-      debugPrint('[FOOD PROVIDER] Loaded ${_foods.length} foods from cache');
+      // Only use cache if it belongs to the same hotel
+      if (tempFoods.isNotEmpty && tempFoods.first.hotelId == hotelId) {
+        _foods = tempFoods;
+        _applyFilters();
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+        debugPrint('[FOOD PROVIDER] Loaded ${_foods.length} foods from cache');
+      } else {
+        // Different hotel or empty cache, clear current foods and show loading
+        _foods = [];
+        _isLoading = true;
+        notifyListeners();
+        debugPrint('[FOOD PROVIDER] Cache is for different hotel, loading fresh');
+      }
     } else {
+      _foods = [];
       _isLoading = true;
       notifyListeners();
     }

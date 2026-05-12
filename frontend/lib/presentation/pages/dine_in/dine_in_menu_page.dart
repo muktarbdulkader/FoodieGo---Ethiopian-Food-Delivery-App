@@ -292,7 +292,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     final featuredItems = foods.where((f) => f.isFeatured || f.rating >= 4.5).take(5).toList();
 
     return Scaffold(
-      backgroundColor: AppTheme.premiumCream, // Luxury Cream background
+      backgroundColor: AppTheme.premiumDark, // Premium Dark background
       body: SafeArea(
         child: Column(
           children: [
@@ -354,10 +354,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: AppTheme.textPrimary,
-          letterSpacing: -0.5,
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -394,12 +394,12 @@ class _DineInMenuPageState extends State<DineInMenuPage>
       child: Container(
         width: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.premiumDarkGrey,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.1), width: 1),
+          border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.15), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.premiumGold.withValues(alpha: 0.05),
+              color: AppTheme.premiumGold.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -468,7 +468,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                       style: const TextStyle(
                         fontWeight: FontWeight.w800, 
                         fontSize: 14, 
-                        color: AppTheme.textPrimary,
+                        color: Colors.white,
                         letterSpacing: -0.3,
                       ),
                       maxLines: 1,
@@ -532,20 +532,20 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     1.0
                   ],
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.9),
-                    AppTheme.primaryColor,
-                    const Color(0xFFE65100), // A deep warm orange/red
+                    AppTheme.premiumDark,
+                    AppTheme.premiumDarkGrey,
+                    Colors.black,
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+                  bottomLeft: Radius.circular(40),
+                  bottomRight: Radius.circular(40),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
+                    color: AppTheme.premiumGold.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
@@ -600,12 +600,13 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     const SizedBox(height: 4),
                     restaurantName.isNotEmpty
                         ? Text(
-                            restaurantName,
+                            restaurantName.toUpperCase(),
                             style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.premiumGold,
+                              letterSpacing: 1.5,
+                              fontFamily: 'Serif', // Elegant feel
                               height: 1.1,
                             ),
                             maxLines: 2,
@@ -635,7 +636,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.table_restaurant,
-                                size: 14, color: Colors.white),
+                                size: 14, color: AppTheme.premiumGold),
                             const SizedBox(width: 6),
                             Text(
                               'Table $tableNumber',
@@ -660,11 +661,12 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Colors.black.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.3)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: AppTheme.premiumGold.withValues(alpha: 0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -715,21 +717,21 @@ class _DineInMenuPageState extends State<DineInMenuPage>
           prefixIcon: Icon(Icons.search_rounded,
               color: Colors.grey[400], size: 20),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppTheme.premiumDarkGrey,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(
-                color: AppTheme.premiumGold, width: 1.5),
+                color: AppTheme.premiumGold, width: 2),
           ),
         ),
       ),
@@ -756,14 +758,14 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               padding: const EdgeInsets.symmetric(horizontal: 24),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected ? AppTheme.premiumGold : Colors.white,
-                borderRadius: BorderRadius.circular(16), // Less round, more modern
+                color: isSelected ? AppTheme.premiumGold : AppTheme.premiumDarkGrey,
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: isSelected 
-                  ? [BoxShadow(color: AppTheme.premiumGold.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                  ? [BoxShadow(color: AppTheme.premiumGold.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 6))]
+                  : [],
                 border: Border.all(
-                  color: isSelected ? AppTheme.premiumGold : Colors.grey.shade200,
-                  width: 1,
+                  color: isSelected ? AppTheme.premiumGold : Colors.white.withValues(alpha: 0.05),
+                  width: 1.5,
                 ),
               ),
               child: Text(
@@ -804,12 +806,12 @@ class _DineInMenuPageState extends State<DineInMenuPage>
         margin: const EdgeInsets.only(bottom: 18),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.premiumDarkGrey,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.premiumGold.withValues(alpha: 0.05), width: 1),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
@@ -867,7 +869,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
+                      color: Colors.white,
                       letterSpacing: -0.4,
                     ),
                     maxLines: 1,
@@ -878,7 +880,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     food.description,
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Colors.grey[600],
+                      color: Colors.grey[500],
                       height: 1.4,
                     ),
                     maxLines: 2,
@@ -990,10 +992,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
     final cartCount = cartProvider.itemCount;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.premiumDark,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -1066,8 +1068,8 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                   isActive ? activeIcon : icon,
                   size: 24,
                   color: isActive
-                      ? AppTheme.primaryColor
-                      : AppTheme.textLight,
+                      ? AppTheme.premiumGold
+                      : Colors.white70,
                 ),
                 if (badge != null)
                   Positioned(
@@ -1076,7 +1078,7 @@ class _DineInMenuPageState extends State<DineInMenuPage>
                     child: Container(
                       padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.premiumGold,
                         shape: BoxShape.circle,
                       ),
                       constraints: const BoxConstraints(
@@ -1100,10 +1102,10 @@ class _DineInMenuPageState extends State<DineInMenuPage>
               style: TextStyle(
                 fontSize: 11,
                 color: isActive
-                    ? AppTheme.primaryColor
-                    : AppTheme.textLight,
+                    ? AppTheme.premiumGold
+                    : Colors.white.withValues(alpha: 0.6),
                 fontWeight:
-                    isActive ? FontWeight.w600 : FontWeight.normal,
+                    isActive ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ],

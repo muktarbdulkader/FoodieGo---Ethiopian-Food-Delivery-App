@@ -109,25 +109,38 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   Future<void> _acknowledgeWaiterCall(String callId) async {
+    final authProvider = context.read<AuthProvider>();
+    final attendeeName = authProvider.user?.name ?? 'Staff';
+
+    // Optimistic UI update - mark as assigned immediately
+    if (mounted) {
+      setState(() {
+        final index = _waiterCalls.indexWhere((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId);
+        if (index != -1) {
+          _waiterCalls[index] = {
+            ..._waiterCalls[index],
+            'status': 'assigned',
+            'assignedTo': attendeeName,
+          };
+        }
+      });
+    }
+
     try {
-      await _orderRepository.acknowledgeWaiterCall(callId);
-      _loadWaiterCalls(); // Refresh list
+      await _orderRepository.acknowledgeWaiterCall(callId, assignedTo: attendeeName);
+      // Reload from server to be sure
+      _loadWaiterCalls();
+    } catch (e) {
+      // Reload on error
+      _loadWaiterCalls();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Waiter call acknowledged'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text('Failed to acknowledge: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to acknowledge: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -154,6 +167,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
       _webSocketProvider!.on('order:created', _handleNewOrder);
       _webSocketProvider!.on('order:updated', _handleOrderUpdate);
       _webSocketProvider!.on('waiter:called', _handleWaiterCall);
+      _webSocketProvider!.on('waiter:updated', _handleWaiterCall); // Also handle updates
 
       // Listen to connection state changes to rejoin room on reconnection
       _webSocketProvider!.addListener(_onWebSocketStateChanged);
@@ -239,48 +253,59 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
   }
 
   void _handleWaiterCall(dynamic data) {
-    debugPrint('[KITCHEN] Waiter called: $data');
+    debugPrint('[KITCHEN] Waiter call/update: $data');
 
-    // Play waiter call sound
+    final callId = data['_id']?.toString() ?? data['id']?.toString() ?? '';
     final tableNumber = data['tableNumber']?.toString();
-    _playWaiterCallSound(tableNumber: tableNumber);
+    final status = data['status']?.toString() ?? 'pending';
+
+    // Play waiter call sound only for new pending calls
+    if (status == 'pending' && !_waiterCalls.any((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId)) {
+      _playWaiterCallSound(tableNumber: tableNumber);
+    }
 
     // Update state immediately
     if (mounted) {
       setState(() {
-        // Add to list if not already there (based on _id)
-        final callId = data['_id']?.toString() ?? data['id']?.toString() ?? '';
-        if (!_waiterCalls.any((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId)) {
+        final index = _waiterCalls.indexWhere((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId);
+        
+        if (index != -1) {
+          // Update existing call (e.g. status changed to assigned)
+          _waiterCalls[index] = data;
+        } else if (status == 'pending') {
+          // Add new pending call
           _waiterCalls.insert(0, data);
           // Automatically show alerts panel if hidden
           _showWaiterCalls = true;
         }
       });
 
-      // Show snackbar for quick notification
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.notifications_active, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Table $tableNumber: ${data['message'] ?? 'Needs assistance'}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+      // Show snackbar for new pending calls
+      if (status == 'pending' && !_waiterCalls.any((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Table $tableNumber: ${data['message'] ?? 'Needs assistance'}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
           ),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {},
-          ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -964,7 +989,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                   }
                 },
               ),
-              if (_waiterCalls.isNotEmpty)
+              if (_waiterCalls.any((c) => c['status'] == 'pending'))
                 Positioned(
                   right: 8,
                   top: 8,
@@ -979,7 +1004,7 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                       minHeight: 16,
                     ),
                     child: Text(
-                      '${_waiterCalls.length}',
+                      '${_waiterCalls.where((c) => c['status'] == 'pending').length}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -1202,6 +1227,12 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
                         _buildCallSectionHeader('Service Requests', Colors.blue),
                         ...otherCalls.map((call) => _buildCallItem(call, isPayment: false)),
                       ],
+                      // New section for recently assigned/attended calls
+                      if (_waiterCalls.any((c) => c['status'] == 'assigned')) ...[
+                        const Divider(),
+                        _buildCallSectionHeader('In Progress', Colors.green),
+                        ..._waiterCalls.where((c) => c['status'] == 'assigned').map((call) => _buildCallItem(call, isAssigned: true)),
+                      ],
                     ],
                   ),
           ),
@@ -1223,16 +1254,31 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
     );
   }
 
-  Widget _buildCallItem(Map<String, dynamic> call, {bool isPayment = false}) {
+  Widget _buildCallItem(Map<String, dynamic> call, {bool isPayment = false, bool isAssigned = false}) {
     final callId = call['_id']?.toString() ?? call['id']?.toString() ?? '';
+    final status = call['status']?.toString() ?? 'pending';
+    final attendee = call['assignedTo']?.toString();
+    
+    Color cardColor;
+    if (isAssigned) {
+      cardColor = Colors.green[50]!;
+    } else if (isPayment) {
+      cardColor = Colors.orange[50]!;
+    } else {
+      cardColor = Colors.blue[50]!.withValues(alpha: 0.3);
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isPayment ? Colors.orange[200]! : Colors.blue[100]!),
+        side: BorderSide(
+          color: isAssigned ? Colors.green[200]! : (isPayment ? Colors.orange[200]! : Colors.blue[100]!),
+          width: isAssigned ? 2 : 1,
+        ),
       ),
-      color: isPayment ? Colors.orange[50] : Colors.blue[50]?.withValues(alpha: 0.3),
+      color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1241,9 +1287,27 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Table ${call['tableNumber'] ?? call['tableId'] ?? 'N/A'}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Table ${call['tableNumber'] ?? call['tableId'] ?? 'N/A'}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    if (isAssigned) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green[700],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'ASSIGNED',
+                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   _formatTime(DateTime.parse(call['createdAt'] ?? DateTime.now().toIso8601String())),
@@ -1256,18 +1320,47 @@ class _KitchenOrdersPageState extends State<KitchenOrdersPage> {
               call['message'] ?? 'Needs assistance',
               style: const TextStyle(fontSize: 13),
             ),
+            if (isAssigned && attendee != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.person, size: 14, color: Colors.green[700]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Attended by: $attendee',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: () => _acknowledgeWaiterCall(callId),
-                  style: TextButton.styleFrom(
-                    foregroundColor: isPayment ? Colors.orange[700] : Colors.blue[700],
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                if (!isAssigned)
+                  ElevatedButton(
+                    onPressed: () => _acknowledgeWaiterCall(callId),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isPayment ? Colors.orange[700] : Colors.blue[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Assign Me'),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: () {
+                      // Option to clear it completely if done
+                      setState(() {
+                        _waiterCalls.removeWhere((c) => (c['_id']?.toString() ?? c['id']?.toString()) == callId);
+                      });
+                    },
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Clear'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.green[700]),
                   ),
-                  child: const Text('Acknowledge'),
-                ),
               ],
             ),
           ],

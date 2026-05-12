@@ -158,11 +158,15 @@ class Food {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
+      '_id': id,
       'name': name,
       'description': description,
       'price': price,
       if (dineInPrice != null) 'dineInPrice': dineInPrice,
       if (takeawayPrice != null) 'takeawayPrice': takeawayPrice,
+      'hotelId': hotelId,
+      'hotelName': hotelName,
       'image': image,
       'category': category,
       'isAvailable': isAvailable,
@@ -171,6 +175,9 @@ class Food {
       'isFeatured': isFeatured,
       'discount': discount,
       'preparationTime': preparationTime,
+      'rating': rating,
+      'totalRatings': totalRatings,
+      'menuTypes': menuTypes,
     };
   }
 

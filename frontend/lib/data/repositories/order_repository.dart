@@ -276,10 +276,11 @@ class OrderRepository {
     }
   }
 
-  /// Acknowledge waiter call (mark as attended)
-  Future<void> acknowledgeWaiterCall(String callId) async {
+  /// Acknowledge waiter call (mark as attended/assigned)
+  Future<void> acknowledgeWaiterCall(String callId, {String? assignedTo}) async {
     await ApiService.put(
-        '${ApiConstants.orders}/dine-in/waiter-calls/$callId/acknowledge', {});
+        '${ApiConstants.orders}/dine-in/waiter-calls/$callId/acknowledge', 
+        { if (assignedTo != null) 'assignedTo': assignedTo });
   }
 
   /// Send notification to customer about order status

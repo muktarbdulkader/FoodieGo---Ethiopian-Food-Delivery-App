@@ -54,6 +54,7 @@ class _ManagePaymentsPageState extends State<ManagePaymentsPage> {
                                   fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 16),
                           ...admin.transactions
+                              .where((t) => t['status'] != 'cancelled') // Filter out cancelled orders
                               .map((t) => _buildTransactionCard(t, admin)),
                         ],
                       ),
@@ -222,9 +223,12 @@ class _ManagePaymentsPageState extends State<ManagePaymentsPage> {
             ],
           ),
           const SizedBox(height: 8),
-          Text('${user['name'] ?? 'Unknown'} • ${user['email'] ?? ''}',
-              style:
-                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          Text(
+            transaction['type'] == 'dine_in'
+                ? 'Table ${transaction['tableNumber'] ?? transaction['tableId'] ?? 'N/A'} • ${user['name'] ?? 'Guest'}'
+                : '${user['name'] ?? 'Customer'} • ${user['email'] ?? ''}',
+            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
           if (!isPaid) ...[
             const SizedBox(height: 12),
             SizedBox(
